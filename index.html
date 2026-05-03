@@ -1,0 +1,2360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ExamFlow — MCQ Examination Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ─── Design System ─────────────────────────────────────── */
+:root {
+  --ink:       #0f0e0d;
+  --ink-2:     #3a3834;
+  --ink-3:     #7a7670;
+  --paper:     #faf9f6;
+  --paper-2:   #f0ede6;
+  --paper-3:   #e4dfd5;
+  --accent:    #c8401a;
+  --accent-2:  #e8855e;
+  --accent-bg: #fdf0eb;
+  --success:   #1a6b3a;
+  --success-bg:#edf7f2;
+  --warn:      #a05c10;
+  --warn-bg:   #fef7ed;
+  --danger:    #b01a1a;
+  --danger-bg: #fdf0f0;
+  --info:      #1a4a8a;
+  --info-bg:   #edf3fd;
+  --radius:    10px;
+  --radius-lg: 16px;
+  --shadow:    0 1px 3px rgba(15,14,13,.08), 0 4px 16px rgba(15,14,13,.06);
+  --shadow-lg: 0 8px 32px rgba(15,14,13,.12);
+  --font-display: 'DM Serif Display', Georgia, serif;
+  --font-body:    'DM Sans', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', monospace;
+  --transition:   all .18s cubic-bezier(.4,0,.2,1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 15px; scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Typography ─────────────────────────────────────────── */
+h1 { font-family: var(--font-display); font-size: 2.4rem; line-height: 1.15; font-weight: 400; }
+h2 { font-family: var(--font-display); font-size: 1.7rem; line-height: 1.2; font-weight: 400; }
+h3 { font-size: 1.05rem; font-weight: 600; letter-spacing: -.01em; }
+h4 { font-size: .875rem; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-3); }
+
+/* ─── Utility ────────────────────────────────────────────── */
+.hidden { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+/* ─── Layout ─────────────────────────────────────────────── */
+.page { display: none; min-height: 100vh; }
+.page.active { display: flex; flex-direction: column; }
+
+/* ─── Navbar ─────────────────────────────────────────────── */
+.navbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 2rem; height: 60px;
+  background: var(--paper); border-bottom: 1px solid var(--paper-3);
+  position: sticky; top: 0; z-index: 100;
+}
+.navbar-brand {
+  font-family: var(--font-display); font-size: 1.4rem;
+  color: var(--ink); text-decoration: none; display: flex; align-items: center; gap: 8px;
+}
+.navbar-brand .logo-mark {
+  width: 32px; height: 32px; background: var(--accent);
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+}
+.navbar-brand .logo-mark svg { width: 18px; height: 18px; fill: none; stroke: #fff; stroke-width: 2; }
+.nav-links { display: flex; align-items: center; gap: 8px; }
+
+/* ─── Buttons ────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 9px 20px; border-radius: var(--radius); font-size: .9rem; font-weight: 500;
+  cursor: pointer; transition: var(--transition); border: 1.5px solid transparent;
+  text-decoration: none; white-space: nowrap; font-family: var(--font-body);
+}
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-primary {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+}
+.btn-primary:hover:not(:disabled) { background: #a83315; border-color: #a83315; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(200,64,26,.3); }
+.btn-secondary {
+  background: transparent; color: var(--ink); border-color: var(--paper-3);
+}
+.btn-secondary:hover { background: var(--paper-2); }
+.btn-ghost { background: transparent; color: var(--ink-2); border-color: transparent; }
+.btn-ghost:hover { background: var(--paper-2); }
+.btn-danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+.btn-danger:hover:not(:disabled) { background: #8f1515; }
+.btn-success { background: var(--success); color: #fff; border-color: var(--success); }
+.btn-sm { padding: 6px 14px; font-size: .825rem; }
+.btn-lg { padding: 13px 28px; font-size: 1rem; }
+.btn-icon { padding: 8px; border-radius: var(--radius); }
+.btn-full { width: 100%; }
+
+/* ─── Form elements ──────────────────────────────────────── */
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-label { font-size: .825rem; font-weight: 500; color: var(--ink-2); }
+.form-label span { color: var(--accent); }
+.form-input, .form-select, .form-textarea {
+  width: 100%; padding: 10px 14px; border: 1.5px solid var(--paper-3);
+  border-radius: var(--radius); font-size: .9rem; font-family: var(--font-body);
+  background: #fff; color: var(--ink); transition: var(--transition);
+  outline: none;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--accent); box-shadow: 0 0 0 3px rgba(200,64,26,.1);
+}
+.form-input.error, .form-select.error { border-color: var(--danger); }
+.form-hint { font-size: .8rem; color: var(--ink-3); }
+.form-error { font-size: .8rem; color: var(--danger); display: none; }
+.form-error.visible { display: block; }
+.form-textarea { resize: vertical; min-height: 100px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+/* ─── Cards ──────────────────────────────────────────────── */
+.card {
+  background: #fff; border: 1px solid var(--paper-3);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow);
+}
+.card-pad { padding: 24px; }
+.card-header { padding: 20px 24px; border-bottom: 1px solid var(--paper-2); }
+.card-body { padding: 24px; }
+.card-footer { padding: 16px 24px; border-top: 1px solid var(--paper-2); background: var(--paper-2); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+
+/* ─── Badges ─────────────────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 999px; font-size: .775rem; font-weight: 600;
+}
+.badge-accent   { background: var(--accent-bg); color: var(--accent); }
+.badge-success  { background: var(--success-bg); color: var(--success); }
+.badge-warn     { background: var(--warn-bg); color: var(--warn); }
+.badge-danger   { background: var(--danger-bg); color: var(--danger); }
+.badge-info     { background: var(--info-bg); color: var(--info); }
+.badge-neutral  { background: var(--paper-2); color: var(--ink-2); }
+
+/* ─── Upload zone ────────────────────────────────────────── */
+.upload-zone {
+  border: 2px dashed var(--paper-3); border-radius: var(--radius-lg);
+  padding: 36px 24px; text-align: center; cursor: pointer;
+  transition: var(--transition); background: var(--paper-2);
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: var(--accent); background: var(--accent-bg);
+}
+.upload-icon { font-size: 2rem; margin-bottom: 10px; }
+.upload-zone p { color: var(--ink-3); font-size: .875rem; margin-top: 6px; }
+.upload-zone strong { color: var(--ink); }
+
+/* ─── Toast ──────────────────────────────────────────────── */
+#toast-container {
+  position: fixed; bottom: 24px; right: 24px;
+  display: flex; flex-direction: column; gap: 8px; z-index: 9999;
+}
+.toast {
+  padding: 12px 18px; border-radius: var(--radius); font-size: .875rem; font-weight: 500;
+  box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 10px;
+  animation: slideIn .25s ease; max-width: 340px;
+}
+.toast.success { background: var(--success); color: #fff; }
+.toast.error   { background: var(--danger);  color: #fff; }
+.toast.info    { background: var(--info);    color: #fff; }
+.toast.warn    { background: var(--warn);    color: #fff; }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes slideOut { to { transform: translateX(120%); opacity: 0; } }
+
+/* ─── Modal ──────────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(15,14,13,.5);
+  display: none; align-items: center; justify-content: center;
+  z-index: 9000; padding: 20px; backdrop-filter: blur(3px);
+}
+.modal-backdrop.open { display: flex; }
+.modal {
+  background: #fff; border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+  width: 100%; max-width: 480px; overflow: hidden;
+  animation: modalIn .22s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes modalIn { from { transform: scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
+.modal-header { padding: 20px 24px 0; }
+.modal-body { padding: 16px 24px; }
+.modal-footer { padding: 0 24px 20px; display: flex; gap: 8px; justify-content: flex-end; }
+
+/* ─── Progress bar ───────────────────────────────────────── */
+.progress-bar { height: 6px; background: var(--paper-3); border-radius: 999px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--accent); border-radius: 999px; transition: width .4s ease; }
+
+/* ─── Stat card ──────────────────────────────────────────── */
+.stat-card { background: var(--paper-2); border-radius: var(--radius); padding: 16px 18px; }
+.stat-value { font-size: 1.9rem; font-weight: 600; line-height: 1; margin-bottom: 4px; }
+.stat-label { font-size: .8rem; color: var(--ink-3); font-weight: 500; }
+
+/* ─── Table ──────────────────────────────────────────────── */
+.data-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+.data-table th { text-align: left; padding: 10px 14px; font-size: .775rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); border-bottom: 1.5px solid var(--paper-3); }
+.data-table td { padding: 12px 14px; border-bottom: 1px solid var(--paper-2); vertical-align: middle; }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: var(--paper-2); }
+
+/* ─── Timer ──────────────────────────────────────────────── */
+.timer-display {
+  font-family: var(--font-mono); font-size: 1.1rem; font-weight: 500;
+  padding: 8px 16px; border-radius: var(--radius);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.timer-display.ok      { background: var(--success-bg); color: var(--success); }
+.timer-display.warning { background: var(--warn-bg); color: var(--warn); }
+.timer-display.danger  { background: var(--danger-bg); color: var(--danger); animation: pulse .8s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .6; } }
+
+/* ─── Q navigator grid ───────────────────────────────────── */
+.q-nav-grid { display: flex; flex-wrap: wrap; gap: 5px; }
+.q-nav-btn {
+  width: 34px; height: 34px; border-radius: 8px;
+  border: 1.5px solid var(--paper-3); background: transparent;
+  font-size: .8rem; font-weight: 600; cursor: pointer;
+  transition: var(--transition); display: flex; align-items: center; justify-content: center;
+  color: var(--ink-2);
+}
+.q-nav-btn:hover          { border-color: var(--accent); color: var(--accent); }
+.q-nav-btn.answered       { background: var(--success-bg); border-color: var(--success); color: var(--success); }
+.q-nav-btn.current        { background: var(--accent); border-color: var(--accent); color: #fff; }
+.q-nav-btn.flagged        { background: var(--warn-bg); border-color: var(--warn); color: var(--warn); }
+.q-nav-btn.flagged.answered { background: var(--warn-bg); border-color: var(--warn); color: var(--warn); }
+
+/* ─── MCQ option ─────────────────────────────────────────── */
+.mcq-option {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 16px; border-radius: var(--radius);
+  border: 1.5px solid var(--paper-3); cursor: pointer;
+  transition: var(--transition); background: #fff;
+  font-size: .9rem; user-select: none;
+}
+.mcq-option:hover { border-color: var(--accent-2); background: var(--accent-bg); }
+.mcq-option.selected { border-color: var(--accent); background: var(--accent-bg); font-weight: 500; }
+.mcq-option.correct  { border-color: var(--success); background: var(--success-bg); }
+.mcq-option.wrong    { border-color: var(--danger); background: var(--danger-bg); }
+.option-bubble {
+  width: 26px; height: 26px; min-width: 26px;
+  border-radius: 50%; border: 1.5px solid var(--paper-3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .75rem; font-weight: 700; font-family: var(--font-mono);
+  transition: var(--transition);
+}
+.mcq-option.selected .option-bubble { background: var(--accent); border-color: var(--accent); color: #fff; }
+.mcq-option.correct  .option-bubble { background: var(--success); border-color: var(--success); color: #fff; }
+.mcq-option.wrong    .option-bubble { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+/* ─── Live dot ───────────────────────────────────────────── */
+.live-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: #22c55e;
+  display: inline-block; animation: livePulse 1.5s infinite;
+}
+@keyframes livePulse { 0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34,197,94,.4); } 50% { box-shadow: 0 0 0 5px rgba(34,197,94,0); } }
+
+/* ─── Violations warning ─────────────────────────────────── */
+.anticheat-warning {
+  position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+  background: var(--danger); color: #fff;
+  padding: 12px 24px; border-radius: var(--radius);
+  font-weight: 600; font-size: .9rem;
+  box-shadow: var(--shadow-lg); z-index: 8000;
+  display: none; gap: 8px; align-items: center;
+  animation: shakeIt .4s ease;
+}
+.anticheat-warning.show { display: flex; }
+@keyframes shakeIt { 0%,100% { transform: translateX(-50%); } 20%,60% { transform: translateX(calc(-50% - 6px)); } 40%,80% { transform: translateX(calc(-50% + 6px)); } }
+
+/* ─── Score ring ─────────────────────────────────────────── */
+.score-ring-wrap { display: flex; align-items: center; justify-content: center; margin: 20px 0; }
+.score-ring { position: relative; width: 130px; height: 130px; }
+.score-ring svg { transform: rotate(-90deg); }
+.score-ring-num { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.score-ring-num .big { font-size: 1.8rem; font-weight: 700; font-family: var(--font-mono); line-height: 1; }
+.score-ring-num .small { font-size: .75rem; color: var(--ink-3); }
+
+/* ─── Scrollbar ──────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--paper-3); border-radius: 99px; }
+
+/* ─── Responsive ─────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .form-row, .form-row-3 { grid-template-columns: 1fr; }
+  .navbar { padding: 0 1rem; }
+  h1 { font-size: 1.8rem; }
+}
+
+/* ─── Divider ────────────────────────────────────────────── */
+.divider { height: 1px; background: var(--paper-3); margin: 20px 0; }
+
+/* ─── Tab nav ────────────────────────────────────────────── */
+.tab-nav { display: flex; gap: 4px; border-bottom: 1.5px solid var(--paper-3); margin-bottom: 20px; }
+.tab-btn {
+  padding: 10px 18px; font-size: .875rem; font-weight: 500; cursor: pointer;
+  border: none; background: transparent; color: var(--ink-3);
+  border-bottom: 2px solid transparent; margin-bottom: -1.5px; transition: var(--transition);
+}
+.tab-btn:hover { color: var(--ink); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* ─── Mini chart bar ─────────────────────────────────────── */
+.chart-bar-wrap { display: flex; align-items: flex-end; gap: 6px; height: 70px; }
+.chart-bar { flex: 1; border-radius: 4px 4px 0 0; transition: height .5s ease; min-height: 4px; }
+.chart-bar-labels { display: flex; gap: 6px; }
+.chart-bar-label { flex: 1; text-align: center; font-size: .72rem; color: var(--ink-3); }
+
+/* ─── Link chip ──────────────────────────────────────────── */
+.link-chip {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--paper-2); border: 1px solid var(--paper-3);
+  border-radius: var(--radius); padding: 10px 14px;
+  font-family: var(--font-mono); font-size: .825rem; overflow: hidden;
+}
+.link-chip span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--info); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  PAGE: LANDING                                          -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="page active" id="page-landing">
+  <nav class="navbar">
+    <a class="navbar-brand" href="#" onclick="showPage('page-landing')">
+      <div class="logo-mark">
+        <svg viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h8" stroke-linecap="round"/></svg>
+      </div>
+      ExamFlow
+    </a>
+    <div class="nav-links">
+      <button class="btn btn-ghost btn-sm" onclick="showPage('page-teacher-login')">Teacher login</button>
+      <button class="btn btn-primary btn-sm" onclick="showPage('page-teacher-login')">Get started</button>
+    </div>
+  </nav>
+
+  <main style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; text-align:center;">
+    <div class="badge badge-accent" style="margin-bottom:20px;">&#10024; MCQ Examination Platform</div>
+    <h1 style="max-width:640px; margin-bottom:20px;">
+      Run secure online exams,<br><em>effortlessly.</em>
+    </h1>
+    <p style="max-width:520px; color:var(--ink-3); font-size:1.05rem; margin-bottom:36px; line-height:1.7;">
+      Upload your question bank, generate a unique exam link, and get automated results with full analytics — all in one place.
+    </p>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+      <button class="btn btn-primary btn-lg" onclick="showPage('page-teacher-login')">Teacher dashboard →</button>
+      <button class="btn btn-secondary btn-lg" onclick="demoStudentFlow()">Try student demo</button>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px; max-width:760px; width:100%; margin-top:60px;">
+      <div class="card card-pad" style="text-align:left;">
+        <div style="font-size:1.5rem; margin-bottom:10px;">&#128196;</div>
+        <h3 style="margin-bottom:6px;">Upload any format</h3>
+        <p style="font-size:.875rem; color:var(--ink-3);">CSV, Excel, JSON, DOCX, or manual entry — we parse it all.</p>
+      </div>
+      <div class="card card-pad" style="text-align:left;">
+        <div style="font-size:1.5rem; margin-bottom:10px;">&#128272;</div>
+        <h3 style="margin-bottom:6px;">Anti-cheat built in</h3>
+        <p style="font-size:.875rem; color:var(--ink-3);">Shuffled questions, tab detection, and violation logging.</p>
+      </div>
+      <div class="card card-pad" style="text-align:left;">
+        <div style="font-size:1.5rem; margin-bottom:10px;">&#128202;</div>
+        <h3 style="margin-bottom:6px;">Auto results & reports</h3>
+        <p style="font-size:.875rem; color:var(--ink-3);">Instant grading, CSV exports, and per-student analytics.</p>
+      </div>
+    </div>
+  </main>
+
+  <footer style="padding:20px; text-align:center; font-size:.8rem; color:var(--ink-3); border-top:1px solid var(--paper-3);">
+    ExamFlow &copy; 2025 &nbsp;·&nbsp; Built for educators
+  </footer>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  PAGE: TEACHER LOGIN                                    -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="page" id="page-teacher-login">
+  <nav class="navbar">
+    <a class="navbar-brand" href="#" onclick="showPage('page-landing')">
+      <div class="logo-mark"><svg viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h8" stroke-linecap="round"/></svg></div>
+      ExamFlow
+    </a>
+  </nav>
+  <main style="flex:1; display:flex; align-items:center; justify-content:center; padding:40px 20px;">
+    <div class="card" style="width:100%;max-width:420px;">
+      <div class="card-header">
+        <h2>Teacher login</h2>
+        <p style="color:var(--ink-3);font-size:.875rem;margin-top:4px;">Access your exam dashboard</p>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div class="form-group">
+            <label class="form-label">Email <span>*</span></label>
+            <input class="form-input" id="login-email" type="email" placeholder="teacher@university.edu" value="teacher@examflow.io">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password <span>*</span></label>
+            <input class="form-input" id="login-pass" type="password" placeholder="••••••••" value="password123">
+            <span class="form-hint">Demo: any email + any password works</span>
+          </div>
+          <button class="btn btn-primary btn-full" onclick="doTeacherLogin()">Sign in →</button>
+          <div style="text-align:center;font-size:.825rem;color:var(--ink-3);">
+            Don't have an account? <a href="#" onclick="doTeacherLogin()" style="color:var(--accent);">Register free</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  PAGE: TEACHER DASHBOARD                               -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="page" id="page-teacher-dashboard">
+  <nav class="navbar">
+    <a class="navbar-brand" href="#" onclick="showPage('page-teacher-dashboard')">
+      <div class="logo-mark"><svg viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h8" stroke-linecap="round"/></svg></div>
+      ExamFlow
+    </a>
+    <div class="nav-links">
+      <span style="font-size:.875rem;color:var(--ink-3)" id="teacher-name-display"></span>
+      <button class="btn btn-ghost btn-sm" onclick="showPage('page-monitoring')">&#128202; Live monitor</button>
+      <button class="btn btn-primary btn-sm" onclick="openCreateExamModal()">+ New exam</button>
+      <button class="btn btn-ghost btn-icon" onclick="doLogout()" title="Logout">&#128682;</button>
+    </div>
+  </nav>
+
+  <main style="flex:1;padding:32px;max-width:1200px;width:100%;margin:0 auto;">
+    <!-- Stats row -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;">
+      <div class="stat-card">
+        <div class="stat-value" id="dash-stat-exams">0</div>
+        <div class="stat-label">Total exams</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="dash-stat-active" style="color:var(--success);">0</div>
+        <div class="stat-label">Active now</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="dash-stat-students">0</div>
+        <div class="stat-label">Total students</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="dash-stat-avg">—</div>
+        <div class="stat-label">Avg score</div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <h3>Your exams</h3>
+      <button class="btn btn-primary btn-sm" onclick="openCreateExamModal()">+ Create exam</button>
+    </div>
+
+    <div class="card">
+      <div id="exam-list-empty" style="padding:48px;text-align:center;color:var(--ink-3);">
+        <div style="font-size:2rem;margin-bottom:10px;">&#128196;</div>
+        <p>No exams yet. Create your first exam to get started.</p>
+        <button class="btn btn-primary" style="margin-top:16px;" onclick="openCreateExamModal()">Create exam →</button>
+      </div>
+      <table class="data-table hidden" id="exam-list-table">
+        <thead>
+          <tr>
+            <th>Exam</th>
+            <th>Section / Course</th>
+            <th>Window</th>
+            <th>Questions</th>
+            <th>Students</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="exam-list-tbody"></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  PAGE: MONITORING DASHBOARD                            -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="page" id="page-monitoring">
+  <nav class="navbar">
+    <a class="navbar-brand" href="#" onclick="showPage('page-teacher-dashboard')">
+      <div class="logo-mark"><svg viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h8" stroke-linecap="round"/></svg></div>
+      ExamFlow
+    </a>
+    <div class="nav-links">
+      <button class="btn btn-ghost btn-sm" onclick="showPage('page-teacher-dashboard')">← Dashboard</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmEndExam()">End exam early</button>
+    </div>
+  </nav>
+  <main style="flex:1;padding:28px;max-width:1200px;width:100%;margin:0 auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+          <h2 id="monitor-exam-title">Live Monitor</h2>
+          <span class="live-dot"></span>
+          <span class="badge badge-success" style="font-size:.75rem;">LIVE</span>
+        </div>
+        <p style="color:var(--ink-3);font-size:.875rem;" id="monitor-exam-subtitle"></p>
+      </div>
+      <div class="timer-display ok" id="monitor-timer">—</div>
+    </div>
+
+    <!-- Stats -->
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;">
+      <div class="stat-card"><div class="stat-value" id="m-total">0</div><div class="stat-label">Registered</div></div>
+      <div class="stat-card"><div class="stat-value" style="color:var(--info)" id="m-active">0</div><div class="stat-label">In progress</div></div>
+      <div class="stat-card"><div class="stat-value" style="color:var(--success)" id="m-submitted">0</div><div class="stat-label">Submitted</div></div>
+      <div class="stat-card"><div class="stat-value" style="color:var(--danger)" id="m-flagged">0</div><div class="stat-label">Flagged</div></div>
+      <div class="stat-card"><div class="stat-value" id="m-avg">—</div><div class="stat-label">Avg score</div></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 320px;gap:16px;">
+      <!-- Student table -->
+      <div class="card">
+        <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <h3>Student activity</h3>
+          <div style="display:flex;gap:4px;" id="monitor-filter-btns">
+            <button class="btn btn-secondary btn-sm active" onclick="setMonitorFilter('all',this)" style="background:var(--accent);color:#fff;border-color:var(--accent);">All</button>
+            <button class="btn btn-secondary btn-sm" onclick="setMonitorFilter('active',this)">Active</button>
+            <button class="btn btn-secondary btn-sm" onclick="setMonitorFilter('flagged',this)">Flagged</button>
+            <button class="btn btn-secondary btn-sm" onclick="setMonitorFilter('submitted',this)">Submitted</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="data-table" id="monitor-table">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Progress</th>
+                <th>Time left</th>
+                <th>Violations</th>
+                <th>Status</th>
+                <th>Score</th>
+              </tr>
+            </thead>
+            <tbody id="monitor-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Right panel -->
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        <!-- Score distribution -->
+        <div class="card card-pad">
+          <h4 style="margin-bottom:14px;">Score distribution</h4>
+          <div class="chart-bar-wrap" id="monitor-chart"></div>
+          <div class="chart-bar-labels" id="monitor-chart-labels"></div>
+        </div>
+        <!-- Violation log -->
+        <div class="card card-pad" style="flex:1;">
+          <h4 style="margin-bottom:12px;">Violation log</h4>
+          <div style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;" id="violation-log">
+            <p style="color:var(--ink-3);font-size:.825rem;">No violations recorded.</p>
+          </div>
+        </div>
+        <!-- Export -->
+        <div class="card card-pad">
+          <h4 style="margin-bottom:12px;">Export results</h4>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <button class="btn btn-secondary btn-full" onclick="exportCSV()">&#128190; Download CSV</button>
+            <button class="btn btn-ghost btn-full" onclick="sendEmailReport()">&#9993; Email report</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  PAGE: STUDENT INFO FORM                               -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="page" id="page-student-info">
+  <nav class="navbar">
+    <a class="navbar-brand" href="#">
+      <div class="logo-mark"><svg viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h8" stroke-linecap="round"/></svg></div>
+      ExamFlow
+    </a>
+    <div class="nav-links">
+      <span class="badge badge-info" id="student-exam-badge">Exam</span>
+    </div>
+  </nav>
+  <main style="flex:1;display:flex;align-items:center;justify-content:center;padding:32px 16px;">
+    <div class="card" style="width:100%;max-width:580px;">
+      <div class="card-header">
+        <h2 id="student-info-exam-title">Before you begin</h2>
+        <p style="color:var(--ink-3);font-size:.875rem;margin-top:4px;" id="student-info-exam-sub">Fill in your details accurately. These cannot be changed once the exam starts.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
+          <span class="badge badge-warn" id="student-info-duration">⏱ — min</span>
+          <span class="badge badge-neutral" id="student-info-qcount">— questions</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Full name <span>*</span></label>
+              <input class="form-input" id="si-name" placeholder="e.g. Rafiq Ahmed">
+              <span class="form-error" id="si-name-err">Required</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Student ID <span>*</span></label>
+              <input class="form-input" id="si-id" placeholder="e.g. 2021-CSE-042">
+              <span class="form-error" id="si-id-err">Required</span>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Section <span>*</span></label>
+              <input class="form-input" id="si-section" placeholder="e.g. Section A">
+              <span class="form-error" id="si-section-err">Required</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Department <span>*</span></label>
+              <input class="form-input" id="si-dept" placeholder="e.g. CSE">
+              <span class="form-error" id="si-dept-err">Required</span>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Session / Year <span>*</span></label>
+              <input class="form-input" id="si-session" placeholder="e.g. 2021-2025">
+              <span class="form-error" id="si-session-err">Required</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Date</label>
+              <input class="form-input" id="si-date" readonly>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Course name</label>
+            <input class="form-input" id="si-course" readonly>
+          </div>
+
+          <div style="background:var(--warn-bg);border:1px solid #f0c060;border-radius:var(--radius);padding:12px 14px;font-size:.85rem;color:var(--warn);display:flex;gap:8px;align-items:flex-start;">
+            <span style="font-size:1rem;">&#9888;</span>
+            <span>Once you start, the countdown begins and <strong>cannot be paused</strong>. Switching tabs, refreshing, or pressing back is logged and may affect your result.</span>
+          </div>
+
+          <button class="btn btn-primary btn-full btn-lg" onclick="startExam()">Start exam →</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  PAGE: EXAM                                            -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="page" id="page-exam">
+  <!-- Anti-cheat warning banner -->
+  <div class="anticheat-warning" id="anticheat-banner">
+    &#9888; Tab switch detected — this has been logged
+  </div>
+
+  <nav class="navbar">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div class="logo-mark" style="width:28px;height:28px;"><svg viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h8" stroke-linecap="round" stroke="white" stroke-width="2" fill="none"/></svg></div>
+      <div>
+        <div style="font-weight:600;font-size:.9rem;" id="exam-title-nav"></div>
+        <div style="font-size:.75rem;color:var(--ink-3);" id="exam-student-nav"></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div class="timer-display ok" id="exam-timer">45:00</div>
+      <button class="btn btn-danger btn-sm" onclick="confirmSubmit()">Submit exam</button>
+    </div>
+  </nav>
+
+  <div style="height:4px;background:var(--paper-3);">
+    <div class="progress-fill" id="exam-progress" style="height:4px;width:0%;transition:width .4s;"></div>
+  </div>
+
+  <main style="flex:1;display:grid;grid-template-columns:280px 1fr;min-height:0;">
+    <!-- Sidebar -->
+    <div style="border-right:1px solid var(--paper-3);padding:20px;overflow-y:auto;background:var(--paper);">
+      <h4 style="margin-bottom:14px;">Questions</h4>
+      <div class="q-nav-grid" id="q-nav-grid" style="margin-bottom:20px;"></div>
+      <div class="divider"></div>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:.8rem;">
+        <div style="display:flex;align-items:center;gap:6px;"><div style="width:14px;height:14px;border-radius:4px;background:var(--success-bg);border:1.5px solid var(--success);"></div> Answered</div>
+        <div style="display:flex;align-items:center;gap:6px;"><div style="width:14px;height:14px;border-radius:4px;background:var(--warn-bg);border:1.5px solid var(--warn);"></div> Flagged</div>
+        <div style="display:flex;align-items:center;gap:6px;"><div style="width:14px;height:14px;border-radius:4px;background:var(--paper-2);border:1.5px solid var(--paper-3);"></div> Unanswered</div>
+      </div>
+      <div class="divider"></div>
+      <div style="font-size:.825rem;color:var(--ink-3);">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>Answered</span><strong id="sidebar-answered" style="color:var(--success);">0</strong></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>Unanswered</span><strong id="sidebar-unanswered" style="color:var(--ink-2);">0</strong></div>
+        <div style="display:flex;justify-content:space-between;"><span>Flagged</span><strong id="sidebar-flagged" style="color:var(--warn);">0</strong></div>
+      </div>
+    </div>
+
+    <!-- Main exam area -->
+    <div style="overflow-y:auto;padding:28px 32px;">
+      <div style="max-width:680px;margin:0 auto;">
+        <!-- Q number + flag -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <div>
+            <span class="badge badge-neutral" id="q-num-badge">Q 1 of —</span>
+            <span class="badge badge-neutral" style="margin-left:6px;" id="q-marks-badge">1 mark</span>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="flag-btn" onclick="toggleFlag()">&#9873; Flag question</button>
+        </div>
+
+        <!-- Question text -->
+        <div style="font-size:1.05rem;font-weight:500;line-height:1.65;margin-bottom:22px;" id="question-text"></div>
+
+        <!-- Options -->
+        <div style="display:flex;flex-direction:column;gap:10px;" id="options-container"></div>
+
+        <!-- Nav buttons -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:28px;padding-top:20px;border-top:1px solid var(--paper-3);">
+          <button class="btn btn-secondary" onclick="prevQuestion()" id="prev-btn">← Previous</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearAnswer()">Clear selection</button>
+          <button class="btn btn-primary" onclick="nextQuestion()" id="next-btn">Next →</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  PAGE: RESULTS                                         -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="page" id="page-results">
+  <nav class="navbar">
+    <a class="navbar-brand" href="#">
+      <div class="logo-mark"><svg viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h8" stroke-linecap="round"/></svg></div>
+      ExamFlow
+    </a>
+  </nav>
+  <main style="flex:1;padding:32px 20px;max-width:800px;width:100%;margin:0 auto;">
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-body" style="text-align:center;">
+        <div class="badge badge-success" style="margin-bottom:16px;">&#10003; Exam submitted</div>
+        <h2 id="result-exam-title" style="margin-bottom:6px;">Results</h2>
+        <p style="color:var(--ink-3);font-size:.875rem;" id="result-student-name"></p>
+
+        <div class="score-ring-wrap">
+          <div class="score-ring">
+            <svg width="130" height="130" viewBox="0 0 130 130">
+              <circle cx="65" cy="65" r="54" fill="none" stroke="#e4dfd5" stroke-width="10"/>
+              <circle id="result-ring" cx="65" cy="65" r="54" fill="none" stroke="#c8401a" stroke-width="10"
+                stroke-linecap="round" stroke-dasharray="339.3" stroke-dashoffset="339.3"
+                style="transition:stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)"/>
+            </svg>
+            <div class="score-ring-num">
+              <span class="big" id="result-score-big">0</span>
+              <span class="small" id="result-score-total">/ 0</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:6px;">
+          <span class="badge badge-info" id="result-pct-badge">0%</span>
+          <span class="badge" id="result-grade-badge">—</span>
+          <span class="badge badge-neutral" id="result-time-badge">⏱ —</span>
+          <span class="badge badge-neutral" id="result-violations-badge">&#9873; 0 violations</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Answer review -->
+    <div class="card">
+      <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3>Answer review</h3>
+        <div style="display:flex;gap:6px;">
+          <span class="badge badge-success" id="review-correct-count">0 correct</span>
+          <span class="badge badge-danger" id="review-wrong-count">0 wrong</span>
+          <span class="badge badge-neutral" id="review-skip-count">0 skipped</span>
+        </div>
+      </div>
+      <div id="review-list" style="padding:16px;display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:20px;flex-wrap:wrap;">
+      <button class="btn btn-secondary" onclick="showPage('page-landing')">← Back to home</button>
+    </div>
+  </main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  MODALS                                                 -->
+<!-- ═══════════════════════════════════════════════════════ -->
+
+<!-- Create Exam Modal -->
+<div class="modal-backdrop" id="modal-create-exam">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header">
+      <h3>Create new exam</h3>
+      <p style="color:var(--ink-3);font-size:.85rem;margin-top:4px;">Configure exam settings and upload your question bank.</p>
+    </div>
+    <div class="modal-body" style="max-height:70vh;overflow-y:auto;">
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchModalTab('tab-config',this)">&#9881; Settings</button>
+        <button class="tab-btn" onclick="switchModalTab('tab-upload',this)">&#128196; Questions</button>
+        <button class="tab-btn" onclick="switchModalTab('tab-preview',this)">&#128065; Preview</button>
+      </div>
+
+      <!-- Tab: Settings -->
+      <div class="tab-pane active" id="tab-config">
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div class="form-group">
+            <label class="form-label">Teacher email (for results) <span>*</span></label>
+            <input class="form-input" id="ce-email" type="email" placeholder="teacher@university.edu">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Course name <span>*</span></label>
+              <input class="form-input" id="ce-course" placeholder="e.g. Computer Networks">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Section <span>*</span></label>
+              <input class="form-input" id="ce-section" placeholder="e.g. Section A">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Duration (minutes) <span>*</span></label>
+              <input class="form-input" id="ce-duration" type="number" min="5" max="300" placeholder="45">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Marks per question</label>
+              <input class="form-input" id="ce-marks" type="number" min="1" value="1">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Exam start time <span>*</span></label>
+              <input class="form-input" id="ce-start" type="datetime-local">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Exam end time <span>*</span></label>
+              <input class="form-input" id="ce-end" type="datetime-local">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Shuffle options</label>
+            <div style="display:flex;gap:16px;margin-top:4px;">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.875rem;">
+                <input type="checkbox" id="ce-shuffle-q" checked> Shuffle question order
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.875rem;">
+                <input type="checkbox" id="ce-shuffle-o" checked> Shuffle option order
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Upload -->
+      <div class="tab-pane" id="tab-upload">
+        <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropFile(event)">
+          <div class="upload-icon">&#128196;</div>
+          <strong>Click to browse or drag & drop</strong>
+          <p>Supports CSV, Excel (.xlsx), JSON</p>
+          <p style="margin-top:8px;font-size:.8rem;color:var(--accent);">Or use the manual entry / demo questions below</p>
+        </div>
+        <input type="file" id="file-input" accept=".csv,.xlsx,.xls,.json" style="display:none" onchange="handleFileUpload(event)">
+
+        <div style="display:flex;gap:8px;margin:12px 0;">
+          <button class="btn btn-secondary btn-sm" onclick="loadDemoQuestions()">&#127381; Load demo questions (10)</button>
+          <button class="btn btn-ghost btn-sm" onclick="openManualEntry()">+ Add manually</button>
+        </div>
+
+        <div id="upload-status" style="display:none;padding:12px 14px;border-radius:var(--radius);font-size:.875rem;margin-bottom:12px;"></div>
+
+        <!-- Parsed questions preview -->
+        <div id="parsed-questions-list" style="display:flex;flex-direction:column;gap:8px;max-height:240px;overflow-y:auto;"></div>
+
+        <!-- CSV format hint -->
+        <div style="background:var(--info-bg);border-radius:var(--radius);padding:12px;font-size:.8rem;margin-top:12px;">
+          <strong style="color:var(--info);">CSV format:</strong>
+          <code style="display:block;margin-top:4px;font-family:var(--font-mono);color:var(--ink-2);">Question,A,B,C,D,Answer,Difficulty,Topic</code>
+          <code style="display:block;font-family:var(--font-mono);color:var(--ink-3);">What is TCP?,Protocol,Software,Hardware,Network,A,easy,Transport</code>
+        </div>
+      </div>
+
+      <!-- Tab: Preview -->
+      <div class="tab-pane" id="tab-preview">
+        <div id="preview-empty" style="text-align:center;padding:32px;color:var(--ink-3);">
+          <p>Upload questions first to see a preview.</p>
+        </div>
+        <div id="preview-content" style="display:none;">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+            <span class="badge badge-success" id="prev-count">0 questions</span>
+            <span class="badge badge-neutral" id="prev-duration">— min</span>
+            <span class="badge badge-info" id="prev-total-marks">0 marks total</span>
+          </div>
+          <div id="preview-list" style="display:flex;flex-direction:column;gap:12px;max-height:320px;overflow-y:auto;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <button class="btn btn-ghost" onclick="closeModal('modal-create-exam')">Cancel</button>
+      <div style="display:flex;gap:8px;">
+        <span style="font-size:.8rem;color:var(--ink-3);align-self:center;" id="ce-q-count-hint"></span>
+        <button class="btn btn-primary" onclick="createExam()">Generate exam link →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Manual question entry modal -->
+<div class="modal-backdrop" id="modal-manual-q">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Add question manually</h3>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Question text <span>*</span></label>
+          <textarea class="form-textarea" id="mq-text" placeholder="Enter your question here..." style="min-height:80px;"></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:40px 1fr;gap:8px;align-items:center;" id="mq-options-grid">
+          <span class="badge badge-neutral" style="justify-content:center;">A</span><input class="form-input" id="mq-a" placeholder="Option A">
+          <span class="badge badge-neutral" style="justify-content:center;">B</span><input class="form-input" id="mq-b" placeholder="Option B">
+          <span class="badge badge-neutral" style="justify-content:center;">C</span><input class="form-input" id="mq-c" placeholder="Option C (optional)">
+          <span class="badge badge-neutral" style="justify-content:center;">D</span><input class="form-input" id="mq-d" placeholder="Option D (optional)">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Correct answer <span>*</span></label>
+            <select class="form-select" id="mq-correct">
+              <option value="0">A</option>
+              <option value="1">B</option>
+              <option value="2">C</option>
+              <option value="3">D</option>
+            </select>
+          </div>
+          <div class="form-row" style="grid-template-columns:1fr 1fr;">
+            <div class="form-group">
+              <label class="form-label">Difficulty</label>
+              <select class="form-select" id="mq-diff">
+                <option value="easy">Easy</option>
+                <option value="medium" selected>Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Topic tag</label>
+              <input class="form-input" id="mq-topic" placeholder="optional">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-manual-q')">Cancel</button>
+      <button class="btn btn-primary" onclick="addManualQuestion()">Add question</button>
+    </div>
+  </div>
+</div>
+
+<!-- Exam Link Modal -->
+<div class="modal-backdrop" id="modal-exam-link">
+  <div class="modal">
+    <div class="modal-header" style="text-align:center;padding:24px 24px 0;">
+      <div style="font-size:2.5rem;margin-bottom:8px;">&#127881;</div>
+      <h3>Exam created!</h3>
+      <p style="color:var(--ink-3);font-size:.875rem;margin-top:4px;">Share this link with your students</p>
+    </div>
+    <div class="modal-body">
+      <div class="link-chip" id="exam-link-chip">
+        <span id="exam-link-text"></span>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="copyExamLink()" title="Copy link">&#128203;</button>
+      </div>
+      <p style="font-size:.8rem;color:var(--ink-3);margin-top:10px;text-align:center;">Link opens to student info form. Questions are shuffled per session.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-exam-link')">Close</button>
+      <button class="btn btn-primary" onclick="openExamAsStudent()">Preview as student →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm submit modal -->
+<div class="modal-backdrop" id="modal-confirm-submit">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Submit exam?</h3>
+    </div>
+    <div class="modal-body">
+      <p id="confirm-submit-msg" style="color:var(--ink-2);font-size:.9rem;line-height:1.6;"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-confirm-submit')">Go back</button>
+      <button class="btn btn-primary" onclick="doSubmitExam()">Confirm submit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  JAVASCRIPT APPLICATION                               -->
+<!-- ═══════════════════════════════════════════════════════ -->
+
+<!-- Firebase compat SDK scripts (as ChatGPT instructed — Step 1) -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  FIREBASE INIT  (Step 2 — as ChatGPT instructed)
+// ═══════════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey:            "AIzaSyAIlselZbtltdX9nDWIUF53SJbJFdlL0f4",
+  authDomain:        "examflow-195df.firebaseapp.com",
+  databaseURL:       "https://examflow-195df-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "examflow-195df",
+  storageBucket:     "examflow-195df.firebasestorage.app",
+  messagingSenderId: "21247533181",
+  appId:             "1:21247533181:web:233357cb482709b272d114",
+  measurementId:     "G-BNM6P7NM5Y"
+};
+
+// Initialize Firebase (compat API — works with <script> tags)
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+// ─── Firestore helpers ─────────────────────────────────────
+// Save exam to Firestore (exams collection)
+async function fbSaveExam(exam) {
+  try {
+    const { sessions, ...examData } = exam; // don't store sessions here
+    await db.collection('exams').doc(exam.token).set(examData, { merge: true });
+    console.log('[FB] Exam saved:', exam.token);
+  } catch(e) { console.warn('[FB] fbSaveExam error:', e.message); }
+}
+
+// Save/update a student session (sessions collection)
+async function fbSaveSession(token, session) {
+  try {
+    // Convert numeric answer keys to strings (Firestore requirement)
+    const answers = {};
+    Object.keys(session.answers || {}).forEach(k => { answers['q' + k] = session.answers[k]; });
+    await db.collection('sessions').doc(session.id).set({
+      ...session,
+      answers,
+      examToken: token,
+      savedAt: Date.now()
+    }, { merge: true });
+    console.log('[FB] Session saved:', session.id);
+  } catch(e) { console.warn('[FB] fbSaveSession error:', e.message); }
+}
+
+// Load all sessions for an exam (used for CSV export)
+async function fbLoadSessions(token) {
+  try {
+    const snap = await db.collection('sessions').where('examToken', '==', token).get();
+    return snap.docs.map(d => d.data());
+  } catch(e) { console.warn('[FB] fbLoadSessions error:', e.message); return []; }
+}
+
+// Real-time listener using Firestore onSnapshot (as ChatGPT instructed — Step 14)
+let _unsubscribe = null;
+function fbListenSessions(token, onUpdate) {
+  fbStopListening();
+  try {
+    _unsubscribe = db.collection('sessions')
+      .where('examToken', '==', token)
+      .onSnapshot(function(snapshot) {
+        const sessions = snapshot.docs.map(function(doc) { return doc.data(); });
+        console.log('[FB] Live update:', sessions.length, 'sessions');
+        onUpdate(sessions);
+      }, function(err) {
+        console.warn('[FB] onSnapshot error:', err.message);
+      });
+  } catch(e) { console.warn('[FB] fbListenSessions error:', e.message); }
+}
+function fbStopListening() {
+  if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
+}
+
+// ─── App State ────────────────────────────────────────────
+const App = {
+  teacher: null,
+  exams: [],
+  currentExamId: null,
+  pendingLinkToken: null,
+
+  // Exam session (student)
+  exam: null,
+  questions: [],
+  answers: {},
+  flagged: new Set(),
+  currentQ: 0,
+  timerInterval: null,
+  secondsLeft: 0,
+  startTime: null,
+  violations: [],
+  studentInfo: null,
+  sessionId: null,
+
+  // Monitoring
+  monitorInterval: null,
+  monitorFilter: 'all',
+  liveSessions: [],      // real-time from Firestore
+};
+
+// ─── Local storage helpers (still used as offline cache) ──
+const DB = {
+  get: k => { try { return JSON.parse(localStorage.getItem('ef_'+k)); } catch { return null; } },
+  set: (k,v) => localStorage.setItem('ef_'+k, JSON.stringify(v)),
+  del: k => localStorage.removeItem('ef_'+k),
+};
+
+function loadAppData() {
+  App.teacher = DB.get('teacher');
+  App.exams = DB.get('exams') || [];
+}
+
+function saveExams() { DB.set('exams', App.exams); }
+
+// ─── Page routing ─────────────────────────────────────────
+function showPage(id) {
+  // Clean up monitor resources when leaving
+  if (!document.getElementById('page-monitoring')?.classList.contains('active') === false) {
+    // leaving monitor page
+  }
+  if (id !== 'page-monitoring') {
+    fbStopListening();
+    clearInterval(App.monitorInterval);
+  }
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+// ─── Toast ────────────────────────────────────────────────
+function toast(msg, type='info', duration=3200) {
+  const icons = { success:'✓', error:'✕', info:'ℹ', warn:'⚠' };
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${icons[type]||'ℹ'}</span><span>${msg}</span>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => {
+    el.style.animation = 'slideOut .25s ease forwards';
+    setTimeout(() => el.remove(), 260);
+  }, duration);
+}
+
+// ─── Modal helpers ─────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ─── Tab switching ─────────────────────────────────────────
+function switchModalTab(tabId, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  btn.classList.add('active');
+  if (tabId === 'tab-preview') renderPreview();
+}
+
+// ─── Auth ─────────────────────────────────────────────────
+function doTeacherLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  if (!email) { toast('Please enter your email', 'error'); return; }
+  App.teacher = { email, name: email.split('@')[0] };
+  DB.set('teacher', App.teacher);
+  loadAppData();
+  showPage('page-teacher-dashboard');
+  renderDashboard();
+  toast('Welcome back, ' + App.teacher.name + '! Loading your exams…', 'success');
+
+  // Pull exams from Firestore (works on any device — as ChatGPT instructed)
+  db.collection('exams').where('email', '==', email).get().then(function(snap) {
+    if (snap.empty) return;
+    snap.docs.forEach(function(doc) {
+      const fe = doc.data();
+      if (!App.exams.find(function(e) { return e.token === fe.token; })) {
+        App.exams.push({ ...fe, sessions: [], questions: fe.questions || [] });
+      }
+    });
+    saveExams();
+    renderDashboard();
+    toast(snap.docs.length + ' exam(s) loaded from cloud ☁️', 'info', 2500);
+  }).catch(function(e) { console.warn('[FB] load exams error:', e.message); });
+}
+
+function doLogout() {
+  App.teacher = null;
+  DB.del('teacher');
+  showPage('page-landing');
+}
+
+// ─── Dashboard rendering ──────────────────────────────────
+function renderDashboard() {
+  if (!App.teacher) return;
+  document.getElementById('teacher-name-display').textContent = App.teacher.email;
+
+  const exams = App.exams;
+  const totalStudents = exams.reduce((a, e) => a + (e.sessions||[]).length, 0);
+  const allScores = exams.flatMap(e => (e.sessions||[]).filter(s => s.submitted).map(s => s.score / s.totalMarks * 100));
+  const avgScore = allScores.length ? Math.round(allScores.reduce((a,b)=>a+b,0)/allScores.length) : null;
+  const activeNow = exams.filter(e => getExamStatus(e) === 'active').length;
+
+  document.getElementById('dash-stat-exams').textContent = exams.length;
+  document.getElementById('dash-stat-active').textContent = activeNow;
+  document.getElementById('dash-stat-students').textContent = totalStudents;
+  document.getElementById('dash-stat-avg').textContent = avgScore !== null ? avgScore+'%' : '—';
+
+  const tbody = document.getElementById('exam-list-tbody');
+  const empty = document.getElementById('exam-list-empty');
+  const table = document.getElementById('exam-list-table');
+
+  if (exams.length === 0) {
+    empty.classList.remove('hidden');
+    table.classList.add('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  table.classList.remove('hidden');
+
+  tbody.innerHTML = exams.map((exam, i) => {
+    const status = getExamStatus(exam);
+    const statusBadge = {
+      draft: '<span class="badge badge-neutral">Draft</span>',
+      scheduled: '<span class="badge badge-info">Scheduled</span>',
+      active: '<span class="badge badge-success">Active</span>',
+      ended: '<span class="badge badge-warn">Ended</span>',
+    }[status] || '<span class="badge badge-neutral">—</span>';
+
+    const sessions = exam.sessions || [];
+    const link = `${location.origin}${location.pathname}?ed=${encodeExamToURL(exam)}`;
+
+    return `<tr>
+      <td><strong>${exam.course}</strong><br><span style="font-size:.8rem;color:var(--ink-3);font-family:var(--font-mono);">${exam.token}</span></td>
+      <td>${exam.section}</td>
+      <td style="font-size:.8rem;color:var(--ink-3);">${formatDT(exam.startTime)}<br>→ ${formatDT(exam.endTime)}</td>
+      <td><span class="badge badge-neutral">${(exam.questions||[]).length}</span></td>
+      <td><span class="badge badge-info">${sessions.length}</span></td>
+      <td>${statusBadge}</td>
+      <td>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" onclick="copyLink('${link}')">&#128203; Copy link</button>
+          <button class="btn btn-ghost btn-sm" onclick="openMonitor(${i})">&#128202; Monitor</button>
+          <button class="btn btn-ghost btn-sm" onclick="openExamAsStudentIdx(${i})">&#9654; Preview</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportCSVForExam(${i})">&#128190; CSV</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function getExamStatus(exam) {
+  const now = Date.now();
+  if (!exam.startTime || !exam.endTime) return 'draft';
+  if (now < exam.startTime) return 'scheduled';
+  if (now >= exam.startTime && now <= exam.endTime) return 'active';
+  return 'ended';
+}
+
+function formatDT(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+// ─── Create Exam ──────────────────────────────────────────
+let parsedQuestions = [];
+
+function openCreateExamModal() {
+  parsedQuestions = [];
+  document.getElementById('parsed-questions-list').innerHTML = '';
+  document.getElementById('upload-status').style.display = 'none';
+  document.getElementById('preview-content').style.display = 'none';
+  document.getElementById('preview-empty').style.display = 'block';
+  document.getElementById('ce-q-count-hint').textContent = '';
+
+  // Set sensible defaults
+  const now = new Date();
+  const later = new Date(now.getTime() + 3*60*60*1000);
+  const fmt = d => d.toISOString().slice(0,16);
+  document.getElementById('ce-start').value = fmt(now);
+  document.getElementById('ce-end').value = fmt(later);
+  document.getElementById('ce-duration').value = '45';
+  document.getElementById('ce-marks').value = '1';
+  if (App.teacher) document.getElementById('ce-email').value = App.teacher.email;
+
+  // Switch to first tab
+  switchModalTab('tab-config', document.querySelector('.tab-btn'));
+  openModal('modal-create-exam');
+}
+
+function createExam() {
+  const email    = document.getElementById('ce-email').value.trim();
+  const course   = document.getElementById('ce-course').value.trim();
+  const section  = document.getElementById('ce-section').value.trim();
+  const duration = parseInt(document.getElementById('ce-duration').value);
+  const marks    = parseInt(document.getElementById('ce-marks').value) || 1;
+  const startStr = document.getElementById('ce-start').value;
+  const endStr   = document.getElementById('ce-end').value;
+  const shuffleQ = document.getElementById('ce-shuffle-q').checked;
+  const shuffleO = document.getElementById('ce-shuffle-o').checked;
+
+  if (!email || !course || !section || !duration || !startStr || !endStr) {
+    toast('Please fill in all required fields', 'error');
+    switchModalTab('tab-config', document.querySelector('.tab-btn'));
+    return;
+  }
+  if (parsedQuestions.length === 0) {
+    toast('Please upload or add at least one question', 'error');
+    switchModalTab('tab-upload', document.querySelectorAll('.tab-btn')[1]);
+    return;
+  }
+
+  const token = 'EX-' + Math.random().toString(36).substr(2,6).toUpperCase();
+  const exam = {
+    token, email, course, section, duration, marks,
+    startTime: new Date(startStr).getTime(),
+    endTime:   new Date(endStr).getTime(),
+    shuffleQ, shuffleO,
+    questions: parsedQuestions,
+    sessions: [],
+    createdAt: Date.now(),
+  };
+
+  App.exams.push(exam);
+  saveExams();
+  fbSaveExam(exam);   // ← persist to Firestore so any device can see it
+  closeModal('modal-create-exam');
+  renderDashboard();
+
+  // Encode the full exam config into the URL so ANY browser can open it
+  // without needing the teacher's localStorage
+  const examPayload = encodeExamToURL(exam);
+  const link = `${location.origin}${location.pathname}?ed=${examPayload}`;
+  document.getElementById('exam-link-text').textContent = link;
+  App.pendingLinkToken = token;
+  openModal('modal-exam-link');
+  toast('Exam created! ' + parsedQuestions.length + ' questions loaded.', 'success');
+}
+
+// Encode exam config → base64 URL param (no server needed)
+function encodeExamToURL(exam) {
+  // Only include what the student needs; omit sessions array (privacy + size)
+  const payload = {
+    token:     exam.token,
+    course:    exam.course,
+    section:   exam.section,
+    duration:  exam.duration,
+    marks:     exam.marks,
+    startTime: exam.startTime,
+    endTime:   exam.endTime,
+    shuffleQ:  exam.shuffleQ,
+    shuffleO:  exam.shuffleO,
+    questions: exam.questions,
+  };
+  try {
+    return btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+  } catch(e) {
+    return btoa(JSON.stringify(payload));
+  }
+}
+
+function decodeExamFromURL(encoded) {
+  try {
+    return JSON.parse(decodeURIComponent(escape(atob(encoded))));
+  } catch(e) {
+    try { return JSON.parse(atob(encoded)); } catch(e2) { return null; }
+  }
+}
+
+function copyLink(url) {
+  navigator.clipboard.writeText(url).then(() => toast('Link copied!', 'success'));
+}
+function copyExamLink() {
+  const link = document.getElementById('exam-link-text').textContent;
+  navigator.clipboard.writeText(link).then(() => toast('Link copied!', 'success'));
+}
+
+// ─── File upload & parsing ────────────────────────────────
+function dragOver(e) { e.preventDefault(); document.getElementById('upload-zone').classList.add('drag-over'); }
+function dragLeave() { document.getElementById('upload-zone').classList.remove('drag-over'); }
+function dropFile(e) { e.preventDefault(); dragLeave(); const f = e.dataTransfer.files[0]; if(f) processFile(f); }
+
+function handleFileUpload(e) {
+  const file = e.target.files[0];
+  if (file) processFile(file);
+  e.target.value = '';
+}
+
+function processFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  const reader = new FileReader();
+
+  reader.onload = (e) => {
+    try {
+      let qs = [];
+      if (ext === 'json') {
+        const data = JSON.parse(e.target.result);
+        qs = Array.isArray(data) ? data.map(normalizeJSONQuestion) : [];
+      } else if (ext === 'csv') {
+        qs = parseCSV(e.target.result);
+      } else {
+        toast('Unsupported format. Use CSV or JSON.', 'error');
+        return;
+      }
+      const valid = qs.filter(q => q.question_text && q.options.length >= 2 && q.correct_answer !== undefined);
+      parsedQuestions = valid;
+      showUploadStatus(file.name, qs.length, valid.length);
+      renderParsedList();
+      updateQCountHint();
+    } catch (err) {
+      toast('Error parsing file: ' + err.message, 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+  return lines.slice(1).map(line => {
+    const vals = splitCSVLine(line);
+    const row = {};
+    headers.forEach((h, i) => row[h] = (vals[i]||'').trim());
+    const options = ['a','b','c','d'].map(l => row[l]).filter(Boolean);
+    const answerLetter = (row['answer']||row['correct']||row['correct_answer']||'a').toUpperCase();
+    const answerIdx = ['A','B','C','D'].indexOf(answerLetter);
+    return {
+      question_text: row['question'] || row['question_text'] || row['q'] || '',
+      options,
+      correct_answer: answerIdx >= 0 ? answerIdx : 0,
+      difficulty: row['difficulty'] || 'medium',
+      topic_tag: row['topic'] || '',
+    };
+  });
+}
+
+function splitCSVLine(line) {
+  const result = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') { inQ = !inQ; }
+    else if (line[i] === ',' && !inQ) { result.push(cur); cur = ''; }
+    else cur += line[i];
+  }
+  result.push(cur);
+  return result;
+}
+
+function normalizeJSONQuestion(q) {
+  const opts = q.options || [q.A||q.a, q.B||q.b, q.C||q.c, q.D||q.d].filter(Boolean);
+  const ans = q.correct_answer !== undefined ? q.correct_answer :
+    (typeof q.answer === 'string' ? ['A','B','C','D'].indexOf(q.answer.toUpperCase()) : 0);
+  return {
+    question_text: q.question_text || q.question || q.text || '',
+    options: opts,
+    correct_answer: typeof ans === 'number' ? ans : 0,
+    difficulty: q.difficulty || 'medium',
+    topic_tag: q.topic_tag || q.topic || '',
+  };
+}
+
+function showUploadStatus(name, total, valid) {
+  const el = document.getElementById('upload-status');
+  el.style.display = 'block';
+  if (valid === total) {
+    el.style.background = 'var(--success-bg)';
+    el.style.color = 'var(--success)';
+    el.innerHTML = `✓ <strong>${name}</strong> parsed — ${valid} valid questions loaded.`;
+  } else {
+    el.style.background = 'var(--warn-bg)';
+    el.style.color = 'var(--warn)';
+    el.innerHTML = `⚠ ${name} — ${valid} valid of ${total} total (${total-valid} skipped due to missing fields).`;
+  }
+}
+
+function renderParsedList() {
+  const el = document.getElementById('parsed-questions-list');
+  el.innerHTML = parsedQuestions.slice(0,5).map((q,i) => `
+    <div style="background:var(--paper-2);border-radius:var(--radius);padding:10px 12px;font-size:.8rem;">
+      <div style="font-weight:600;margin-bottom:4px;">Q${i+1}. ${escHtml(q.question_text.substring(0,80))}${q.question_text.length>80?'…':''}</div>
+      <div style="color:var(--ink-3);">${q.options.map((o,oi)=>`<span style="margin-right:10px;">${'ABCD'[oi]}) ${escHtml(o)}${oi===q.correct_answer?' ✓':''}</span>`).join('')}</div>
+    </div>
+  `).join('') + (parsedQuestions.length > 5 ? `<div style="text-align:center;font-size:.8rem;color:var(--ink-3);padding:8px;">+${parsedQuestions.length-5} more questions</div>` : '');
+}
+
+function updateQCountHint() {
+  document.getElementById('ce-q-count-hint').textContent = parsedQuestions.length ? parsedQuestions.length + ' questions ready' : '';
+}
+
+// ─── Demo questions ───────────────────────────────────────
+function loadDemoQuestions() {
+  parsedQuestions = [
+    { question_text:"Which OSI layer handles end-to-end communication?", options:["Network","Transport","Data Link","Session"], correct_answer:1, difficulty:'easy', topic_tag:'OSI' },
+    { question_text:"What does TCP stand for?", options:["Transfer Control Protocol","Transmission Control Protocol","Transport Communication Protocol","Terminal Control Protocol"], correct_answer:1, difficulty:'easy', topic_tag:'TCP/IP' },
+    { question_text:"Which port does HTTPS use by default?", options:["80","8080","443","22"], correct_answer:2, difficulty:'easy', topic_tag:'Protocols' },
+    { question_text:"What is the maximum size of an IPv4 address in bits?", options:["16","32","64","128"], correct_answer:1, difficulty:'medium', topic_tag:'IP' },
+    { question_text:"Which protocol resolves domain names to IP addresses?", options:["DHCP","DNS","ARP","ICMP"], correct_answer:1, difficulty:'easy', topic_tag:'DNS' },
+    { question_text:"What is a subnet mask used for?", options:["Encrypting data","Identifying network portions","Routing between ISPs","Assigning MAC addresses"], correct_answer:1, difficulty:'medium', topic_tag:'Subnetting' },
+    { question_text:"Which device operates at the Network layer (Layer 3)?", options:["Hub","Switch","Router","Repeater"], correct_answer:2, difficulty:'easy', topic_tag:'Devices' },
+    { question_text:"In TCP, the three-way handshake uses which sequence?", options:["SYN → ACK → SYN-ACK","SYN → SYN-ACK → ACK","ACK → SYN → SYN-ACK","SYN-ACK → SYN → ACK"], correct_answer:1, difficulty:'medium', topic_tag:'TCP' },
+    { question_text:"What does UDP stand for?", options:["User Datagram Protocol","Universal Data Protocol","Unified Dispatch Protocol","User Data Process"], correct_answer:0, difficulty:'easy', topic_tag:'UDP' },
+    { question_text:"Which topology connects all devices to a central hub?", options:["Ring","Mesh","Star","Bus"], correct_answer:2, difficulty:'easy', topic_tag:'Topology' },
+  ];
+  showUploadStatus('Demo Questions', 10, 10);
+  renderParsedList();
+  updateQCountHint();
+  toast('10 demo questions loaded!', 'success');
+}
+
+// ─── Manual question entry ────────────────────────────────
+function openManualEntry() {
+  ['mq-text','mq-a','mq-b','mq-c','mq-d','mq-topic'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('mq-correct').value = '0';
+  document.getElementById('mq-diff').value = 'medium';
+  openModal('modal-manual-q');
+}
+
+function addManualQuestion() {
+  const text = document.getElementById('mq-text').value.trim();
+  const a = document.getElementById('mq-a').value.trim();
+  const b = document.getElementById('mq-b').value.trim();
+  const c = document.getElementById('mq-c').value.trim();
+  const d = document.getElementById('mq-d').value.trim();
+  const correct = parseInt(document.getElementById('mq-correct').value);
+  const diff = document.getElementById('mq-diff').value;
+  const topic = document.getElementById('mq-topic').value.trim();
+
+  if (!text || !a || !b) { toast('Question text and at least 2 options are required', 'error'); return; }
+  const options = [a, b, c, d].filter(Boolean);
+
+  parsedQuestions.push({ question_text: text, options, correct_answer: correct, difficulty: diff, topic_tag: topic });
+  renderParsedList();
+  updateQCountHint();
+  closeModal('modal-manual-q');
+  toast('Question added!', 'success');
+}
+
+// ─── Preview tab ──────────────────────────────────────────
+function renderPreview() {
+  const empty = document.getElementById('preview-empty');
+  const content = document.getElementById('preview-content');
+  if (parsedQuestions.length === 0) { empty.style.display='block'; content.style.display='none'; return; }
+  empty.style.display='none'; content.style.display='block';
+
+  const dur = parseInt(document.getElementById('ce-duration').value)||0;
+  const marks = parseInt(document.getElementById('ce-marks').value)||1;
+  document.getElementById('prev-count').textContent = parsedQuestions.length + ' questions';
+  document.getElementById('prev-duration').textContent = dur + ' min';
+  document.getElementById('prev-total-marks').textContent = (parsedQuestions.length * marks) + ' marks total';
+
+  document.getElementById('preview-list').innerHTML = parsedQuestions.map((q,i) => `
+    <div class="card card-pad" style="padding:14px;">
+      <div style="display:flex;gap:8px;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
+        <div style="font-weight:600;font-size:.9rem;">Q${i+1}. ${escHtml(q.question_text)}</div>
+        <div style="display:flex;gap:4px;flex-shrink:0;">
+          <span class="badge ${diffBadge(q.difficulty)}">${q.difficulty}</span>
+          ${q.topic_tag ? `<span class="badge badge-info">${escHtml(q.topic_tag)}</span>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px;">
+        ${q.options.map((o,oi)=>`
+          <div style="padding:6px 10px;border-radius:6px;font-size:.85rem;${oi===q.correct_answer?'background:var(--success-bg);color:var(--success);font-weight:600;':'color:var(--ink-2);'}">
+            ${'ABCD'[oi]}. ${escHtml(o)} ${oi===q.correct_answer?'✓':''}
+          </div>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function diffBadge(d) {
+  return { easy:'badge-success', medium:'badge-warn', hard:'badge-danger' }[d] || 'badge-neutral';
+}
+
+// ─── Student exam flow ────────────────────────────────────
+function openExamAsStudent() {
+  closeModal('modal-exam-link');
+  openExamAsStudentIdx(App.exams.length - 1);
+}
+
+function openExamAsStudentIdx(idx) {
+  const exam = App.exams[idx];
+  if (!exam) { toast('Exam not found', 'error'); return; }
+  App.currentExamId = idx;
+  loadStudentInfoPage(exam);
+}
+
+function demoStudentFlow() {
+  // Create a demo exam if none exists
+  if (App.exams.length === 0) {
+    parsedQuestions = [];
+    loadDemoQuestions();
+    const now = new Date();
+    const later = new Date(now.getTime() + 3*60*60*1000);
+    const exam = {
+      token: 'DEMO-001',
+      email: 'demo@examflow.io',
+      course: 'Computer Networks — CS401',
+      section: 'Section A',
+      duration: 30,
+      marks: 1,
+      startTime: now.getTime() - 1000,
+      endTime: later.getTime(),
+      shuffleQ: true, shuffleO: true,
+      questions: parsedQuestions,
+      sessions: [],
+      createdAt: Date.now(),
+    };
+    App.exams.push(exam);
+    saveExams();
+    App.currentExamId = 0;
+    loadStudentInfoPage(exam);
+  } else {
+    openExamAsStudentIdx(0);
+  }
+}
+
+function loadStudentInfoPage(exam) {
+  document.getElementById('student-exam-badge').textContent = exam.course;
+  document.getElementById('student-info-exam-title').textContent = exam.course;
+  document.getElementById('student-info-exam-sub').textContent = `${exam.section} · ${exam.duration} min · ${exam.questions.length} questions`;
+  document.getElementById('student-info-duration').textContent = `⏱ ${exam.duration} min`;
+  document.getElementById('student-info-qcount').textContent = exam.questions.length + ' questions';
+  document.getElementById('si-course').value = exam.course;
+  document.getElementById('si-date').value = new Date().toLocaleDateString('en-GB');
+  document.getElementById('si-section').value = exam.section;
+  showPage('page-student-info');
+}
+
+function startExam() {
+  const fields = [
+    { id:'si-name', errId:'si-name-err', label:'Name' },
+    { id:'si-id',   errId:'si-id-err',   label:'Student ID' },
+    { id:'si-section', errId:'si-section-err', label:'Section' },
+    { id:'si-dept', errId:'si-dept-err',  label:'Department' },
+    { id:'si-session', errId:'si-session-err', label:'Session' },
+  ];
+  let valid = true;
+  fields.forEach(f => {
+    const val = document.getElementById(f.id).value.trim();
+    const err = document.getElementById(f.errId);
+    if (!val) { document.getElementById(f.id).classList.add('error'); err.classList.add('visible'); valid = false; }
+    else { document.getElementById(f.id).classList.remove('error'); err.classList.remove('visible'); }
+  });
+  if (!valid) { toast('Please fill in all required fields', 'error'); return; }
+
+  App.studentInfo = {
+    name: document.getElementById('si-name').value.trim(),
+    studentId: document.getElementById('si-id').value.trim(),
+    section: document.getElementById('si-section').value.trim(),
+    dept: document.getElementById('si-dept').value.trim(),
+    session: document.getElementById('si-session').value.trim(),
+    date: document.getElementById('si-date').value,
+    course: document.getElementById('si-course').value,
+  };
+
+  const exam = App.exams[App.currentExamId];
+  App.exam = exam;
+  App.answers = {};
+  App.flagged = new Set();
+  App.violations = [];
+  App.currentQ = 0;
+  App.sessionId = 'S-' + Date.now();
+
+  // Shuffle questions
+  let qs = [...exam.questions];
+  if (exam.shuffleQ) qs = shuffle(qs);
+  if (exam.shuffleO) qs = qs.map(q => shuffleOptions(q));
+  App.questions = qs;
+
+  App.secondsLeft = exam.duration * 60;
+  App.startTime = Date.now();
+
+  // Register session locally
+  const sessionObj = {
+    id: App.sessionId,
+    ...App.studentInfo,
+    startedAt: Date.now(),
+    submitted: false,
+    score: 0,
+    totalMarks: qs.length * (exam.marks||1),
+    violations: [],
+    answers: {},
+  };
+  exam.sessions.push(sessionObj);
+  saveExams();
+  // Save to Firestore so teacher sees it in real time from any device
+  fbSaveSession(exam.token, sessionObj);
+
+  showPage('page-exam');
+  document.getElementById('exam-title-nav').textContent = exam.course;
+  document.getElementById('exam-student-nav').textContent = App.studentInfo.name + ' · ' + App.studentInfo.section;
+
+  setupAntiCheat();
+  startTimer();
+  renderQuestion();
+  toast('Exam started! Good luck 🍀', 'success', 2500);
+}
+
+// ─── Shuffle helpers ──────────────────────────────────────
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+function shuffleOptions(q) {
+  const paired = q.options.map((o, i) => ({ text: o, isCorrect: i === q.correct_answer }));
+  const shuffled = shuffle(paired);
+  return {
+    ...q,
+    options: shuffled.map(p => p.text),
+    correct_answer: shuffled.findIndex(p => p.isCorrect),
+    _originalOptions: q.options,
+  };
+}
+
+// ─── Exam rendering ───────────────────────────────────────
+function renderQuestion() {
+  const q = App.questions[App.currentQ];
+  const total = App.questions.length;
+  const answered = Object.keys(App.answers).length;
+  const isFlagged = App.flagged.has(App.currentQ);
+
+  // Header
+  document.getElementById('q-num-badge').textContent = `Q ${App.currentQ+1} of ${total}`;
+  document.getElementById('q-marks-badge').textContent = (App.exam.marks||1) + ' mark' + (App.exam.marks>1?'s':'');
+  document.getElementById('flag-btn').innerHTML = isFlagged ? '⚑ Unflag' : '⚐ Flag';
+  document.getElementById('flag-btn').style.color = isFlagged ? 'var(--warn)' : '';
+
+  // Progress
+  document.getElementById('exam-progress').style.width = ((App.currentQ+1)/total*100)+'%';
+
+  // Question
+  document.getElementById('question-text').textContent = q.question_text;
+
+  // Options
+  const container = document.getElementById('options-container');
+  container.innerHTML = q.options.map((opt, i) => {
+    const isSelected = App.answers[App.currentQ] === i;
+    return `<div class="mcq-option${isSelected?' selected':''}" onclick="selectAnswer(${i})">
+      <div class="option-bubble">${'ABCD'[i]}</div>
+      <span>${escHtml(opt)}</span>
+    </div>`;
+  }).join('');
+
+  // Nav
+  document.getElementById('prev-btn').disabled = App.currentQ === 0;
+  document.getElementById('next-btn').textContent = App.currentQ === total-1 ? 'Review ✓' : 'Next →';
+
+  // Sidebar stats
+  document.getElementById('sidebar-answered').textContent = answered;
+  document.getElementById('sidebar-unanswered').textContent = total - answered;
+  document.getElementById('sidebar-flagged').textContent = App.flagged.size;
+
+  // Navigator grid
+  const grid = document.getElementById('q-nav-grid');
+  grid.innerHTML = App.questions.map((_, i) => {
+    let cls = 'q-nav-btn';
+    if (i === App.currentQ) cls += ' current';
+    else if (App.answers[i] !== undefined) cls += ' answered';
+    if (App.flagged.has(i)) cls += ' flagged';
+    return `<button class="${cls}" onclick="goToQuestion(${i})">${i+1}</button>`;
+  }).join('');
+}
+
+function selectAnswer(idx) {
+  App.answers[App.currentQ] = idx;
+  // Save to localStorage (persist across refresh)
+  DB.set('exam_answers_' + App.sessionId, App.answers);
+  renderQuestion();
+}
+
+function clearAnswer() {
+  delete App.answers[App.currentQ];
+  DB.set('exam_answers_' + App.sessionId, App.answers);
+  renderQuestion();
+}
+
+function goToQuestion(i) { App.currentQ = i; renderQuestion(); }
+
+function prevQuestion() {
+  if (App.currentQ > 0) { App.currentQ--; renderQuestion(); }
+}
+
+function nextQuestion() {
+  if (App.currentQ < App.questions.length - 1) { App.currentQ++; renderQuestion(); }
+  else confirmSubmit();
+}
+
+function toggleFlag() {
+  if (App.flagged.has(App.currentQ)) App.flagged.delete(App.currentQ);
+  else App.flagged.add(App.currentQ);
+  renderQuestion();
+}
+
+// ─── Timer ────────────────────────────────────────────────
+function startTimer() {
+  clearInterval(App.timerInterval);
+  App.timerInterval = setInterval(() => {
+    App.secondsLeft--;
+    if (App.secondsLeft <= 0) {
+      clearInterval(App.timerInterval);
+      toast('Time\'s up! Auto-submitting…', 'warn', 2000);
+      setTimeout(doSubmitExam, 1200);
+      return;
+    }
+    updateTimerDisplay();
+  }, 1000);
+  updateTimerDisplay();
+}
+
+function updateTimerDisplay() {
+  const el = document.getElementById('exam-timer');
+  const s = App.secondsLeft;
+  const mm = String(Math.floor(s/60)).padStart(2,'0');
+  const ss = String(s%60).padStart(2,'0');
+  el.textContent = `⏱ ${mm}:${ss}`;
+  el.className = 'timer-display ' + (s <= 120 ? 'danger' : s <= 300 ? 'warning' : 'ok');
+}
+
+// ─── Anti-cheat ───────────────────────────────────────────
+let antiCheatActive = false;
+let antiCheatHandlers = {};
+
+function setupAntiCheat() {
+  antiCheatActive = true;
+
+  antiCheatHandlers.visibility = () => {
+    if (document.hidden && antiCheatActive) {
+      logViolation('TAB_SWITCH');
+      flashWarning('⚠ Tab switch detected — this has been logged');
+    }
+  };
+  antiCheatHandlers.blur = () => { if (antiCheatActive) logViolation('WINDOW_BLUR'); };
+  antiCheatHandlers.context = e => { if (antiCheatActive) { e.preventDefault(); logViolation('RIGHT_CLICK'); } };
+  antiCheatHandlers.key = e => {
+    if (!antiCheatActive) return;
+    const blocked = (e.ctrlKey && ['u','c','s','a','p'].includes(e.key.toLowerCase())) ||
+                    (e.ctrlKey && e.shiftKey && ['i','j','c'].includes(e.key.toLowerCase())) ||
+                    ['F12','PrintScreen'].includes(e.key);
+    if (blocked) { e.preventDefault(); logViolation('BLOCKED_KEY:'+e.key); }
+  };
+  antiCheatHandlers.copy = () => { if (antiCheatActive) logViolation('COPY_ATTEMPT'); };
+  antiCheatHandlers.beforeunload = e => {
+    if (antiCheatActive) {
+      e.preventDefault();
+      e.returnValue = 'Leaving will auto-submit your exam. Are you sure?';
+      logViolation('UNLOAD_ATTEMPT');
+    }
+  };
+
+  document.addEventListener('visibilitychange', antiCheatHandlers.visibility);
+  window.addEventListener('blur', antiCheatHandlers.blur);
+  document.addEventListener('contextmenu', antiCheatHandlers.context);
+  document.addEventListener('keydown', antiCheatHandlers.key);
+  document.addEventListener('copy', antiCheatHandlers.copy);
+  window.addEventListener('beforeunload', antiCheatHandlers.beforeunload);
+}
+
+function teardownAntiCheat() {
+  antiCheatActive = false;
+  document.removeEventListener('visibilitychange', antiCheatHandlers.visibility);
+  window.removeEventListener('blur', antiCheatHandlers.blur);
+  document.removeEventListener('contextmenu', antiCheatHandlers.context);
+  document.removeEventListener('keydown', antiCheatHandlers.key);
+  document.removeEventListener('copy', antiCheatHandlers.copy);
+  window.removeEventListener('beforeunload', antiCheatHandlers.beforeunload);
+}
+
+function logViolation(type) {
+  const v = { type, time: new Date().toISOString() };
+  App.violations.push(v);
+  const exam = App.exams[App.currentExamId];
+  if (exam) {
+    const sess = exam.sessions.find(s => s.id === App.sessionId);
+    if (sess) {
+      sess.violations = App.violations;
+      saveExams();
+      // Sync to Firestore so teacher sees violations live
+      fbSaveSession(exam.token, { id: App.sessionId, violations: App.violations });
+    }
+  }
+}
+
+function flashWarning(msg) {
+  const el = document.getElementById('anticheat-banner');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+// ─── Submit ───────────────────────────────────────────────
+function confirmSubmit() {
+  const answered = Object.keys(App.answers).length;
+  const total = App.questions.length;
+  const unanswered = total - answered;
+  document.getElementById('confirm-submit-msg').innerHTML =
+    `You have answered <strong>${answered}</strong> of <strong>${total}</strong> questions.<br>` +
+    (unanswered > 0 ? `<span style="color:var(--warn);">${unanswered} unanswered question${unanswered>1?'s':''} will score 0.</span><br>` : '') +
+    `<br>This action <strong>cannot be undone.</strong>`;
+  openModal('modal-confirm-submit');
+}
+
+function doSubmitExam() {
+  clearInterval(App.timerInterval);
+  teardownAntiCheat();
+  closeModal('modal-confirm-submit');
+
+  const timeTaken = Math.round((Date.now() - App.startTime) / 1000);
+  let score = 0;
+  App.questions.forEach((q, i) => {
+    if (App.answers[i] === q.correct_answer) score++;
+  });
+
+  const totalMarks = App.questions.length * (App.exam.marks || 1);
+  const pct = Math.round(score / App.questions.length * 100);
+
+  // Update session locally
+  const exam = App.exams[App.currentExamId];
+  const sess = exam.sessions.find(s => s.id === App.sessionId);
+  const finalSession = {
+    id: App.sessionId,
+    ...(sess || {}),
+    ...App.studentInfo,
+    submitted: true,
+    score,
+    totalMarks,
+    timeTaken,
+    pct,
+    submittedAt: Date.now(),
+    violations: App.violations,
+    answers: App.answers,
+  };
+  if (sess) Object.assign(sess, finalSession);
+  saveExams();
+  // Push final result to Firestore — teacher sees it instantly on any device
+  fbSaveSession(exam.token, finalSession);
+
+  showResults(score, totalMarks, timeTaken, pct);
+}
+
+function showResults(score, totalMarks, timeTaken, pct) {
+  const grade = pct>=90?'A+':pct>=80?'A':pct>=70?'B':pct>=60?'C':pct>=50?'D':'F';
+  const gradeColors = { 'A+':'badge-success','A':'badge-success','B':'badge-info','C':'badge-warn','D':'badge-warn','F':'badge-danger' };
+
+  document.getElementById('result-exam-title').textContent = App.exam.course;
+  document.getElementById('result-student-name').textContent = App.studentInfo.name + ' · ' + App.studentInfo.studentId;
+  document.getElementById('result-score-big').textContent = score * (App.exam.marks||1);
+  document.getElementById('result-score-total').textContent = '/ ' + totalMarks;
+  document.getElementById('result-pct-badge').textContent = pct + '%';
+  document.getElementById('result-grade-badge').textContent = 'Grade: ' + grade;
+  document.getElementById('result-grade-badge').className = 'badge ' + (gradeColors[grade]||'badge-neutral');
+  document.getElementById('result-time-badge').textContent = '⏱ ' + Math.floor(timeTaken/60) + 'm ' + (timeTaken%60) + 's';
+  document.getElementById('result-violations-badge').textContent = '⚑ ' + App.violations.length + ' violation' + (App.violations.length!==1?'s':'');
+
+  // Animate ring
+  const circumference = 2 * Math.PI * 54; // r=54
+  const offset = circumference * (1 - pct/100);
+  setTimeout(() => {
+    document.getElementById('result-ring').style.strokeDashoffset = offset;
+    const ringColor = pct>=60?'var(--success)':pct>=40?'var(--warn)':'var(--danger)';
+    document.getElementById('result-ring').style.stroke = ringColor;
+  }, 200);
+
+  // Tally
+  let correct=0, wrong=0, skipped=0;
+  const reviewHtml = App.questions.map((q, i) => {
+    const sel = App.answers[i];
+    const isCorrect = sel === q.correct_answer;
+    const isSkipped = sel === undefined;
+    if (isSkipped) skipped++;
+    else if (isCorrect) correct++;
+    else wrong++;
+
+    const statusIcon = isSkipped ? '—' : isCorrect ? '✓' : '✗';
+    const statusColor = isSkipped ? 'var(--ink-3)' : isCorrect ? 'var(--success)' : 'var(--danger)';
+
+    return `<div style="border:1px solid var(--paper-3);border-radius:var(--radius);padding:12px 14px;font-size:.875rem;">
+      <div style="display:flex;align-items:flex-start;gap:8px;justify-content:space-between;">
+        <div style="flex:1;">
+          <div style="font-weight:600;margin-bottom:8px;">Q${i+1}. ${escHtml(q.question_text)}</div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            ${q.options.map((o, oi) => {
+              const isAns = oi === sel;
+              const isRight = oi === q.correct_answer;
+              let style = 'padding:4px 8px;border-radius:6px;font-size:.825rem;';
+              if (isRight) style += 'background:var(--success-bg);color:var(--success);font-weight:600;';
+              else if (isAns && !isRight) style += 'background:var(--danger-bg);color:var(--danger);';
+              else style += 'color:var(--ink-3);';
+              return `<div style="${style}">${'ABCD'[oi]}. ${escHtml(o)}${isRight?' ✓':''}${isAns&&!isRight?' ✗':''}</div>`;
+            }).join('')}
+          </div>
+        </div>
+        <span style="font-size:1.2rem;font-weight:700;color:${statusColor};flex-shrink:0;">${statusIcon}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('review-correct-count').textContent = correct + ' correct';
+  document.getElementById('review-wrong-count').textContent = wrong + ' wrong';
+  document.getElementById('review-skip-count').textContent = skipped + ' skipped';
+  document.getElementById('review-list').innerHTML = reviewHtml;
+
+  showPage('page-results');
+  DB.del('exam_answers_' + App.sessionId);
+}
+
+// ─── Monitoring ───────────────────────────────────────────
+function openMonitor(idx) {
+  App.currentExamId = idx;
+  const exam = App.exams[idx];
+  document.getElementById('monitor-exam-title').textContent = exam.course;
+  document.getElementById('monitor-exam-subtitle').textContent = `${exam.section} · ${exam.duration} min · ${exam.questions.length} questions`;
+  App.monitorFilter = 'all';
+  App.liveSessions = exam.sessions || [];   // seed with local data immediately
+  showPage('page-monitoring');
+  renderMonitor();
+
+  // Start Firestore real-time listener — updates from ANY student's browser
+  fbListenSessions(exam.token, (sessions) => {
+    App.liveSessions = sessions;
+    // Also keep local copy in sync
+    exam.sessions = sessions;
+    saveExams();
+    renderMonitor();
+  });
+
+  // Also tick the exam countdown every second
+  clearInterval(App.monitorInterval);
+  App.monitorInterval = setInterval(() => {
+    const timerEl = document.getElementById('monitor-timer');
+    if (!timerEl) return;
+    const remaining = Math.max(0, exam.endTime - Date.now());
+    const mm = String(Math.floor(remaining/60000)).padStart(2,'0');
+    const ss = String(Math.floor((remaining%60000)/1000)).padStart(2,'0');
+    timerEl.textContent = remaining > 0 ? `${mm}:${ss} remaining` : 'Exam ended';
+    timerEl.className = 'timer-display ' + (remaining < 300000 ? 'danger' : remaining < 600000 ? 'warning' : 'ok');
+  }, 1000);
+}
+
+function renderMonitor() {
+  const exam = App.exams[App.currentExamId];
+  if (!exam) return;
+
+  // Use live Firestore sessions (falls back to local if not yet loaded)
+  const sessions = App.liveSessions.length ? App.liveSessions : (exam.sessions || []);
+  const submitted = sessions.filter(s => s.submitted);
+  const flagged = sessions.filter(s => (s.violations||[]).length >= 3);
+  const active = sessions.filter(s => !s.submitted);
+
+  document.getElementById('m-total').textContent = sessions.length;
+  document.getElementById('m-active').textContent = active.length;
+  document.getElementById('m-submitted').textContent = submitted.length;
+  document.getElementById('m-flagged').textContent = flagged.length;
+
+  const avgPct = submitted.length ? Math.round(submitted.reduce((a,s) => a + s.pct, 0) / submitted.length) : null;
+  document.getElementById('m-avg').textContent = avgPct !== null ? avgPct+'%' : '—';
+
+  // Table
+  let filtered = sessions;
+  if (App.monitorFilter === 'active') filtered = active;
+  else if (App.monitorFilter === 'flagged') filtered = flagged;
+  else if (App.monitorFilter === 'submitted') filtered = submitted;
+
+  const tbody = document.getElementById('monitor-tbody');
+  tbody.innerHTML = filtered.length ? filtered.map(s => {
+    const vCount = (s.violations||[]).length;
+    const isFlagged = vCount >= 3;
+    const statusBadge = s.submitted
+      ? '<span class="badge badge-success">Submitted</span>'
+      : isFlagged
+        ? '<span class="badge badge-danger">Flagged</span>'
+        : '<span class="badge badge-info">Active</span>';
+
+    // Estimate progress
+    const answeredCount = s.submitted ? (s.totalMarks/(exam.marks||1)) : Object.keys(s.answers||{}).length;
+    const pct = Math.round(answeredCount / exam.questions.length * 100);
+
+    return `<tr>
+      <td><strong>${escHtml(s.name)}</strong><br><span style="font-size:.75rem;color:var(--ink-3);">${escHtml(s.studentId)}</span></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div class="progress-bar" style="width:80px;height:5px;"><div class="progress-fill" style="width:${pct}%;"></div></div>
+          <span style="font-size:.75rem;color:var(--ink-3);">${pct}%</span>
+        </div>
+      </td>
+      <td style="font-size:.8rem;color:var(--ink-3);">${s.submitted?'Done':'Active'}</td>
+      <td><span class="badge ${vCount>=5?'badge-danger':vCount>=2?'badge-warn':'badge-neutral'}">${vCount}</span></td>
+      <td>${statusBadge}</td>
+      <td>${s.submitted?`<strong>${s.score}/${s.totalMarks/(exam.marks||1)}</strong> (${s.pct}%)`:'<span style="color:var(--ink-3);">—</span>'}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6" style="text-align:center;color:var(--ink-3);padding:24px;">No students match this filter.</td></tr>`;
+
+  // Chart
+  renderMonitorChart(submitted, exam.questions.length);
+
+  // Violation log
+  const allViolations = sessions.flatMap(s =>
+    (s.violations||[]).map(v => ({ name: s.name, ...v }))
+  ).sort((a,b) => new Date(b.time) - new Date(a.time)).slice(0,15);
+
+  document.getElementById('violation-log').innerHTML = allViolations.length
+    ? allViolations.map(v => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--paper-2);font-size:.8rem;">
+          <span style="font-weight:500;">${escHtml(v.name.split(' ')[0])}</span>
+          <span style="color:var(--danger);">${v.type.replace(/_/g,' ').toLowerCase()}</span>
+        </div>`)
+      .join('')
+    : '<p style="color:var(--ink-3);font-size:.825rem;">No violations recorded.</p>';
+}
+
+function renderMonitorChart(submitted, totalQ) {
+  const buckets = [
+    { label:'0–25%', max:0.25 },
+    { label:'26–50%', max:0.50 },
+    { label:'51–75%', max:0.75 },
+    { label:'76–100%', max:1.01 },
+  ];
+  let prev = -1;
+  const counts = buckets.map(b => {
+    const c = submitted.filter(s => (s.score/totalQ) > prev && (s.score/totalQ) <= b.max).length;
+    prev = b.max;
+    return c;
+  });
+  const maxC = Math.max(...counts, 1);
+  const colors = ['var(--danger)', 'var(--warn)', 'var(--info)', 'var(--success)'];
+
+  document.getElementById('monitor-chart').innerHTML = counts.map((c,i) =>
+    `<div class="chart-bar" style="height:${Math.max(c/maxC*60,c>0?8:3)}px;background:${colors[i]};opacity:.75;" title="${buckets[i].label}: ${c} students"></div>`
+  ).join('');
+  document.getElementById('monitor-chart-labels').innerHTML = buckets.map(b =>
+    `<div class="chart-bar-label">${b.label}</div>`
+  ).join('');
+}
+
+function setMonitorFilter(f, btn) {
+  App.monitorFilter = f;
+  document.querySelectorAll('#monitor-filter-btns .btn').forEach(b => {
+    b.style.background = 'transparent'; b.style.color = 'var(--ink-2)'; b.style.borderColor = 'var(--paper-3)';
+  });
+  btn.style.background = 'var(--accent)'; btn.style.color = '#fff'; btn.style.borderColor = 'var(--accent)';
+  renderMonitor();
+}
+
+function confirmEndExam() {
+  if (confirm('End this exam early? All active students will be timed out.')) {
+    const exam = App.exams[App.currentExamId];
+    if (exam) { exam.endTime = Date.now() - 1000; saveExams(); }
+    toast('Exam ended.', 'warn');
+    renderMonitor();
+  }
+}
+
+// ─── Export CSV ───────────────────────────────────────────
+function exportCSV() { exportCSVForExam(App.currentExamId); }
+
+async function exportCSVForExam(idx) {
+  const exam = App.exams[idx];
+  if (!exam) { toast('Exam not found.', 'error'); return; }
+
+  toast('Fetching latest results from Firestore…', 'info', 2000);
+  // Pull fresh from Firestore to get all students across all browsers
+  let sessions = [];
+  try {
+    const snap = await db.collection('sessions').where('examToken', '==', exam.token).get();
+    sessions = snap.docs.map(function(d) { return d.data(); });
+  } catch(e) {
+    console.warn('[FB] export load error:', e.message);
+    sessions = exam.sessions || [];
+  }
+  if (!sessions.length) { toast('No student data to export yet.', 'warn'); return; }
+
+  const headers = ['Name','Student ID','Section','Department','Session','Score','Total Marks','Percentage','Grade','Time Taken (s)','Violations','Submitted At'];
+  const rows = exam.sessions.map(s => {
+    const grade = !s.submitted?'—':(s.pct>=90?'A+':s.pct>=80?'A':s.pct>=70?'B':s.pct>=60?'C':s.pct>=50?'D':'F');
+    return [
+      s.name, s.studentId, s.section, s.dept, s.session,
+      s.submitted?s.score:'—', s.totalMarks/(exam.marks||1)*( exam.marks||1),
+      s.submitted?s.pct+'%':'—', grade,
+      s.timeTaken||'—', (s.violations||[]).length,
+      s.submittedAt ? new Date(s.submittedAt).toLocaleString() : '—',
+    ].map(v => `"${String(v).replace(/"/g,'""')}"`);
+  });
+
+  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type:'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `results_${exam.course.replace(/\s/g,'_')}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  toast('CSV downloaded!', 'success');
+}
+
+function sendEmailReport() {
+  toast('Firebase stores all results. CSV exported for your records.', 'info', 4000);
+  exportCSV();
+}
+
+// ─── Utilities ────────────────────────────────────────────
+function escHtml(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function copyLink(url) {
+  navigator.clipboard.writeText(url).then(() => toast('Link copied to clipboard!', 'success'));
+}
+
+// ─── URL exam token handling ──────────────────────────────
+function checkURLForExam() {
+  const params = new URLSearchParams(location.search);
+
+  // NEW: full exam data encoded in URL — works in ANY browser, no localStorage needed
+  const encoded = params.get('ed');
+  if (encoded) {
+    const examData = decodeExamFromURL(encoded);
+    if (!examData) {
+      showExamError('This exam link is invalid or corrupted. Please ask your teacher for a new link.');
+      return;
+    }
+
+    // Check time window
+    const now = Date.now();
+    if (now < examData.startTime) {
+      const startStr = new Date(examData.startTime).toLocaleString();
+      showExamError(`This exam has not started yet. It opens on ${startStr}.`);
+      return;
+    }
+    if (now > examData.endTime) {
+      showExamError('This exam window has closed. Please contact your teacher.');
+      return;
+    }
+
+    // Merge into App.exams if not already there (so the teacher's session also sees it)
+    let idx = App.exams.findIndex(e => e.token === examData.token);
+    if (idx === -1) {
+      // Student's browser: create a local stub so session data can be saved
+      const stub = { ...examData, sessions: [] };
+      App.exams.push(stub);
+      saveExams();
+      idx = App.exams.length - 1;
+    }
+
+    App.currentExamId = idx;
+    loadStudentInfoPage(App.exams[idx]);
+    return;
+  }
+
+  // LEGACY fallback: token-only link (works only in same browser as teacher)
+  const token = params.get('exam');
+  if (!token) return;
+  loadAppData();
+  const idx = App.exams.findIndex(e => e.token === token);
+  if (idx === -1) {
+    showExamError('Exam not found. This link only works in the teacher\'s browser. Ask your teacher to share the full exam link.');
+    return;
+  }
+  App.currentExamId = idx;
+  loadStudentInfoPage(App.exams[idx]);
+}
+
+function showExamError(msg) {
+  // Show a clean error page instead of the landing page
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.body.innerHTML += `
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;font-family:'DM Sans',sans-serif;background:#faf9f6;">
+      <div style="text-align:center;max-width:440px;">
+        <div style="font-size:2.5rem;margin-bottom:16px;">⚠️</div>
+        <h2 style="font-size:1.4rem;margin-bottom:10px;color:#0f0e0d;">Cannot open exam</h2>
+        <p style="color:#7a7670;line-height:1.7;">${msg}</p>
+      </div>
+    </div>`;
+}
+
+// ─── Init ──────────────────────────────────────────────────
+(function init() {
+  loadAppData();
+  checkURLForExam();
+  if (App.teacher && !new URLSearchParams(location.search).get('exam')) {
+    showPage('page-teacher-dashboard');
+    renderDashboard();
+  }
+})();
+
+// ─── Firebase connection test (as ChatGPT instructed) ─────
+(function firebaseTest() {
+  var panel = document.createElement('div');
+  panel.style.cssText = 'position:fixed;bottom:16px;left:16px;z-index:99999;background:#1e1e2e;color:#cdd6f4;font-family:monospace;font-size:13px;padding:14px 18px;border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,.4);max-width:520px;line-height:1.9;border:1px solid #313244';
+  panel.innerHTML = '<strong style="color:#cba6f7">🔥 Firebase Test</strong><br>';
+  document.body.appendChild(panel);
+
+  function log(msg, color) {
+    panel.innerHTML += '<span style="color:' + (color || '#cdd6f4') + '">' + msg + '</span><br>';
+    console.log('[Firebase Test]', msg);
+  }
+
+  // Check firebase SDK
+  if (typeof firebase === 'undefined') {
+    log('❌ firebase is not defined', '#f38ba8');
+    log('→ SDK scripts failed to load. Check internet.', '#fab387');
+    return;
+  }
+  log('✅ firebase SDK loaded', '#a6e3a1');
+
+  // Check db
+  if (typeof db === 'undefined') {
+    log('❌ db is not defined — initializeApp failed', '#f38ba8');
+    return;
+  }
+  log('✅ Firestore db initialized', '#a6e3a1');
+  log('⏳ Writing test document…', '#89b4fa');
+
+  // Test write to Firestore (as ChatGPT instructed)
+  db.collection('test').add({
+    name: 'Tahsan',
+    time: Date.now()
+  }).then(function() {
+    log('✅ Data saved successfully!', '#a6e3a1');
+    log('Firebase is fully working ✓', '#94e2d5');
+    setTimeout(function() { panel.style.opacity = '0.25'; }, 5000);
+  }).catch(function(err) {
+    log('❌ Error: ' + err.code, '#f38ba8');
+    log('Detail: ' + err.message.substring(0, 120), '#fab387');
+    if (err.code === 'permission-denied') {
+      log('', '');
+      log('👉 FIX: Firebase Console → Firestore → Rules', '#f9e2af');
+      log('   Paste this and click Publish:', '#f9e2af');
+      log('   rules_version = "2";', '#a6e3a1');
+      log('   service cloud.firestore {', '#a6e3a1');
+      log('     match /databases/{db}/documents {', '#a6e3a1');
+      log('       match /{doc=**} { allow read,write: if true; }', '#a6e3a1');
+      log('     }', '#a6e3a1');
+      log('   }', '#a6e3a1');
+    }
+  });
+})();
+</script>
+</body>
+</html>
