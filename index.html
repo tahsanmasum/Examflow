@@ -390,7 +390,7 @@ h4 { font-size: .875rem; font-weight: 600; text-transform: uppercase; letter-spa
 </div>
 
 <!-- ═══════════════════════════════════════════════════════ -->
-<!--  PAGE: TEACHER LOGIN                                    -->
+<!--  PAGE: TEACHER LOGIN / SIGNUP                           -->
 <!-- ═══════════════════════════════════════════════════════ -->
 <div class="page" id="page-teacher-login">
   <nav class="navbar">
@@ -399,26 +399,79 @@ h4 { font-size: .875rem; font-weight: 600; text-transform: uppercase; letter-spa
       ExamFlow
     </a>
   </nav>
-  <main style="flex:1; display:flex; align-items:center; justify-content:center; padding:40px 20px;">
+  <main style="flex:1;display:flex;align-items:center;justify-content:center;padding:40px 20px;">
     <div class="card" style="width:100%;max-width:420px;">
-      <div class="card-header">
-        <h2>Teacher login</h2>
-        <p style="color:var(--ink-3);font-size:.875rem;margin-top:4px;">Access your exam dashboard</p>
+      <div class="card-header" style="text-align:center;padding-bottom:0;">
+        <div style="width:48px;height:48px;background:var(--accent);border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
+          <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="2"><path d="M4 6h12M4 10h12M4 14h8" stroke-linecap="round"/></svg>
+        </div>
+        <!-- Tab switcher -->
+        <div style="display:flex;border-bottom:1.5px solid var(--paper-3);margin:0 -24px;">
+          <button id="tab-signin-btn" onclick="switchAuthTab('signin')" style="flex:1;padding:12px;font-size:.9rem;font-weight:600;border:none;background:transparent;cursor:pointer;color:var(--accent);border-bottom:2px solid var(--accent);margin-bottom:-1.5px;">Sign in</button>
+          <button id="tab-signup-btn" onclick="switchAuthTab('signup')" style="flex:1;padding:12px;font-size:.9rem;font-weight:500;border:none;background:transparent;cursor:pointer;color:var(--ink-3);border-bottom:2px solid transparent;margin-bottom:-1.5px;">Create account</button>
+        </div>
       </div>
       <div class="card-body">
-        <div style="display:flex;flex-direction:column;gap:16px;">
+        <!-- SIGN IN FORM -->
+        <div id="auth-signin-form" style="display:flex;flex-direction:column;gap:14px;">
+          <div style="text-align:center;padding-bottom:4px;">
+            <div style="font-size:1.1rem;font-weight:600;">Welcome back</div>
+            <div style="font-size:.85rem;color:var(--ink-3);margin-top:3px;">Sign in to your teacher account</div>
+          </div>
           <div class="form-group">
             <label class="form-label">Email <span>*</span></label>
-            <input class="form-input" id="login-email" type="email" placeholder="teacher@university.edu" value="teacher@examflow.io">
+            <input class="form-input" id="signin-email" type="email" placeholder="you@university.edu" autocomplete="email">
           </div>
           <div class="form-group">
             <label class="form-label">Password <span>*</span></label>
-            <input class="form-input" id="login-pass" type="password" placeholder="••••••••" value="password123">
-            <span class="form-hint">Demo: any email + any password works</span>
+            <div style="position:relative;">
+              <input class="form-input" id="signin-pass" type="password" placeholder="••••••••" autocomplete="current-password" style="padding-right:44px;">
+              <button onclick="togglePass('signin-pass')" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);border:none;background:none;cursor:pointer;color:var(--ink-3);font-size:1rem;">👁</button>
+            </div>
           </div>
-          <button class="btn btn-primary btn-full" onclick="doTeacherLogin()">Sign in →</button>
+          <div style="text-align:right;margin-top:-6px;">
+            <a href="#" onclick="doForgotPassword()" style="font-size:.825rem;color:var(--accent);">Forgot password?</a>
+          </div>
+          <div id="signin-error" style="display:none;background:var(--danger-bg);color:var(--danger);padding:10px 14px;border-radius:var(--radius);font-size:.85rem;"></div>
+          <button class="btn btn-primary btn-full" id="signin-btn" onclick="doSignIn()">
+            Sign in →
+          </button>
           <div style="text-align:center;font-size:.825rem;color:var(--ink-3);">
-            Don't have an account? <a href="#" onclick="doTeacherLogin()" style="color:var(--accent);">Register free</a>
+            No account? <a href="#" onclick="switchAuthTab('signup')" style="color:var(--accent);font-weight:500;">Create one free</a>
+          </div>
+        </div>
+
+        <!-- SIGN UP FORM -->
+        <div id="auth-signup-form" style="display:none;flex-direction:column;gap:14px;">
+          <div style="text-align:center;padding-bottom:4px;">
+            <div style="font-size:1.1rem;font-weight:600;">Create your account</div>
+            <div style="font-size:.85rem;color:var(--ink-3);margin-top:3px;">Free teacher account — takes 30 seconds</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Full name <span>*</span></label>
+            <input class="form-input" id="signup-name" type="text" placeholder="e.g. Dr. Tahsan Rahman" autocomplete="name">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email <span>*</span></label>
+            <input class="form-input" id="signup-email" type="email" placeholder="you@university.edu" autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password <span>*</span></label>
+            <div style="position:relative;">
+              <input class="form-input" id="signup-pass" type="password" placeholder="Min 6 characters" autocomplete="new-password" style="padding-right:44px;">
+              <button onclick="togglePass('signup-pass')" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);border:none;background:none;cursor:pointer;color:var(--ink-3);font-size:1rem;">👁</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Institution / University</label>
+            <input class="form-input" id="signup-institution" type="text" placeholder="e.g. BUET, DU, BRAC University">
+          </div>
+          <div id="signup-error" style="display:none;background:var(--danger-bg);color:var(--danger);padding:10px 14px;border-radius:var(--radius);font-size:.85rem;"></div>
+          <button class="btn btn-primary btn-full" id="signup-btn" onclick="doSignUp()">
+            Create account →
+          </button>
+          <div style="text-align:center;font-size:.825rem;color:var(--ink-3);">
+            Already have an account? <a href="#" onclick="switchAuthTab('signin')" style="color:var(--accent);font-weight:500;">Sign in</a>
           </div>
         </div>
       </div>
@@ -431,15 +484,29 @@ h4 { font-size: .875rem; font-weight: 600; text-transform: uppercase; letter-spa
 <!-- ═══════════════════════════════════════════════════════ -->
 <div class="page" id="page-teacher-dashboard">
   <nav class="navbar">
-    <a class="navbar-brand" href="#" onclick="showPage('page-teacher-dashboard')">
+    <a class="navbar-brand" href="#" onclick="handleLogoClick()" style="text-decoration:none;">
       <div class="logo-mark"><svg viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h8" stroke-linecap="round"/></svg></div>
       ExamFlow
     </a>
     <div class="nav-links">
-      <span style="font-size:.875rem;color:var(--ink-3)" id="teacher-name-display"></span>
       <button class="btn btn-ghost btn-sm" onclick="showPage('page-monitoring')">&#128202; Live monitor</button>
       <button class="btn btn-primary btn-sm" onclick="openCreateExamModal()">+ New exam</button>
-      <button class="btn btn-ghost btn-icon" onclick="doLogout()" title="Logout">&#128682;</button>
+      <div style="position:relative;">
+        <button onclick="toggleUserMenu()" style="display:flex;align-items:center;gap:8px;border:1.5px solid var(--paper-3);border-radius:999px;padding:5px 12px 5px 5px;background:#fff;cursor:pointer;font-size:.85rem;font-weight:500;color:var(--ink);">
+          <div id="user-avatar" style="width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;">T</div>
+          <span id="teacher-name-display" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+          <span style="font-size:.7rem;color:var(--ink-3);">▾</span>
+        </button>
+        <div id="user-menu" style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:#fff;border:1px solid var(--paper-3);border-radius:var(--radius);box-shadow:var(--shadow-lg);min-width:200px;z-index:200;overflow:hidden;">
+          <div style="padding:14px;border-bottom:1px solid var(--paper-2);">
+            <div style="font-size:.875rem;font-weight:600;margin-bottom:2px;" id="user-menu-name"></div>
+            <div style="font-size:.775rem;color:var(--ink-3);" id="user-menu-email"></div>
+          </div>
+          <button onclick="doLogout()" style="width:100%;text-align:left;padding:11px 14px;border:none;background:none;cursor:pointer;font-size:.875rem;color:var(--danger);display:flex;align-items:center;gap:8px;">
+            &#128682; Sign out
+          </button>
+        </div>
+      </div>
     </div>
   </nav>
 
@@ -869,6 +936,32 @@ h4 { font-size: .875rem; font-weight: 600; text-transform: uppercase; letter-spa
 
       <!-- Tab: Upload -->
       <div class="tab-pane" id="tab-upload">
+        <!-- Image upload section -->
+        <div style="background:var(--accent-bg);border:1.5px solid var(--accent-2);border-radius:var(--radius-lg);padding:16px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <span style="font-size:1.2rem;">📷</span>
+            <div>
+              <div style="font-weight:600;font-size:.9rem;">Extract questions from image</div>
+              <div style="font-size:.8rem;color:var(--ink-3);">Take a photo of your question paper — AI will extract all questions automatically</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" onclick="document.getElementById('image-input').click()">📁 Upload image</button>
+            <button class="btn btn-secondary btn-sm" onclick="openCamera()">📷 Take photo</button>
+          </div>
+          <input type="file" id="image-input" accept="image/*" style="display:none" onchange="handleImageUpload(event)">
+          <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none" onchange="handleImageUpload(event)">
+          <div id="image-preview-wrap" style="display:none;margin-top:12px;">
+            <img id="image-preview" style="max-width:100%;max-height:200px;border-radius:var(--radius);border:1px solid var(--paper-3);object-fit:contain;" alt="Question paper preview">
+            <div id="image-extract-status" style="margin-top:8px;font-size:.85rem;color:var(--ink-2);"></div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <div style="flex:1;height:1px;background:var(--paper-3);"></div>
+          <span style="font-size:.8rem;color:var(--ink-3);font-weight:500;">OR UPLOAD FILE</span>
+          <div style="flex:1;height:1px;background:var(--paper-3);"></div>
+        </div>
         <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropFile(event)">
           <div class="upload-icon">&#128196;</div>
           <strong>Click to browse or drag & drop</strong>
@@ -1178,41 +1271,242 @@ function switchModalTab(tabId, btn) {
 }
 
 // ─── Auth ─────────────────────────────────────────────────
-function doTeacherLogin() {
-  const email = document.getElementById('login-email').value.trim();
-  if (!email) { toast('Please enter your email', 'error'); return; }
-  App.teacher = { email, name: email.split('@')[0] };
-  DB.set('teacher', App.teacher);
-  loadAppData();
-  showPage('page-teacher-dashboard');
-  renderDashboard();
-  toast('Welcome back, ' + App.teacher.name + '! Loading your exams…', 'success');
+// ─── Auth tab switcher ────────────────────────────────────
+function switchAuthTab(tab) {
+  const isSignin = tab === 'signin';
+  document.getElementById('auth-signin-form').style.display = isSignin ? 'flex' : 'none';
+  document.getElementById('auth-signup-form').style.display = isSignin ? 'none' : 'flex';
+  document.getElementById('tab-signin-btn').style.cssText = isSignin
+    ? 'flex:1;padding:12px;font-size:.9rem;font-weight:600;border:none;background:transparent;cursor:pointer;color:var(--accent);border-bottom:2px solid var(--accent);margin-bottom:-1.5px;'
+    : 'flex:1;padding:12px;font-size:.9rem;font-weight:500;border:none;background:transparent;cursor:pointer;color:var(--ink-3);border-bottom:2px solid transparent;margin-bottom:-1.5px;';
+  document.getElementById('tab-signup-btn').style.cssText = isSignin
+    ? 'flex:1;padding:12px;font-size:.9rem;font-weight:500;border:none;background:transparent;cursor:pointer;color:var(--ink-3);border-bottom:2px solid transparent;margin-bottom:-1.5px;'
+    : 'flex:1;padding:12px;font-size:.9rem;font-weight:600;border:none;background:transparent;cursor:pointer;color:var(--accent);border-bottom:2px solid var(--accent);margin-bottom:-1.5px;';
+  // clear errors
+  ['signin-error','signup-error'].forEach(function(id) {
+    document.getElementById(id).style.display = 'none';
+  });
+}
 
-  // Pull exams from Firestore (works on any device — as ChatGPT instructed)
-  db.collection('exams').where('email', '==', email).get().then(function(snap) {
-    if (snap.empty) return;
-    snap.docs.forEach(function(doc) {
-      const fe = doc.data();
-      if (!App.exams.find(function(e) { return e.token === fe.token; })) {
-        App.exams.push({ ...fe, sessions: [], questions: fe.questions || [] });
-      }
+function togglePass(id) {
+  const el = document.getElementById(id);
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+function showAuthError(formType, msg) {
+  const el = document.getElementById(formType + '-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// ─── Firebase Auth: Sign In ───────────────────────────────
+function doSignIn() {
+  const email = document.getElementById('signin-email').value.trim();
+  const pass  = document.getElementById('signin-pass').value;
+  document.getElementById('signin-error').style.display = 'none';
+
+  if (!email || !pass) { showAuthError('signin', 'Please enter your email and password.'); return; }
+
+  const btn = document.getElementById('signin-btn');
+  btn.textContent = 'Signing in…'; btn.disabled = true;
+
+  auth.signInWithEmailAndPassword(email, pass)
+    .then(function(cred) {
+      btn.textContent = 'Sign in →'; btn.disabled = false;
+      onAuthSuccess(cred.user, null, true); // showWelcome = true (manual login)
+    })
+    .catch(function(err) {
+      btn.textContent = 'Sign in →'; btn.disabled = false;
+      const msgs = {
+        'auth/user-not-found':   'No account found with this email.',
+        'auth/wrong-password':   'Incorrect password. Try again.',
+        'auth/invalid-email':    'Please enter a valid email address.',
+        'auth/too-many-requests':'Too many attempts. Please wait a moment.',
+        'auth/invalid-credential': 'Incorrect email or password.',
+      };
+      showAuthError('signin', msgs[err.code] || err.message);
     });
-    saveExams();
-    renderDashboard();
-    toast(snap.docs.length + ' exam(s) loaded from cloud ☁️', 'info', 2500);
-  }).catch(function(e) { console.warn('[FB] load exams error:', e.message); });
 }
 
-function doLogout() {
-  App.teacher = null;
-  DB.del('teacher');
-  showPage('page-landing');
+// ─── Firebase Auth: Sign Up ───────────────────────────────
+function doSignUp() {
+  const name  = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const pass  = document.getElementById('signup-pass').value;
+  const inst  = document.getElementById('signup-institution').value.trim();
+  document.getElementById('signup-error').style.display = 'none';
+
+  if (!name)  { showAuthError('signup', 'Please enter your full name.'); return; }
+  if (!email) { showAuthError('signup', 'Please enter your email.'); return; }
+  if (pass.length < 6) { showAuthError('signup', 'Password must be at least 6 characters.'); return; }
+
+  const btn = document.getElementById('signup-btn');
+  btn.textContent = 'Creating account…'; btn.disabled = true;
+
+  auth.createUserWithEmailAndPassword(email, pass)
+    .then(function(cred) {
+      // Save teacher profile to Firestore
+      return db.collection('teachers').doc(cred.user.uid).set({
+        name: name,
+        email: email,
+        institution: inst,
+        createdAt: Date.now(),
+        uid: cred.user.uid,
+      }).then(function() {
+        btn.textContent = 'Create account →'; btn.disabled = false;
+        onAuthSuccess(cred.user, name, true); // showWelcome = true (new signup)
+      });
+    })
+    .catch(function(err) {
+      btn.textContent = 'Create account →'; btn.disabled = false;
+      const msgs = {
+        'auth/email-already-in-use': 'An account with this email already exists. Sign in instead.',
+        'auth/invalid-email':        'Please enter a valid email address.',
+        'auth/weak-password':        'Password is too weak. Use at least 6 characters.',
+      };
+      showAuthError('signup', msgs[err.code] || err.message);
+    });
 }
+
+// ─── On auth success (signin or signup) ──────────────────
+function onAuthSuccess(user, displayName, showWelcome) {
+  // Load teacher profile from Firestore
+  db.collection('teachers').doc(user.uid).get().then(function(doc) {
+    const name = doc.exists ? doc.data().name : (displayName || user.email.split('@')[0]);
+    App.teacher = { uid: user.uid, email: user.email, name: name };
+    DB.set('teacher', App.teacher);
+    loadAppData();
+    updateUserUI();
+    showPage('page-teacher-dashboard');
+    renderDashboard();
+    if (showWelcome) toast('Welcome, ' + name + '! 👋', 'success');
+    loadExamsFromFirestore(user.uid);
+  }).catch(function() {
+    const name = displayName || user.email.split('@')[0];
+    App.teacher = { uid: user.uid, email: user.email, name: name };
+    DB.set('teacher', App.teacher);
+    loadAppData();
+    updateUserUI();
+    showPage('page-teacher-dashboard');
+    renderDashboard();
+    if (showWelcome) toast('Welcome, ' + name + '! 👋', 'success');
+    loadExamsFromFirestore(user.uid);
+  });
+}
+
+// ─── Load all exams from Firestore for this teacher ───────
+function loadExamsFromFirestore(uid) {
+  db.collection('exams').where('uid', '==', uid).orderBy('createdAt', 'desc').get()
+    .then(function(snap) {
+      if (snap.empty) return;
+      var loaded = 0;
+      snap.docs.forEach(function(doc) {
+        const fe = doc.data();
+        if (!App.exams.find(function(e) { return e.token === fe.token; })) {
+          App.exams.push({ ...fe, sessions: [], questions: fe.questions || [] });
+          loaded++;
+        }
+      });
+      if (loaded > 0) {
+        saveExams();
+        renderDashboard();
+        toast(loaded + ' exam(s) loaded from cloud ☁️', 'info', 2000);
+      }
+    })
+    .catch(function(e) {
+      // Try without orderBy in case index not set up yet
+      db.collection('exams').where('uid', '==', uid).get()
+        .then(function(snap) {
+          snap.docs.forEach(function(doc) {
+            const fe = doc.data();
+            if (!App.exams.find(function(e) { return e.token === fe.token; })) {
+              App.exams.push({ ...fe, sessions: [], questions: fe.questions || [] });
+            }
+          });
+          saveExams();
+          renderDashboard();
+        }).catch(function(e2) { console.warn('[FB] loadExams fallback error:', e2.message); });
+    });
+}
+
+// ─── Forgot password ──────────────────────────────────────
+function doForgotPassword() {
+  const email = document.getElementById('signin-email').value.trim();
+  if (!email) { showAuthError('signin', 'Enter your email above first, then click Forgot password.'); return; }
+  auth.sendPasswordResetEmail(email)
+    .then(function() { toast('Reset email sent to ' + email, 'success', 4000); })
+    .catch(function(err) { showAuthError('signin', err.message); });
+}
+
+// ─── Firebase Auth: Sign Out ──────────────────────────────
+function doLogout() {
+  auth.signOut().then(function() {
+    App.teacher = null;
+    App.exams = [];
+    App.liveSessions = [];
+    DB.del('teacher');
+    DB.del('exams');
+    closeUserMenu();
+    showPage('page-teacher-login');
+    switchAuthTab('signin');
+  });
+}
+
+// ─── Logo click — stays on dashboard if logged in ─────────
+function handleLogoClick() {
+  // Logo click takes teacher back to their dashboard, NOT the landing page
+  // Landing page is only for logged-out users
+  if (App.teacher) {
+    showPage('page-teacher-dashboard');
+    renderDashboard();
+  } else {
+    showPage('page-landing');
+  }
+}
+
+// ─── User menu toggle ─────────────────────────────────────
+function toggleUserMenu() {
+  const m = document.getElementById('user-menu');
+  m.style.display = m.style.display === 'none' ? 'block' : 'none';
+}
+function closeUserMenu() {
+  const m = document.getElementById('user-menu');
+  if (m) m.style.display = 'none';
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#user-menu') && !e.target.closest('[onclick="toggleUserMenu()"]')) {
+    closeUserMenu();
+  }
+});
+
+// ─── Update user avatar/name in navbar ───────────────────
+function updateUserUI() {
+  if (!App.teacher) return;
+  const name = App.teacher.name || App.teacher.email;
+  const initials = name.split(' ').map(function(w) { return w[0]; }).join('').toUpperCase().slice(0,2);
+  const disp = document.getElementById('teacher-name-display');
+  const avatar = document.getElementById('user-avatar');
+  const menuName = document.getElementById('user-menu-name');
+  const menuEmail = document.getElementById('user-menu-email');
+  if (disp) disp.textContent = name;
+  if (avatar) avatar.textContent = initials;
+  if (menuName) menuName.textContent = name;
+  if (menuEmail) menuEmail.textContent = App.teacher.email;
+}
+
+// ─── Firebase Auth state listener (auto-login on any browser) ─
+auth.onAuthStateChanged(function(user) {
+  if (user && !new URLSearchParams(location.search).get('ed')) {
+    // Silently restore session — no welcome toast for auto-login
+    onAuthSuccess(user, null, false);
+  }
+});
 
 // ─── Dashboard rendering ──────────────────────────────────
 function renderDashboard() {
   if (!App.teacher) return;
-  document.getElementById('teacher-name-display').textContent = App.teacher.email;
+  updateUserUI();
+  document.getElementById('teacher-name-display').textContent = App.teacher.name || App.teacher.email;
 
   const exams = App.exams;
   const totalStudents = exams.reduce((a, e) => a + (e.sessions||[]).length, 0);
@@ -1338,6 +1632,7 @@ function createExam() {
     questions: parsedQuestions,
     sessions: [],
     createdAt: Date.now(),
+    uid: App.teacher ? App.teacher.uid : '',
   };
 
   App.exams.push(exam);
@@ -2293,67 +2588,86 @@ function showExamError(msg) {
     </div>`;
 }
 
+// ─── Image question extraction (Claude AI) ────────────────
+function openCamera() {
+  document.getElementById('camera-input').click();
+}
+
+function handleImageUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const wrap = document.getElementById('image-preview-wrap');
+    const preview = document.getElementById('image-preview');
+    wrap.style.display = 'block';
+    preview.src = ev.target.result;
+    document.getElementById('image-extract-status').innerHTML =
+      '<span style="color:var(--info);">⏳ Extracting questions from image using AI…</span>';
+    extractQuestionsFromImage(ev.target.result, file.type);
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+async function extractQuestionsFromImage(dataUrl, mimeType) {
+  const statusEl = document.getElementById('image-extract-status');
+  try {
+    const base64 = dataUrl.split(',')[1];
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2000,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: mimeType || 'image/jpeg', data: base64 }
+            },
+            {
+              type: 'text',
+              text: 'Extract all MCQ questions from this image. Return ONLY a JSON array, no other text. Each object must have: "question_text" (string), "options" (array of 2-4 strings), "correct_answer" (number, 0-indexed), "difficulty" ("easy"/"medium"/"hard"), "topic_tag" (string). Example: [{"question_text":"What is 2+2?","options":["3","4","5","6"],"correct_answer":1,"difficulty":"easy","topic_tag":"Math"}]'
+            }
+          ]
+        }]
+      })
+    });
+
+    if (!response.ok) throw new Error('API error ' + response.status);
+    const data = await response.json();
+    const text = data.content.map(function(c) { return c.text || ''; }).join('');
+    const clean = text.replace(/```json|```/g, '').trim();
+    const extracted = JSON.parse(clean);
+
+    if (!Array.isArray(extracted) || extracted.length === 0) throw new Error('No questions found');
+
+    const valid = extracted.filter(function(q) {
+      return q.question_text && Array.isArray(q.options) && q.options.length >= 2;
+    });
+
+    parsedQuestions = parsedQuestions.concat(valid);
+    renderParsedList();
+    updateQCountHint();
+    statusEl.innerHTML = '<span style="color:var(--success);">✅ ' + valid.length + ' questions extracted successfully!</span>';
+    toast(valid.length + ' questions extracted from image! 🎉', 'success');
+
+  } catch(err) {
+    console.warn('Image extract error:', err.message);
+    statusEl.innerHTML = '<span style="color:var(--danger);">❌ Could not extract questions: ' + err.message + '</span>';
+    toast('Could not extract questions from image. Try a clearer photo.', 'error', 4000);
+  }
+}
+
 // ─── Init ──────────────────────────────────────────────────
 (function init() {
   loadAppData();
   checkURLForExam();
-  if (App.teacher && !new URLSearchParams(location.search).get('exam')) {
-    showPage('page-teacher-dashboard');
-    renderDashboard();
-  }
-})();
-
-// ─── Firebase connection test (as ChatGPT instructed) ─────
-(function firebaseTest() {
-  var panel = document.createElement('div');
-  panel.style.cssText = 'position:fixed;bottom:16px;left:16px;z-index:99999;background:#1e1e2e;color:#cdd6f4;font-family:monospace;font-size:13px;padding:14px 18px;border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,.4);max-width:520px;line-height:1.9;border:1px solid #313244';
-  panel.innerHTML = '<strong style="color:#cba6f7">🔥 Firebase Test</strong><br>';
-  document.body.appendChild(panel);
-
-  function log(msg, color) {
-    panel.innerHTML += '<span style="color:' + (color || '#cdd6f4') + '">' + msg + '</span><br>';
-    console.log('[Firebase Test]', msg);
-  }
-
-  // Check firebase SDK
-  if (typeof firebase === 'undefined') {
-    log('❌ firebase is not defined', '#f38ba8');
-    log('→ SDK scripts failed to load. Check internet.', '#fab387');
-    return;
-  }
-  log('✅ firebase SDK loaded', '#a6e3a1');
-
-  // Check db
-  if (typeof db === 'undefined') {
-    log('❌ db is not defined — initializeApp failed', '#f38ba8');
-    return;
-  }
-  log('✅ Firestore db initialized', '#a6e3a1');
-  log('⏳ Writing test document…', '#89b4fa');
-
-  // Test write to Firestore (as ChatGPT instructed)
-  db.collection('test').add({
-    name: 'Tahsan',
-    time: Date.now()
-  }).then(function() {
-    log('✅ Data saved successfully!', '#a6e3a1');
-    log('Firebase is fully working ✓', '#94e2d5');
-    setTimeout(function() { panel.style.opacity = '0.25'; }, 5000);
-  }).catch(function(err) {
-    log('❌ Error: ' + err.code, '#f38ba8');
-    log('Detail: ' + err.message.substring(0, 120), '#fab387');
-    if (err.code === 'permission-denied') {
-      log('', '');
-      log('👉 FIX: Firebase Console → Firestore → Rules', '#f9e2af');
-      log('   Paste this and click Publish:', '#f9e2af');
-      log('   rules_version = "2";', '#a6e3a1');
-      log('   service cloud.firestore {', '#a6e3a1');
-      log('     match /databases/{db}/documents {', '#a6e3a1');
-      log('       match /{doc=**} { allow read,write: if true; }', '#a6e3a1');
-      log('     }', '#a6e3a1');
-      log('   }', '#a6e3a1');
-    }
-  });
+  // Auth state is handled by auth.onAuthStateChanged above
+  // If no exam link in URL and user was previously logged in locally,
+  // wait for Firebase to confirm auth state (handled by onAuthStateChanged)
 })();
 </script>
 </body>
