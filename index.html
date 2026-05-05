@@ -302,12 +302,73 @@ h4 { font-size: .875rem; font-weight: 600; text-transform: uppercase; letter-spa
   .form-row, .form-row-3 { grid-template-columns: 1fr; }
   .navbar { padding: 0 1rem; }
   h1 { font-size: 1.8rem; }
-  /* Landing page grids collapse to 1 col on mobile */
-  .landing-grid-3 { grid-template-columns: 1fr !important; }
-  .landing-grid-2 { grid-template-columns: 1fr !important; }
+
+  /* ── Landing page mobile overrides ── */
+  .feat-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+  .feat-card {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    gap: 14px !important;
+    padding: 14px 16px !important;
+  }
+  .feat-card .feat-icon {
+    width: 38px !important; height: 38px !important;
+    min-width: 38px !important;
+    font-size: 1rem !important;
+    margin-bottom: 0 !important;
+  }
+  .feat-card .feat-title { font-size: .88rem !important; margin-bottom: 3px !important; }
+  .feat-card .feat-desc  { font-size: .8rem !important; line-height: 1.5 !important; }
+
+  .steps-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 20px !important;
+  }
+  .step-item {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    gap: 14px !important;
+    background: #fff !important;
+    border-radius: 12px !important;
+    padding: 16px !important;
+  }
+  .step-num {
+    width: 32px !important; height: 32px !important;
+    min-width: 32px !important; font-size: .85rem !important;
+  }
+
+  .hero-stats {
+    gap: 16px !important;
+    margin-top: 36px !important;
+  }
+  .hero-stats .stat-divider { display: none !important; }
+  .hero-stats .stat-item { flex: 1; min-width: 70px; }
+
+  .landing-section-pad { padding: 40px 16px !important; }
+  .landing-section-title { font-size: 1.5rem !important; }
+  .landing-cta-title { font-size: 1.6rem !important; }
+
+  .tah-card { padding: 28px 20px !important; }
+  .tah-badges { gap: 8px !important; }
+  .tah-badges > div { padding: 8px 12px !important; font-size: .78rem !important; }
 }
-@media (max-width: 900px) {
-  .landing-grid-3 { grid-template-columns: 1fr 1fr !important; }
+
+@media (min-width: 641px) and (max-width: 900px) {
+  .feat-grid { grid-template-columns: 1fr 1fr !important; }
+  .steps-grid { grid-template-columns: 1fr !important; }
+  .step-item {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    gap: 14px !important;
+  }
 }
 
 /* ─── Divider ────────────────────────────────────────────── */
@@ -363,9 +424,9 @@ h4 { font-size: .875rem; font-weight: 600; text-transform: uppercase; letter-spa
   <main style="flex:1; display:flex; flex-direction:column; align-items:center; padding:0; overflow-x:hidden;">
 
     <!-- ── Hero ─────────────────────────────────────────── -->
-    <section style="width:100%;text-align:center;padding:72px 20px 56px;background:linear-gradient(160deg,#fdf6f0 0%,#faf9f6 60%);">
+    <section style="width:100%;text-align:center;padding:72px 20px 56px;background:linear-gradient(160deg,#fdf6f0 0%,#faf9f6 60%);" class="landing-section-pad">
       <div class="badge badge-accent" style="margin-bottom:18px;">&#10024; MCQ Examination Platform</div>
-      <h1 style="max-width:660px;margin:0 auto 18px;font-size:2.8rem;">
+      <h1 class="landing-section-title" style="max-width:660px;margin:0 auto 18px;font-size:2.8rem;">
         Run secure online exams,<br><em>effortlessly.</em>
       </h1>
       <p style="max-width:500px;margin:0 auto 36px;color:var(--ink-3);font-size:1.05rem;line-height:1.75;">
@@ -376,111 +437,102 @@ h4 { font-size: .875rem; font-weight: 600; text-transform: uppercase; letter-spa
         <button class="btn btn-secondary btn-lg" onclick="demoStudentFlow()">Try student demo</button>
       </div>
       <!-- Stats row -->
-      <div style="display:flex;gap:32px;justify-content:center;flex-wrap:wrap;margin-top:52px;">
-        <div><div style="font-size:1.9rem;font-weight:700;color:var(--accent);">100%</div><div style="font-size:.8rem;color:var(--ink-3);margin-top:2px;">Browser-based</div></div>
-        <div style="width:1px;background:var(--paper-3);"></div>
-        <div><div style="font-size:1.9rem;font-weight:700;color:var(--accent);">∞</div><div style="font-size:.8rem;color:var(--ink-3);margin-top:2px;">Students per exam</div></div>
-        <div style="width:1px;background:var(--paper-3);"></div>
-        <div><div style="font-size:1.9rem;font-weight:700;color:var(--accent);">0s</div><div style="font-size:.8rem;color:var(--ink-3);margin-top:2px;">Setup time</div></div>
-        <div style="width:1px;background:var(--paper-3);"></div>
-        <div><div style="font-size:1.9rem;font-weight:700;color:var(--accent);">Live</div><div style="font-size:.8rem;color:var(--ink-3);margin-top:2px;">Monitoring</div></div>
+      <div class="hero-stats" style="display:flex;gap:32px;justify-content:center;flex-wrap:wrap;margin-top:52px;align-items:center;">
+        <div class="stat-item" style="text-align:center;"><div style="font-size:1.9rem;font-weight:700;color:var(--accent);">100%</div><div style="font-size:.8rem;color:var(--ink-3);margin-top:2px;">Browser-based</div></div>
+        <div class="stat-divider" style="width:1px;height:36px;background:var(--paper-3);"></div>
+        <div class="stat-item" style="text-align:center;"><div style="font-size:1.9rem;font-weight:700;color:var(--accent);">∞</div><div style="font-size:.8rem;color:var(--ink-3);margin-top:2px;">Students per exam</div></div>
+        <div class="stat-divider" style="width:1px;height:36px;background:var(--paper-3);"></div>
+        <div class="stat-item" style="text-align:center;"><div style="font-size:1.9rem;font-weight:700;color:var(--accent);">0s</div><div style="font-size:.8rem;color:var(--ink-3);margin-top:2px;">Setup time</div></div>
+        <div class="stat-divider" style="width:1px;height:36px;background:var(--paper-3);"></div>
+        <div class="stat-item" style="text-align:center;"><div style="font-size:1.9rem;font-weight:700;color:var(--accent);">Live</div><div style="font-size:.8rem;color:var(--ink-3);margin-top:2px;">Monitoring</div></div>
       </div>
     </section>
 
     <!-- ── Core features grid ────────────────────────────── -->
-    <section style="width:100%;max-width:1100px;padding:64px 24px;margin:0 auto;">
+    <section style="width:100%;max-width:1100px;padding:64px 24px;margin:0 auto;" class="landing-section-pad">
       <div style="text-align:center;margin-bottom:40px;">
         <h4 style="margin-bottom:8px;">Everything you need</h4>
-        <h2 style="font-size:1.9rem;margin-bottom:0;">Built for real classrooms</h2>
+        <h2 class="landing-section-title" style="font-size:1.9rem;margin-bottom:0;">Built for real classrooms</h2>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+      <div class="feat-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
 
-        <!-- 1 -->
-        <div class="card card-pad" style="text-align:left;">
-          <div style="width:40px;height:40px;border-radius:10px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;">&#128196;</div>
-          <h3 style="margin-bottom:6px;font-size:.95rem;">Upload any format</h3>
-          <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">CSV, Excel, JSON, or manual entry. Paste questions or upload a file — ExamFlow parses and validates automatically.</p>
+        <div class="card feat-card" style="text-align:left;padding:20px;">
+          <div class="feat-icon" style="width:40px;height:40px;border-radius:10px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;flex-shrink:0;">&#128196;</div>
+          <div><h3 class="feat-title" style="margin-bottom:6px;font-size:.95rem;">Upload any format</h3>
+          <p class="feat-desc" style="font-size:.85rem;color:var(--ink-3);line-height:1.6;margin:0;">CSV, Excel, JSON, or manual entry. Paste questions or upload a file — ExamFlow parses and validates automatically.</p></div>
         </div>
 
-        <!-- 2 -->
-        <div class="card card-pad" style="text-align:left;">
-          <div style="width:40px;height:40px;border-radius:10px;background:#edf7f2;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;">&#128247;</div>
-          <h3 style="margin-bottom:6px;font-size:.95rem;">Photo question extraction</h3>
-          <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">Take a photo of a printed question paper. ExamFlow reads the text and builds the exam for you — no typing needed.</p>
+        <div class="card feat-card" style="text-align:left;padding:20px;">
+          <div class="feat-icon" style="width:40px;height:40px;border-radius:10px;background:#edf7f2;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;flex-shrink:0;">&#128247;</div>
+          <div><h3 class="feat-title" style="margin-bottom:6px;font-size:.95rem;">Photo question extraction</h3>
+          <p class="feat-desc" style="font-size:.85rem;color:var(--ink-3);line-height:1.6;margin:0;">Take a photo of a printed question paper. ExamFlow reads the text and builds the exam for you — no typing needed.</p></div>
         </div>
 
-        <!-- 3 -->
-        <div class="card card-pad" style="text-align:left;">
-          <div style="width:40px;height:40px;border-radius:10px;background:#edf3fd;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;">&#128279;</div>
-          <h3 style="margin-bottom:6px;font-size:.95rem;">One link, unlimited students</h3>
-          <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">Generate a unique exam link. Share it anywhere — WhatsApp, email, classroom. Students open it in any browser, no app needed.</p>
+        <div class="card feat-card" style="text-align:left;padding:20px;">
+          <div class="feat-icon" style="width:40px;height:40px;border-radius:10px;background:#edf3fd;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;flex-shrink:0;">&#128279;</div>
+          <div><h3 class="feat-title" style="margin-bottom:6px;font-size:.95rem;">One link, unlimited students</h3>
+          <p class="feat-desc" style="font-size:.85rem;color:var(--ink-3);line-height:1.6;margin:0;">Generate a unique exam link. Share it anywhere — WhatsApp, email, classroom. Students open it in any browser, no app needed.</p></div>
         </div>
 
-        <!-- 4 -->
-        <div class="card card-pad" style="text-align:left;">
-          <div style="width:40px;height:40px;border-radius:10px;background:var(--warn-bg);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;">&#128260;</div>
-          <h3 style="margin-bottom:6px;font-size:.95rem;">Smart shuffle system</h3>
-          <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">Every student gets a unique version — question order and option positions are randomised per session. No two exams look the same.</p>
+        <div class="card feat-card" style="text-align:left;padding:20px;">
+          <div class="feat-icon" style="width:40px;height:40px;border-radius:10px;background:var(--warn-bg);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;flex-shrink:0;">&#128260;</div>
+          <div><h3 class="feat-title" style="margin-bottom:6px;font-size:.95rem;">Smart shuffle system</h3>
+          <p class="feat-desc" style="font-size:.85rem;color:var(--ink-3);line-height:1.6;margin:0;">Every student gets a unique version — question order and option positions are randomised per session. No two exams look the same.</p></div>
         </div>
 
-        <!-- 5 -->
-        <div class="card card-pad" style="text-align:left;">
-          <div style="width:40px;height:40px;border-radius:10px;background:var(--danger-bg);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;">&#9201;</div>
-          <h3 style="margin-bottom:6px;font-size:.95rem;">Countdown timer & auto-submit</h3>
-          <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">Set the exam duration. The timer counts down visibly. When time runs out, the exam submits automatically — no student action needed.</p>
+        <div class="card feat-card" style="text-align:left;padding:20px;">
+          <div class="feat-icon" style="width:40px;height:40px;border-radius:10px;background:var(--danger-bg);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;flex-shrink:0;">&#9201;</div>
+          <div><h3 class="feat-title" style="margin-bottom:6px;font-size:.95rem;">Countdown timer & auto-submit</h3>
+          <p class="feat-desc" style="font-size:.85rem;color:var(--ink-3);line-height:1.6;margin:0;">Set the exam duration. The timer counts down visibly. When time runs out, the exam submits automatically — no student action needed.</p></div>
         </div>
 
-        <!-- 6 -->
-        <div class="card card-pad" style="text-align:left;">
-          <div style="width:40px;height:40px;border-radius:10px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;">&#128272;</div>
-          <h3 style="margin-bottom:6px;font-size:.95rem;">Anti-cheat built in</h3>
-          <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">Tab switching, window blur, right-click, and keyboard shortcuts are all detected, logged, and shown to the teacher in real time.</p>
+        <div class="card feat-card" style="text-align:left;padding:20px;">
+          <div class="feat-icon" style="width:40px;height:40px;border-radius:10px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;flex-shrink:0;">&#128272;</div>
+          <div><h3 class="feat-title" style="margin-bottom:6px;font-size:.95rem;">Anti-cheat built in</h3>
+          <p class="feat-desc" style="font-size:.85rem;color:var(--ink-3);line-height:1.6;margin:0;">Tab switching, window blur, right-click, and keyboard shortcuts are all detected, logged, and shown to the teacher in real time.</p></div>
         </div>
 
-        <!-- 7 -->
-        <div class="card card-pad" style="text-align:left;">
-          <div style="width:40px;height:40px;border-radius:10px;background:#edf7f2;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;">&#128202;</div>
-          <h3 style="margin-bottom:6px;font-size:.95rem;">Live monitoring dashboard</h3>
-          <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">Watch every student's progress, violations, and submission status in real time via Firebase. Updates the moment anything changes.</p>
+        <div class="card feat-card" style="text-align:left;padding:20px;">
+          <div class="feat-icon" style="width:40px;height:40px;border-radius:10px;background:#edf7f2;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;flex-shrink:0;">&#128202;</div>
+          <div><h3 class="feat-title" style="margin-bottom:6px;font-size:.95rem;">Live monitoring dashboard</h3>
+          <p class="feat-desc" style="font-size:.85rem;color:var(--ink-3);line-height:1.6;margin:0;">Watch every student's progress, violations, and submission status in real time via Firebase. Updates the moment anything changes.</p></div>
         </div>
 
-        <!-- 8 -->
-        <div class="card card-pad" style="text-align:left;">
-          <div style="width:40px;height:40px;border-radius:10px;background:#edf3fd;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;">&#127775;</div>
-          <h3 style="margin-bottom:6px;font-size:.95rem;">Instant results & grades</h3>
-          <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">Students see their score, percentage, letter grade, and a full answer review the moment they submit — correct vs wrong vs skipped.</p>
+        <div class="card feat-card" style="text-align:left;padding:20px;">
+          <div class="feat-icon" style="width:40px;height:40px;border-radius:10px;background:#edf3fd;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;flex-shrink:0;">&#127775;</div>
+          <div><h3 class="feat-title" style="margin-bottom:6px;font-size:.95rem;">Instant results & grades</h3>
+          <p class="feat-desc" style="font-size:.85rem;color:var(--ink-3);line-height:1.6;margin:0;">Students see their score, percentage, letter grade, and a full answer review the moment they submit — correct vs wrong vs skipped.</p></div>
         </div>
 
-        <!-- 9 -->
-        <div class="card card-pad" style="text-align:left;">
-          <div style="width:40px;height:40px;border-radius:10px;background:var(--success-bg);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;">&#128190;</div>
-          <h3 style="margin-bottom:6px;font-size:.95rem;">CSV export & reports</h3>
-          <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">Export all student results as a spreadsheet with one click — name, ID, score, grade, time taken, and violations included.</p>
+        <div class="card feat-card" style="text-align:left;padding:20px;">
+          <div class="feat-icon" style="width:40px;height:40px;border-radius:10px;background:var(--success-bg);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;flex-shrink:0;">&#128190;</div>
+          <div><h3 class="feat-title" style="margin-bottom:6px;font-size:.95rem;">CSV export & reports</h3>
+          <p class="feat-desc" style="font-size:.85rem;color:var(--ink-3);line-height:1.6;margin:0;">Export all student results as a spreadsheet with one click — name, ID, score, grade, time taken, and violations included.</p></div>
         </div>
 
       </div>
     </section>
 
     <!-- ── How it works ───────────────────────────────────── -->
-    <section style="width:100%;background:var(--paper-2);padding:64px 24px;">
+    <section style="width:100%;background:var(--paper-2);padding:64px 24px;" class="landing-section-pad">
       <div style="max-width:820px;margin:0 auto;text-align:center;">
         <h4 style="margin-bottom:8px;">How it works</h4>
-        <h2 style="font-size:1.9rem;margin-bottom:48px;">Ready in 3 steps</h2>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;text-align:left;">
-          <div style="display:flex;flex-direction:column;gap:12px;">
-            <div style="width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;">1</div>
-            <h3 style="font-size:.95rem;">Create your exam</h3>
-            <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">Upload questions, set a timer and time window, choose shuffle settings. Done in under 2 minutes.</p>
+        <h2 class="landing-section-title" style="font-size:1.9rem;margin-bottom:48px;">Ready in 3 steps</h2>
+        <div class="steps-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;text-align:left;">
+          <div class="step-item" style="display:flex;flex-direction:column;gap:12px;">
+            <div class="step-num" style="width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">1</div>
+            <div><h3 style="font-size:.95rem;margin-bottom:6px;">Create your exam</h3>
+            <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;margin:0;">Upload questions, set a timer and time window, choose shuffle settings. Done in under 2 minutes.</p></div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:12px;">
-            <div style="width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;">2</div>
-            <h3 style="font-size:.95rem;">Share the link</h3>
-            <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">Send one link to all students. They open it in any browser — Chrome, Safari, Firefox — no login, no app.</p>
+          <div class="step-item" style="display:flex;flex-direction:column;gap:12px;">
+            <div class="step-num" style="width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">2</div>
+            <div><h3 style="font-size:.95rem;margin-bottom:6px;">Share the link</h3>
+            <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;margin:0;">Send one link to all students. They open it in any browser — Chrome, Safari, Firefox — no login, no app.</p></div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:12px;">
-            <div style="width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;">3</div>
-            <h3 style="font-size:.95rem;">Get results instantly</h3>
-            <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">Monitor live as students write. Export a full CSV report the moment the exam ends. All saved to the cloud.</p>
+          <div class="step-item" style="display:flex;flex-direction:column;gap:12px;">
+            <div class="step-num" style="width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">3</div>
+            <div><h3 style="font-size:.95rem;margin-bottom:6px;">Get results instantly</h3>
+            <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;margin:0;">Monitor live as students write. Export a full CSV report the moment the exam ends. All saved to the cloud.</p></div>
           </div>
         </div>
       </div>
@@ -488,7 +540,7 @@ h4 { font-size: .875rem; font-weight: 600; text-transform: uppercase; letter-spa
 
     <!-- ── TahCreations branding section ─────────────────── -->
     <section style="width:100%;max-width:900px;margin:0 auto;padding:64px 24px;text-align:center;">
-      <div style="background:linear-gradient(135deg,#1a0505 0%,#2d0a0a 50%,#1a1a2e 100%);border-radius:var(--radius-lg);padding:48px 36px;color:#fff;position:relative;overflow:hidden;">
+      <div class="tah-card" style="background:linear-gradient(135deg,#1a0505 0%,#2d0a0a 50%,#1a1a2e 100%);border-radius:var(--radius-lg);padding:48px 36px;color:#fff;position:relative;overflow:hidden;">
         <!-- Background shimmer -->
         <div style="position:absolute;top:-60px;right:-60px;width:220px;height:220px;background:radial-gradient(circle,rgba(200,64,26,.25) 0%,transparent 70%);border-radius:50%;pointer-events:none;"></div>
         <div style="position:absolute;bottom:-40px;left:-40px;width:160px;height:160px;background:radial-gradient(circle,rgba(200,64,26,.15) 0%,transparent 70%);border-radius:50%;pointer-events:none;"></div>
@@ -519,7 +571,7 @@ h4 { font-size: .875rem; font-weight: 600; text-transform: uppercase; letter-spa
         <p style="color:rgba(255,255,255,.65);max-width:460px;margin:0 auto 28px;line-height:1.75;font-size:.9rem;">
           ExamFlow is a TahCreations product — built for educators who want a professional, reliable, and beautiful exam experience. All data secured via Firebase.
         </p>
-        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+        <div class="tah-badges" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
           <div style="background:rgba(200,64,26,.25);border:1px solid rgba(200,64,26,.4);border-radius:var(--radius);padding:10px 18px;font-size:.82rem;color:#fff;">&#128274; Firebase Auth</div>
           <div style="background:rgba(200,64,26,.25);border:1px solid rgba(200,64,26,.4);border-radius:var(--radius);padding:10px 18px;font-size:.82rem;color:#fff;">&#128200; Firestore DB</div>
           <div style="background:rgba(200,64,26,.25);border:1px solid rgba(200,64,26,.4);border-radius:var(--radius);padding:10px 18px;font-size:.82rem;color:#fff;">&#9889; Real-time sync</div>
@@ -529,10 +581,9 @@ h4 { font-size: .875rem; font-weight: 600; text-transform: uppercase; letter-spa
     </section>
 
     <!-- ── CTA ───────────────────────────────────────────── -->
-    <section style="width:100%;text-align:center;padding:56px 24px 72px;">
-      <h2 style="font-size:2rem;margin-bottom:12px;">Ready to run your first exam?</h2>
+    <section style="width:100%;text-align:center;padding:56px 24px 72px;" class="landing-section-pad">
+      <h2 class="landing-cta-title" style="font-size:2rem;margin-bottom:12px;">Ready to run your first exam?</h2>
       <p style="color:var(--ink-3);margin-bottom:28px;font-size:1rem;">Free to use. No credit card. No installation.</p>
-      <!-- Goes directly to Create Account tab -->
       <button class="btn btn-primary btn-lg" onclick="showPage('page-teacher-login');switchAuthTab('signup');">Create your account →</button>
     </section>
 
