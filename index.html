@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ExamFlow — MCQ Examination Platform</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%23c8001a'/><text x='50' y='72' font-family='Georgia,serif' font-size='58' font-weight='700' fill='white' text-anchor='middle' letter-spacing='-3'>TC</text><circle cx='78' cy='18' r='5' fill='white'/><line x1='78' y1='8' x2='78' y2='28' stroke='white' stroke-width='2.5' stroke-linecap='round'/><line x1='68' y1='18' x2='88' y2='18' stroke='white' stroke-width='2.5' stroke-linecap='round'/></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%23c8001a'/><text x='50' y='72' font-family='Georgia,serif' font-size='58' font-weight='700' fill='white' text-anchor='middle' letter-spacing='-3'>TC</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -300,6 +302,12 @@ h4 { font-size: .875rem; font-weight: 600; text-transform: uppercase; letter-spa
   .form-row, .form-row-3 { grid-template-columns: 1fr; }
   .navbar { padding: 0 1rem; }
   h1 { font-size: 1.8rem; }
+  /* Landing page grids collapse to 1 col on mobile */
+  .landing-grid-3 { grid-template-columns: 1fr !important; }
+  .landing-grid-2 { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 900px) {
+  .landing-grid-3 { grid-template-columns: 1fr 1fr !important; }
 }
 
 /* ─── Divider ────────────────────────────────────────────── */
@@ -347,45 +355,203 @@ h4 { font-size: .875rem; font-weight: 600; text-transform: uppercase; letter-spa
       ExamFlow
     </a>
     <div class="nav-links">
-      <button class="btn btn-ghost btn-sm" onclick="showPage('page-teacher-login')">Teacher login</button>
-      <button class="btn btn-primary btn-sm" onclick="showPage('page-teacher-login')">Get started</button>
+      <button class="btn btn-ghost btn-sm" onclick="showPage('page-teacher-login');switchAuthTab('signin');">Teacher login</button>
+      <button class="btn btn-primary btn-sm" onclick="showPage('page-teacher-login');switchAuthTab('signup');">Get started</button>
     </div>
   </nav>
 
-  <main style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; text-align:center;">
-    <div class="badge badge-accent" style="margin-bottom:20px;">&#10024; MCQ Examination Platform</div>
-    <h1 style="max-width:640px; margin-bottom:20px;">
-      Run secure online exams,<br><em>effortlessly.</em>
-    </h1>
-    <p style="max-width:520px; color:var(--ink-3); font-size:1.05rem; margin-bottom:36px; line-height:1.7;">
-      Upload your question bank, generate a unique exam link, and get automated results with full analytics — all in one place.
-    </p>
-    <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
-      <button class="btn btn-primary btn-lg" onclick="showPage('page-teacher-login')">Teacher dashboard →</button>
-      <button class="btn btn-secondary btn-lg" onclick="demoStudentFlow()">Try student demo</button>
-    </div>
+  <main style="flex:1; display:flex; flex-direction:column; align-items:center; padding:0; overflow-x:hidden;">
 
-    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px; max-width:760px; width:100%; margin-top:60px;">
-      <div class="card card-pad" style="text-align:left;">
-        <div style="font-size:1.5rem; margin-bottom:10px;">&#128196;</div>
-        <h3 style="margin-bottom:6px;">Upload any format</h3>
-        <p style="font-size:.875rem; color:var(--ink-3);">CSV, Excel, JSON, DOCX, or manual entry — we parse it all.</p>
+    <!-- ── Hero ─────────────────────────────────────────── -->
+    <section style="width:100%;text-align:center;padding:72px 20px 56px;background:linear-gradient(160deg,#fdf6f0 0%,#faf9f6 60%);">
+      <div class="badge badge-accent" style="margin-bottom:18px;">&#10024; MCQ Examination Platform</div>
+      <h1 style="max-width:660px;margin:0 auto 18px;font-size:2.8rem;">
+        Run secure online exams,<br><em>effortlessly.</em>
+      </h1>
+      <p style="max-width:500px;margin:0 auto 36px;color:var(--ink-3);font-size:1.05rem;line-height:1.75;">
+        Upload questions, generate a link, and let ExamFlow handle everything — timer, anti-cheat, live results, and reports.
+      </p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
+        <button class="btn btn-primary btn-lg" onclick="showPage('page-teacher-login');switchAuthTab('signup');">Get started free →</button>
+        <button class="btn btn-secondary btn-lg" onclick="demoStudentFlow()">Try student demo</button>
       </div>
-      <div class="card card-pad" style="text-align:left;">
-        <div style="font-size:1.5rem; margin-bottom:10px;">&#128272;</div>
-        <h3 style="margin-bottom:6px;">Anti-cheat built in</h3>
-        <p style="font-size:.875rem; color:var(--ink-3);">Shuffled questions, tab detection, and violation logging.</p>
+      <!-- Stats row -->
+      <div style="display:flex;gap:32px;justify-content:center;flex-wrap:wrap;margin-top:52px;">
+        <div><div style="font-size:1.9rem;font-weight:700;color:var(--accent);">100%</div><div style="font-size:.8rem;color:var(--ink-3);margin-top:2px;">Browser-based</div></div>
+        <div style="width:1px;background:var(--paper-3);"></div>
+        <div><div style="font-size:1.9rem;font-weight:700;color:var(--accent);">∞</div><div style="font-size:.8rem;color:var(--ink-3);margin-top:2px;">Students per exam</div></div>
+        <div style="width:1px;background:var(--paper-3);"></div>
+        <div><div style="font-size:1.9rem;font-weight:700;color:var(--accent);">0s</div><div style="font-size:.8rem;color:var(--ink-3);margin-top:2px;">Setup time</div></div>
+        <div style="width:1px;background:var(--paper-3);"></div>
+        <div><div style="font-size:1.9rem;font-weight:700;color:var(--accent);">Live</div><div style="font-size:.8rem;color:var(--ink-3);margin-top:2px;">Monitoring</div></div>
       </div>
-      <div class="card card-pad" style="text-align:left;">
-        <div style="font-size:1.5rem; margin-bottom:10px;">&#128202;</div>
-        <h3 style="margin-bottom:6px;">Auto results & reports</h3>
-        <p style="font-size:.875rem; color:var(--ink-3);">Instant grading, CSV exports, and per-student analytics.</p>
+    </section>
+
+    <!-- ── Core features grid ────────────────────────────── -->
+    <section style="width:100%;max-width:1100px;padding:64px 24px;margin:0 auto;">
+      <div style="text-align:center;margin-bottom:40px;">
+        <h4 style="margin-bottom:8px;">Everything you need</h4>
+        <h2 style="font-size:1.9rem;margin-bottom:0;">Built for real classrooms</h2>
       </div>
-    </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+
+        <!-- 1 -->
+        <div class="card card-pad" style="text-align:left;">
+          <div style="width:40px;height:40px;border-radius:10px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;">&#128196;</div>
+          <h3 style="margin-bottom:6px;font-size:.95rem;">Upload any format</h3>
+          <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">CSV, Excel, JSON, or manual entry. Paste questions or upload a file — ExamFlow parses and validates automatically.</p>
+        </div>
+
+        <!-- 2 -->
+        <div class="card card-pad" style="text-align:left;">
+          <div style="width:40px;height:40px;border-radius:10px;background:#edf7f2;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;">&#128247;</div>
+          <h3 style="margin-bottom:6px;font-size:.95rem;">Photo question extraction</h3>
+          <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">Take a photo of a printed question paper. ExamFlow reads the text and builds the exam for you — no typing needed.</p>
+        </div>
+
+        <!-- 3 -->
+        <div class="card card-pad" style="text-align:left;">
+          <div style="width:40px;height:40px;border-radius:10px;background:#edf3fd;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;">&#128279;</div>
+          <h3 style="margin-bottom:6px;font-size:.95rem;">One link, unlimited students</h3>
+          <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">Generate a unique exam link. Share it anywhere — WhatsApp, email, classroom. Students open it in any browser, no app needed.</p>
+        </div>
+
+        <!-- 4 -->
+        <div class="card card-pad" style="text-align:left;">
+          <div style="width:40px;height:40px;border-radius:10px;background:var(--warn-bg);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;">&#128260;</div>
+          <h3 style="margin-bottom:6px;font-size:.95rem;">Smart shuffle system</h3>
+          <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">Every student gets a unique version — question order and option positions are randomised per session. No two exams look the same.</p>
+        </div>
+
+        <!-- 5 -->
+        <div class="card card-pad" style="text-align:left;">
+          <div style="width:40px;height:40px;border-radius:10px;background:var(--danger-bg);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;">&#9201;</div>
+          <h3 style="margin-bottom:6px;font-size:.95rem;">Countdown timer & auto-submit</h3>
+          <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">Set the exam duration. The timer counts down visibly. When time runs out, the exam submits automatically — no student action needed.</p>
+        </div>
+
+        <!-- 6 -->
+        <div class="card card-pad" style="text-align:left;">
+          <div style="width:40px;height:40px;border-radius:10px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;">&#128272;</div>
+          <h3 style="margin-bottom:6px;font-size:.95rem;">Anti-cheat built in</h3>
+          <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">Tab switching, window blur, right-click, and keyboard shortcuts are all detected, logged, and shown to the teacher in real time.</p>
+        </div>
+
+        <!-- 7 -->
+        <div class="card card-pad" style="text-align:left;">
+          <div style="width:40px;height:40px;border-radius:10px;background:#edf7f2;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;">&#128202;</div>
+          <h3 style="margin-bottom:6px;font-size:.95rem;">Live monitoring dashboard</h3>
+          <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">Watch every student's progress, violations, and submission status in real time via Firebase. Updates the moment anything changes.</p>
+        </div>
+
+        <!-- 8 -->
+        <div class="card card-pad" style="text-align:left;">
+          <div style="width:40px;height:40px;border-radius:10px;background:#edf3fd;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;">&#127775;</div>
+          <h3 style="margin-bottom:6px;font-size:.95rem;">Instant results & grades</h3>
+          <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">Students see their score, percentage, letter grade, and a full answer review the moment they submit — correct vs wrong vs skipped.</p>
+        </div>
+
+        <!-- 9 -->
+        <div class="card card-pad" style="text-align:left;">
+          <div style="width:40px;height:40px;border-radius:10px;background:var(--success-bg);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;">&#128190;</div>
+          <h3 style="margin-bottom:6px;font-size:.95rem;">CSV export & reports</h3>
+          <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">Export all student results as a spreadsheet with one click — name, ID, score, grade, time taken, and violations included.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── How it works ───────────────────────────────────── -->
+    <section style="width:100%;background:var(--paper-2);padding:64px 24px;">
+      <div style="max-width:820px;margin:0 auto;text-align:center;">
+        <h4 style="margin-bottom:8px;">How it works</h4>
+        <h2 style="font-size:1.9rem;margin-bottom:48px;">Ready in 3 steps</h2>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;text-align:left;">
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div style="width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;">1</div>
+            <h3 style="font-size:.95rem;">Create your exam</h3>
+            <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">Upload questions, set a timer and time window, choose shuffle settings. Done in under 2 minutes.</p>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div style="width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;">2</div>
+            <h3 style="font-size:.95rem;">Share the link</h3>
+            <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">Send one link to all students. They open it in any browser — Chrome, Safari, Firefox — no login, no app.</p>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div style="width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;">3</div>
+            <h3 style="font-size:.95rem;">Get results instantly</h3>
+            <p style="font-size:.85rem;color:var(--ink-3);line-height:1.6;">Monitor live as students write. Export a full CSV report the moment the exam ends. All saved to the cloud.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TahCreations branding section ─────────────────── -->
+    <section style="width:100%;max-width:900px;margin:0 auto;padding:64px 24px;text-align:center;">
+      <div style="background:linear-gradient(135deg,#1a0505 0%,#2d0a0a 50%,#1a1a2e 100%);border-radius:var(--radius-lg);padding:48px 36px;color:#fff;position:relative;overflow:hidden;">
+        <!-- Background shimmer -->
+        <div style="position:absolute;top:-60px;right:-60px;width:220px;height:220px;background:radial-gradient(circle,rgba(200,64,26,.25) 0%,transparent 70%);border-radius:50%;pointer-events:none;"></div>
+        <div style="position:absolute;bottom:-40px;left:-40px;width:160px;height:160px;background:radial-gradient(circle,rgba(200,64,26,.15) 0%,transparent 70%);border-radius:50%;pointer-events:none;"></div>
+
+        <!-- TahCreations Logo SVG -->
+        <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:20px;">
+          <div style="width:56px;height:56px;flex-shrink:0;">
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="56" height="56">
+              <!-- Red TC lettermark -->
+              <text x="8" y="72" font-family="Georgia,serif" font-size="78" font-weight="700" fill="#c8001a" letter-spacing="-6">TC</text>
+              <!-- Sparkle star top-right -->
+              <g transform="translate(74,12)" fill="#c8001a">
+                <line x1="0" y1="-9" x2="0" y2="9" stroke="#c8001a" stroke-width="2.2" stroke-linecap="round"/>
+                <line x1="-9" y1="0" x2="9" y2="0" stroke="#c8001a" stroke-width="2.2" stroke-linecap="round"/>
+                <line x1="-6.4" y1="-6.4" x2="6.4" y2="6.4" stroke="#c8001a" stroke-width="1.6" stroke-linecap="round"/>
+                <line x1="6.4" y1="-6.4" x2="-6.4" y2="6.4" stroke="#c8001a" stroke-width="1.6" stroke-linecap="round"/>
+                <circle cx="0" cy="0" r="2.5"/>
+              </g>
+            </svg>
+          </div>
+          <div style="text-align:left;">
+            <div style="font-size:1.5rem;font-weight:800;letter-spacing:.06em;color:#fff;line-height:1;">TAHCREATIONS</div>
+            <div style="font-size:.75rem;color:rgba(255,255,255,.5);letter-spacing:.1em;margin-top:3px;">DIGITAL SOLUTIONS</div>
+          </div>
+        </div>
+
+        <h2 style="color:#fff;font-size:1.6rem;margin-bottom:10px;">Built by TahCreations</h2>
+        <p style="color:rgba(255,255,255,.65);max-width:460px;margin:0 auto 28px;line-height:1.75;font-size:.9rem;">
+          ExamFlow is a TahCreations product — built for educators who want a professional, reliable, and beautiful exam experience. All data secured via Firebase.
+        </p>
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+          <div style="background:rgba(200,64,26,.25);border:1px solid rgba(200,64,26,.4);border-radius:var(--radius);padding:10px 18px;font-size:.82rem;color:#fff;">&#128274; Firebase Auth</div>
+          <div style="background:rgba(200,64,26,.25);border:1px solid rgba(200,64,26,.4);border-radius:var(--radius);padding:10px 18px;font-size:.82rem;color:#fff;">&#128200; Firestore DB</div>
+          <div style="background:rgba(200,64,26,.25);border:1px solid rgba(200,64,26,.4);border-radius:var(--radius);padding:10px 18px;font-size:.82rem;color:#fff;">&#9889; Real-time sync</div>
+          <div style="background:rgba(200,64,26,.25);border:1px solid rgba(200,64,26,.4);border-radius:var(--radius);padding:10px 18px;font-size:.82rem;color:#fff;">&#127760; Works everywhere</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── CTA ───────────────────────────────────────────── -->
+    <section style="width:100%;text-align:center;padding:56px 24px 72px;">
+      <h2 style="font-size:2rem;margin-bottom:12px;">Ready to run your first exam?</h2>
+      <p style="color:var(--ink-3);margin-bottom:28px;font-size:1rem;">Free to use. No credit card. No installation.</p>
+      <!-- Goes directly to Create Account tab -->
+      <button class="btn btn-primary btn-lg" onclick="showPage('page-teacher-login');switchAuthTab('signup');">Create your account →</button>
+    </section>
+
   </main>
 
-  <footer style="padding:20px; text-align:center; font-size:.8rem; color:var(--ink-3); border-top:1px solid var(--paper-3);">
-    ExamFlow &copy; 2025 &nbsp;·&nbsp; Built for educators
+  <footer style="padding:20px 32px;display:flex;justify-content:space-between;align-items:center;font-size:.8rem;color:var(--ink-3);border-top:1px solid var(--paper-3);flex-wrap:wrap;gap:12px;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <!-- Mini TahCreations logo in footer -->
+      <svg viewBox="0 0 40 40" width="22" height="22" xmlns="http://www.w3.org/2000/svg">
+        <text x="1" y="30" font-family="Georgia,serif" font-size="30" font-weight="700" fill="#c8001a" letter-spacing="-2">TC</text>
+        <g transform="translate(30,7)" fill="#c8001a">
+          <line x1="0" y1="-4" x2="0" y2="4" stroke="#c8001a" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="-4" y1="0" x2="4" y2="0" stroke="#c8001a" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="0" cy="0" r="1.2"/>
+        </g>
+      </svg>
+      <span><strong style="color:var(--ink-2);">TahCreations</strong> &nbsp;·&nbsp; ExamFlow &copy; 2025</span>
+    </div>
+    <span>Hosted on Vercel &nbsp;·&nbsp; Powered by Firebase</span>
   </footer>
 </div>
 
