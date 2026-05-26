@@ -91,9 +91,9 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
 .upzone{border:2px dashed var(--paper3);border-radius:var(--rl);padding:32px 24px;text-align:center;cursor:pointer;transition:var(--tr);background:var(--paper2)}
 .upzone:hover,.upzone.drag{border-color:var(--ac);background:var(--acbg)}
 /* Modal */
-.mbd{position:fixed;inset:0;background:rgba(15,14,13,.52);display:none;align-items:center;justify-content:center;z-index:9000;padding:20px;backdrop-filter:blur(4px)}
+.mbd{position:fixed;inset:0;background:rgba(15,14,13,.52);display:none;align-items:center;justify-content:center;z-index:9000;padding:20px;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);touch-action:none;}
 .mbd.open{display:flex}
-.mbx{background:#fff;border-radius:var(--rl);box-shadow:var(--shl);width:100%;max-width:480px;overflow:hidden;animation:mIn .22s cubic-bezier(.34,1.56,.64,1)}
+.mbx{background:rgba(255,255,255,.97);border-radius:var(--rl);box-shadow:0 32px 80px rgba(15,14,13,.2),0 8px 24px rgba(15,14,13,.1),inset 0 1px 0 rgba(255,255,255,.9);width:100%;max-width:480px;overflow:hidden;animation:mIn .22s cubic-bezier(.34,1.56,.64,1);border:1px solid rgba(255,255,255,.5);}
 @keyframes mIn{from{transform:scale(.92);opacity:0}to{transform:none;opacity:1}}
 .mh{padding:20px 24px 0}
 .mb{padding:16px 24px}
@@ -206,28 +206,238 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
 /* Scrollbar */
 ::-webkit-scrollbar{width:6px}
 ::-webkit-scrollbar-thumb{background:var(--paper3);border-radius:99px}
-@media(max-width:900px){.hero2col{grid-template-columns:1fr;padding:48px 24px}.heroMock{display:none}}
-.dash-illus{display:block}
-#feat-grid{perspective:1200px;}
-#steps-grid{perspective:1000px;}
-.heroMock{transform-style:preserve-3d;}
-/* Smooth transitions for GSAP targets */
-#pg-landing .hero2col>div>h1{will-change:transform,opacity;}
-#feat-grid .card{will-change:transform,opacity;cursor:default;}
-#tah-sec>div{will-change:transform,opacity;}
-/* Button hover base */
-.nav .btn{will-change:transform;}
-@media(max-width:640px){
-  .fr{grid-template-columns:1fr}.nav{padding:0 1rem}h1{font-size:1.8rem}
-  .featGrid{display:flex!important;flex-direction:column!important;gap:12px!important}
-  .featCard{display:flex!important;flex-direction:row!important;align-items:flex-start!important;gap:14px!important;padding:14px 16px!important}
-  .featCard .fi-icon{width:38px!important;height:38px!important;min-width:38px!important;font-size:1rem!important;margin-bottom:0!important}
-  .stepsGrid{display:flex!important;flex-direction:column!important;gap:16px!important}
-  .stepCard{flex-direction:row!important;align-items:flex-start!important;gap:14px!important;text-align:left!important}
-  .hero2col{gap:24px;padding:40px 20px}
-  .wbanner{flex-direction:column;gap:12px;text-align:center}.wemoji{display:none}.dash-illus{display:none!important}
-  .etCards{flex-direction:column!important;gap:14px!important}
+
+/* ═══════════════════════════════════════
+   3D DEPTH & GLASS EFFECTS
+═══════════════════════════════════════ */
+:root{
+  --d1:0 2px 8px rgba(15,14,13,.08);
+  --d2:0 8px 32px rgba(15,14,13,.12),0 2px 8px rgba(15,14,13,.06);
+  --d3:0 24px 64px rgba(15,14,13,.18),0 8px 24px rgba(15,14,13,.1);
+  --glass:rgba(255,255,255,.72);
+  --glass-border:rgba(255,255,255,.5);
 }
+/* 3D perspective container */
+.scene3d{perspective:1200px;perspective-origin:50% 40%;}
+/* Glass morphism cards */
+.glass{
+  background:var(--glass);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--glass-border);
+  box-shadow:var(--d2),inset 0 1px 0 rgba(255,255,255,.8);
+}
+/* 3D card tilt — desktop only */
+.card3d{
+  transform-style:preserve-3d;
+  transition:transform .3s cubic-bezier(.4,0,.2,1),box-shadow .3s;
+  will-change:transform;
+}
+.card3d:hover{
+  transform:translateY(-6px) rotateX(3deg) rotateY(-2deg);
+  box-shadow:var(--d3);
+}
+/* 3D button press */
+.btn3d{
+  transform-style:preserve-3d;
+  position:relative;
+  transition:transform .15s,box-shadow .15s;
+}
+.btn3d::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  background:rgba(0,0,0,.15);
+  transform:translateZ(-4px) translateY(4px);
+  filter:blur(4px);
+  opacity:0;
+  transition:opacity .15s;
+}
+.btn3d:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(200,64,26,.35);}
+.btn3d:hover::after{opacity:1;}
+.btn3d:active{transform:translateY(1px);box-shadow:0 2px 6px rgba(200,64,26,.2);}
+/* Floating animation */
+@keyframes float3d{0%,100%{transform:translateY(0) rotateX(0)}50%{transform:translateY(-8px) rotateX(2deg)}}
+/* Parallax layers */
+.parallax-slow{will-change:transform;}
+.parallax-fast{will-change:transform;}
+/* Hero mock 3D */
+.heroMock{
+  transform-style:preserve-3d;
+  transform:rotateY(-8deg) rotateX(4deg);
+  animation:float3d 4s ease-in-out infinite;
+  box-shadow:var(--d3),-20px 20px 60px rgba(200,64,26,.15);
+}
+/* Perspective grids */
+#feat-grid{perspective:1400px;}
+#steps-grid{perspective:1000px;}
+.dash-illus{display:block}
+#pg-landing .hero2col>div>h1{will-change:transform,opacity;}
+#feat-grid .card{will-change:transform,opacity;}
+#tah-sec>div{will-change:transform,opacity;}
+
+/* ═══════════════════════════════════════
+   HAMBURGER MENU
+═══════════════════════════════════════ */
+.ham{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:8px;border:none;background:none;z-index:201;}
+.ham span{display:block;width:22px;height:2px;background:var(--ink);border-radius:2px;transition:.3s;}
+.ham.open span:nth-child(1){transform:rotate(45deg) translate(5px,5px);}
+.ham.open span:nth-child(2){opacity:0;}
+.ham.open span:nth-child(3){transform:rotate(-45deg) translate(5px,-5px);}
+/* Mobile nav drawer */
+.mob-nav{
+  position:fixed;inset:0;top:64px;background:rgba(15,14,13,.9);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  gap:12px;z-index:200;
+  transform:translateY(-100%);transition:transform .35s cubic-bezier(.4,0,.2,1);
+}
+.mob-nav.open{display:flex;transform:translateY(0);}
+.mob-nav .btn{font-size:1.1rem;padding:14px 40px;width:85%;max-width:300px;border-radius:14px;}
+
+/* ═══════════════════════════════════════
+   TABLET  ≤ 900px
+═══════════════════════════════════════ */
+@media(max-width:900px){
+  .hero2col{grid-template-columns:1fr;padding:48px 24px;gap:32px;}
+  .heroMock{display:none;}
+  .nav-links-center{display:none;}
+  /* Dashboard stats: 2 col on tablet */
+  .dash-stats-grid{grid-template-columns:repeat(2,1fr)!important;}
+  /* Monitoring: stack layout */
+  .mon-layout{grid-template-columns:1fr!important;}
+  /* Exam sidebar: hide on tablet */
+  .exam-sidebar{display:none!important;}
+  .exam-main{padding:16px 20px!important;}
+}
+
+/* ═══════════════════════════════════════
+   MOBILE  ≤ 640px
+═══════════════════════════════════════ */
+@media(max-width:640px){
+  /* Base */
+  html{font-size:14px;}
+  .fr{grid-template-columns:1fr;}
+  h1{font-size:1.75rem!important;}
+  h2{font-size:1.4rem!important;}
+  body{overflow-x:hidden;}
+
+  /* Nav */
+  .nav{padding:0 1rem;height:58px;}
+  .ham{display:flex;}
+  .nav-links-center{display:none!important;}
+  /* Hide desktop nav links on landing */
+  #pg-landing .navlinks > .btn:not(.btn-ham-only){display:none;}
+  /* Dashboard nav: collapse extra buttons */
+  #pg-dash .navlinks > .btn:first-child{display:none;}
+
+  /* Hero */
+  .hero2col{padding:32px 18px 24px;gap:20px;}
+  .hero2col h1{font-size:2rem!important;}
+  .heroMock{display:none!important;}
+  /* Hero stats: 2x2 grid */
+  .hero-stats-row{display:grid!important;grid-template-columns:1fr 1fr;gap:12px;text-align:center;}
+  .hero-stat-div{display:none!important;}
+
+  /* Feature cards: stacked row layout */
+  .featGrid{display:flex!important;flex-direction:column!important;gap:10px!important;}
+  .featCard{display:flex!important;flex-direction:row!important;align-items:center!important;gap:12px!important;padding:12px 14px!important;}
+  .featCard .fi-icon{width:36px!important;height:36px!important;min-width:36px!important;font-size:1rem!important;margin-bottom:0!important;flex-shrink:0!important;}
+  .featCard h3{font-size:.875rem!important;margin-bottom:2px!important;}
+  .featCard p{font-size:.8rem!important;line-height:1.5!important;}
+
+  /* Dark stats bar: 2x2 */
+  .dark-stats-grid{grid-template-columns:repeat(2,1fr)!important;gap:16px!important;}
+
+  /* Steps: vertical */
+  .stepsGrid{display:flex!important;flex-direction:column!important;gap:12px!important;}
+  .stepCard{flex-direction:row!important;align-items:flex-start!important;gap:12px!important;text-align:left!important;padding:14px!important;}
+
+  /* Dashboard */
+  .wbanner{flex-direction:column;gap:10px;text-align:center;padding:20px 16px!important;}
+  .dash-illus{display:none!important;}
+  .wemoji{display:none;}
+  /* Stats: 2x2 */
+  .dash-stats-grid{grid-template-columns:repeat(2,1fr)!important;gap:10px!important;}
+  .dstat{padding:14px 16px!important;}
+  .dval{font-size:1.6rem!important;}
+  /* Exam table: scroll */
+  .card{overflow-x:auto;}
+  .dt{min-width:600px;}
+  /* Main padding */
+  #pg-dash main{padding:16px!important;}
+  #pg-monitor main{padding:16px!important;}
+
+  /* Modals: full screen bottom sheet */
+  .mbd{align-items:flex-end!important;padding:0!important;}
+  .mbx{
+    max-width:100%!important;width:100%!important;
+    border-radius:20px 20px 0 0!important;
+    max-height:92vh!important;
+    animation:slideUp .3s cubic-bezier(.4,0,.2,1)!important;
+  }
+  @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .mb{max-height:65vh!important;overflow-y:auto;}
+  .mh{padding:16px 20px 0!important;}
+  .mf{padding:0 20px 24px!important;flex-direction:column-reverse!important;}
+  .mf .btn{width:100%!important;padding:14px!important;font-size:.95rem!important;}
+  /* Modal drag handle */
+  .mbx::before{
+    content:'';display:block;width:40px;height:4px;
+    background:var(--paper3);border-radius:2px;
+    margin:10px auto 0;
+  }
+
+  /* Exam type overlay cards */
+  .etCards{flex-direction:column!important;gap:12px!important;}
+  .etCard{max-width:100%!important;padding:20px!important;flex-direction:row!important;text-align:left!important;gap:16px;align-items:center!important;}
+  .etIcon{width:48px!important;height:48px!important;margin:0!important;flex-shrink:0!important;}
+
+  /* MCQ exam page: no sidebar */
+  .exam-sidebar{display:none!important;}
+  .exam-main{padding:16px!important;}
+  /* MCQ: show compact q nav at top */
+  .exam-layout{grid-template-columns:1fr!important;}
+  #pg-exam main{grid-template-columns:1fr!important;}
+  #qnav{display:flex;flex-wrap:wrap;gap:4px;padding:10px 16px;background:var(--paper2);border-bottom:1px solid var(--paper3);}
+  /* MCQ question text */
+  #q-text{font-size:.95rem!important;}
+  .opt{padding:11px 14px!important;font-size:.875rem!important;}
+
+  /* Written exam */
+  #pg-wexam main{padding:16px 14px!important;}
+  .wta{min-height:100px!important;}
+
+  /* Student info */
+  #pg-sinfo main{padding:20px 14px!important;}
+
+  /* Anti-cheat page */
+  #pg-acwarn main{padding:20px 14px!important;}
+  .acRule{padding:10px 12px!important;}
+
+  /* Results */
+  #pg-result main{padding:16px 14px!important;}
+
+  /* Tab nav: scroll horizontally */
+  .tnav{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;padding-bottom:2px;gap:0;}
+  .tb{white-space:nowrap;padding:10px 14px;font-size:.8rem;flex-shrink:0;}
+
+  /* Touch targets: min 44px */
+  .btn{min-height:44px;}
+  .qbtn{width:38px!important;height:38px!important;}
+  .tb{min-height:44px;}
+}
+
+/* ═══════════════════════════════════════
+   VERY SMALL  ≤ 380px
+═══════════════════════════════════════ */
+@media(max-width:380px){
+  .hero2col h1{font-size:1.65rem!important;}
+  .dash-stats-grid{grid-template-columns:1fr 1fr!important;}
+  .dval{font-size:1.4rem!important;}
+}
+
 </style>
 </head>
 <body>
@@ -238,35 +448,48 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
     <a class="brand" href="#" onclick="showPage('pg-landing');return false">
       <div class="logomark"><svg viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h8" stroke-linecap="round"/></svg></div>ExamFlow
     </a>
-    <div style="display:flex;align-items:center;gap:4px;">
+    <div class="nav-links-center" style="display:flex;align-items:center;gap:4px;">
       <a href="#" class="btn btnG sm" onclick="document.getElementById('sec-feat').scrollIntoView({behavior:'smooth'});return false">Features</a>
       <a href="#" class="btn btnG sm" onclick="document.getElementById('sec-how').scrollIntoView({behavior:'smooth'});return false">How it works</a>
     </div>
-    <div class="navlinks">
-      <button class="btn btnG sm" onclick="showPage('pg-auth');authTab('in')">Teacher login</button>
-      <button class="btn btnP sm" onclick="showPage('pg-auth');authTab('up')">Get started</button>
+    <div class="navlinks" style="display:flex;align-items:center;gap:8px;">
+      <button class="btn btnG sm" onclick="showPage('pg-auth');authTab('in')" style="display:none" id="ln-login-btn">Teacher login</button>
+      <button class="btn btnP sm btn3d" onclick="showPage('pg-auth');authTab('up')" style="display:none" id="ln-start-btn">Get started</button>
+      <button class="ham" id="ham-btn" onclick="toggleMobNav()" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
     </div>
   </nav>
+  <!-- Mobile nav drawer -->
+  <div class="mob-nav" id="mob-nav">
+    <button class="btn btnG" onclick="document.getElementById('sec-feat').scrollIntoView({behavior:'smooth'});closeMobNav()" style="color:#fff;font-size:1.1rem;background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);width:85%;max-width:300px;border-radius:14px;padding:14px;">Features</button>
+    <button class="btn btnG" onclick="document.getElementById('sec-how').scrollIntoView({behavior:'smooth'});closeMobNav()" style="color:#fff;font-size:1.1rem;background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);width:85%;max-width:300px;border-radius:14px;padding:14px;">How it works</button>
+    <button class="btn btnS" onclick="showPage('pg-auth');authTab('in');closeMobNav()" style="font-size:1.1rem;width:85%;max-width:300px;border-radius:14px;padding:14px;">Teacher login</button>
+    <button class="btn btnP" onclick="showPage('pg-auth');authTab('up');closeMobNav()" style="font-size:1.1rem;width:85%;max-width:300px;border-radius:14px;padding:14px;">Get started free</button>
+  </div>
   <main style="flex:1;display:flex;flex-direction:column;overflow-x:hidden;">
 
     <!-- HERO -->
-    <section style="width:100%;background:linear-gradient(160deg,#fdf6f0 0%,#faf9f6 70%);">
+    <section style="width:100%;background:linear-gradient(160deg,#fdf6f0 0%,#faf9f6 70%);position:relative;overflow:hidden;">
+      <!-- 3D orb decorations -->
+      <div style="position:absolute;top:-80px;right:-80px;width:400px;height:400px;background:radial-gradient(circle,rgba(200,64,26,.08) 0%,transparent 70%);border-radius:50%;pointer-events:none;animation:float3d 6s ease-in-out infinite;"></div>
+      <div style="position:absolute;bottom:-60px;left:-60px;width:300px;height:300px;background:radial-gradient(circle,rgba(200,64,26,.05) 0%,transparent 70%);border-radius:50%;pointer-events:none;animation:float3d 8s ease-in-out infinite reverse;"></div>
       <div class="hero2col">
         <div>
           <div class="bx bA gsUp" style="margin-bottom:18px;" id="hero-badge">&#10024; Universal Examination Platform</div>
           <h1 class="gsUp" style="font-size:3rem;margin-bottom:18px;">Run secure online exams,<br><em>effortlessly.</em></h1>
           <p class="gsUp" style="max-width:460px;color:var(--ink3);font-size:1rem;line-height:1.75;margin-bottom:32px;">Upload questions, generate a link — MCQ, written, timer, anti-cheat, live results all handled.</p>
           <div class="gsUp" style="display:flex;gap:12px;flex-wrap:wrap;">
-            <button class="btn btnP lg" onclick="showPage('pg-auth');authTab('up')">Get started free &rarr;</button>
+            <button class="btn btnP lg btn3d" onclick="showPage('pg-auth');authTab('up')">Get started free &rarr;</button>
             <button class="btn btnS lg" onclick="demoFlow()">Try student demo</button>
           </div>
-          <div class="gsUp" style="display:flex;gap:28px;margin-top:44px;flex-wrap:wrap;align-items:center;">
+          <div class="gsUp" class="hero-stats-row" style="display:flex;gap:28px;margin-top:44px;flex-wrap:wrap;align-items:center;">
             <div style="text-align:center"><div style="font-size:1.6rem;font-weight:700;color:var(--ac)">100%</div><div style="font-size:.78rem;color:var(--ink3)">Browser-based</div></div>
-            <div style="width:1px;height:32px;background:var(--paper3)"></div>
+            <div class="hero-stat-div" style="width:1px;height:32px;background:var(--paper3)"></div>
             <div style="text-align:center"><div style="font-size:1.6rem;font-weight:700;color:var(--ac)">&#8734;</div><div style="font-size:.78rem;color:var(--ink3)">Students</div></div>
-            <div style="width:1px;height:32px;background:var(--paper3)"></div>
+            <div class="hero-stat-div" style="width:1px;height:32px;background:var(--paper3)"></div>
             <div style="text-align:center"><div style="font-size:1.6rem;font-weight:700;color:var(--ac)">MCQ+</div><div style="font-size:.78rem;color:var(--ink3)">Written</div></div>
-            <div style="width:1px;height:32px;background:var(--paper3)"></div>
+            <div class="hero-stat-div" style="width:1px;height:32px;background:var(--paper3)"></div>
             <div style="text-align:center"><div style="font-size:1.6rem;font-weight:700;color:var(--ac)">Live</div><div style="font-size:.78rem;color:var(--ink3)">Monitor</div></div>
           </div>
         </div>
@@ -302,18 +525,22 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
         <h2 style="font-size:2rem;">Everything you need to conduct exams <em>the modern way</em></h2>
       </div>
       <div class="featGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;" id="feat-grid">
-        <div class="card cp featCard" style="padding:20px;"><div class="fi-icon" style="width:40px;height:40px;border-radius:10px;background:#fdeaea;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;flex-shrink:0;">&#128737;&#65039;</div><div><h3 style="margin-bottom:6px;font-size:.95rem;">Secure &amp; Anti-Cheat</h3><p style="font-size:.85rem;color:var(--ink3);line-height:1.6;margin:0;">Tab switch auto-refresh, copy-paste blocked. Students flagged in real time.</p></div></div>
-        <div class="card cp featCard" style="padding:20px;"><div class="fi-icon" style="width:40px;height:40px;border-radius:10px;background:#edf3fd;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;flex-shrink:0;">&#9201;</div><div><h3 style="margin-bottom:6px;font-size:.95rem;">Timer &amp; Auto-Submit</h3><p style="font-size:.85rem;color:var(--ink3);line-height:1.6;margin:0;">Custom timers, auto-submission. Works on mobile too.</p></div></div>
-        <div class="card cp featCard" style="padding:20px;"><div class="fi-icon" style="width:40px;height:40px;border-radius:10px;background:#edf7f2;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;flex-shrink:0;">&#128202;</div><div><h3 style="margin-bottom:6px;font-size:.95rem;">Live Results &amp; Reports</h3><p style="font-size:.85rem;color:var(--ink3);line-height:1.6;margin:0;">Real-time results and analytics. Export CSV instantly.</p></div></div>
-        <div class="card cp featCard" style="padding:20px;"><div class="fi-icon" style="width:40px;height:40px;border-radius:10px;background:var(--acbg);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;flex-shrink:0;">&#128279;</div><div><h3 style="margin-bottom:6px;font-size:.95rem;">Instant Exam Link</h3><p style="font-size:.85rem;color:var(--ink3);line-height:1.6;margin:0;">Shareable link — students open in any browser, no app needed.</p></div></div>
-        <div class="card cp featCard" style="padding:20px;"><div class="fi-icon" style="width:40px;height:40px;border-radius:10px;background:#f3edfb;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;flex-shrink:0;">&#9997;&#65039;</div><div><h3 style="margin-bottom:6px;font-size:.95rem;">MCQ + Written Exams</h3><p style="font-size:.85rem;color:var(--ink3);line-height:1.6;margin:0;">MCQ with auto-grade, or written with teacher manual grading.</p></div></div>
-        <div class="card cp featCard" style="padding:20px;"><div class="fi-icon" style="width:40px;height:40px;border-radius:10px;background:var(--warnbg);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;flex-shrink:0;">&#128260;</div><div><h3 style="margin-bottom:6px;font-size:.95rem;">Smart Shuffle</h3><p style="font-size:.85rem;color:var(--ink3);line-height:1.6;margin:0;">Questions and options randomised per student. No two exams look alike.</p></div></div>
+        <div class="card cp featCard card3d" style="padding:20px;"><div class="fi-icon" style="width:40px;height:40px;border-radius:10px;background:#fdeaea;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;flex-shrink:0;">&#128737;&#65039;</div><div><h3 style="margin-bottom:6px;font-size:.95rem;">Secure &amp; Anti-Cheat</h3><p style="font-size:.85rem;color:var(--ink3);line-height:1.6;margin:0;">Tab switch auto-refresh, copy-paste blocked. Students flagged in real time.</p></div></div>
+        <div class="card cp featCard card3d" style="padding:20px;"><div class="fi-icon" style="width:40px;height:40px;border-radius:10px;background:#edf3fd;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;flex-shrink:0;">&#9201;</div><div><h3 style="margin-bottom:6px;font-size:.95rem;">Timer &amp; Auto-Submit</h3><p style="font-size:.85rem;color:var(--ink3);line-height:1.6;margin:0;">Custom timers, auto-submission. Works on mobile too.</p></div></div>
+        <div class="card cp featCard card3d" style="padding:20px;"><div class="fi-icon" style="width:40px;height:40px;border-radius:10px;background:#edf7f2;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;flex-shrink:0;">&#128202;</div><div><h3 style="margin-bottom:6px;font-size:.95rem;">Live Results &amp; Reports</h3><p style="font-size:.85rem;color:var(--ink3);line-height:1.6;margin:0;">Real-time results and analytics. Export CSV instantly.</p></div></div>
+        <div class="card cp featCard card3d" style="padding:20px;"><div class="fi-icon" style="width:40px;height:40px;border-radius:10px;background:var(--acbg);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;flex-shrink:0;">&#128279;</div><div><h3 style="margin-bottom:6px;font-size:.95rem;">Instant Exam Link</h3><p style="font-size:.85rem;color:var(--ink3);line-height:1.6;margin:0;">Shareable link — students open in any browser, no app needed.</p></div></div>
+        <div class="card cp featCard card3d" style="padding:20px;"><div class="fi-icon" style="width:40px;height:40px;border-radius:10px;background:#f3edfb;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;flex-shrink:0;">&#9997;&#65039;</div><div><h3 style="margin-bottom:6px;font-size:.95rem;">MCQ + Written Exams</h3><p style="font-size:.85rem;color:var(--ink3);line-height:1.6;margin:0;">MCQ with auto-grade, or written with teacher manual grading.</p></div></div>
+        <div class="card cp featCard card3d" style="padding:20px;"><div class="fi-icon" style="width:40px;height:40px;border-radius:10px;background:var(--warnbg);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:14px;flex-shrink:0;">&#128260;</div><div><h3 style="margin-bottom:6px;font-size:.95rem;">Smart Shuffle</h3><p style="font-size:.85rem;color:var(--ink3);line-height:1.6;margin:0;">Questions and options randomised per student. No two exams look alike.</p></div></div>
       </div>
     </section>
 
     <!-- DARK STATS BAR -->
-    <section class="gsScale" style="width:100%;background:linear-gradient(135deg,#1a0a00,#0d0d1a);padding:48px 32px;">
-      <div style="max-width:900px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:24px;text-align:center;">
+    <section class="gsScale" style="width:100%;background:linear-gradient(135deg,#1a0a00,#0d0d1a);padding:48px 32px;position:relative;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 -4px 40px rgba(200,64,26,.08);">
+      <div style="position:absolute;inset:0;pointer-events:none;overflow:hidden;">
+      <div style="position:absolute;top:20%;left:10%;width:160px;height:160px;background:radial-gradient(circle,rgba(200,64,26,.12) 0%,transparent 70%);border-radius:50%;animation:float3d 7s ease-in-out infinite;"></div>
+      <div style="position:absolute;bottom:10%;right:15%;width:120px;height:120px;background:radial-gradient(circle,rgba(200,64,26,.08) 0%,transparent 70%);border-radius:50%;animation:float3d 5s ease-in-out infinite reverse;"></div>
+    </div>
+    <div class="dark-stats-grid" style="max-width:900px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:24px;text-align:center;">
         <div><div style="width:48px;height:48px;background:rgba(255,255,255,.1);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin:0 auto 12px;">&#127758;</div><div style="font-size:1.6rem;font-weight:700;color:#fff">100%</div><div style="font-size:.8rem;color:rgba(255,255,255,.5);margin-top:4px">Browser-based</div></div>
         <div><div style="width:48px;height:48px;background:rgba(255,255,255,.1);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin:0 auto 12px;">&#128101;</div><div style="font-size:1.6rem;font-weight:700;color:#fff">&#8734;</div><div style="font-size:.8rem;color:rgba(255,255,255,.5);margin-top:4px">Students per exam</div></div>
         <div><div style="width:48px;height:48px;background:rgba(255,255,255,.1);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin:0 auto 12px;">&#9889;</div><div style="font-size:1.6rem;font-weight:700;color:#fff">0s</div><div style="font-size:.8rem;color:rgba(255,255,255,.5);margin-top:4px">Setup time</div></div>
@@ -327,9 +554,9 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
         <h4 style="color:var(--ac);letter-spacing:.1em;margin-bottom:8px;" id="how-hd">HOW IT WORKS</h4>
         <h2 style="font-size:2rem;margin-bottom:48px;">Create, share, and evaluate in <em>3 simple steps</em></h2>
         <div class="stepsGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;" id="steps-grid">
-          <div class="card cp stepCard" style="display:flex;flex-direction:column;gap:12px;text-align:left;"><div style="width:36px;height:36px;border-radius:50%;background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">01</div><div><h3 style="font-size:.95rem;margin-bottom:6px;">Create Exam</h3><p style="font-size:.85rem;color:var(--ink3);line-height:1.6;margin:0;">Upload questions, set timer, shuffle settings, add student list.</p></div></div>
-          <div class="card cp stepCard" style="display:flex;flex-direction:column;gap:12px;text-align:left;"><div style="width:36px;height:36px;border-radius:50%;background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">02</div><div><h3 style="font-size:.95rem;margin-bottom:6px;">Share Link</h3><p style="font-size:.85rem;color:var(--ink3);line-height:1.6;margin:0;">Send one link via WhatsApp or email. Students open in any browser.</p></div></div>
-          <div class="card cp stepCard" style="display:flex;flex-direction:column;gap:12px;text-align:left;"><div style="width:36px;height:36px;border-radius:50%;background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">03</div><div><h3 style="font-size:.95rem;margin-bottom:6px;">Analyze Results</h3><p style="font-size:.85rem;color:var(--ink3);line-height:1.6;margin:0;">Monitor live, grade written answers, download CSV reports.</p></div></div>
+          <div class="card cp stepCard card3d" style="display:flex;flex-direction:column;gap:12px;text-align:left;"><div style="width:36px;height:36px;border-radius:50%;background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">01</div><div><h3 style="font-size:.95rem;margin-bottom:6px;">Create Exam</h3><p style="font-size:.85rem;color:var(--ink3);line-height:1.6;margin:0;">Upload questions, set timer, shuffle settings, add student list.</p></div></div>
+          <div class="card cp stepCard card3d" style="display:flex;flex-direction:column;gap:12px;text-align:left;"><div style="width:36px;height:36px;border-radius:50%;background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">02</div><div><h3 style="font-size:.95rem;margin-bottom:6px;">Share Link</h3><p style="font-size:.85rem;color:var(--ink3);line-height:1.6;margin:0;">Send one link via WhatsApp or email. Students open in any browser.</p></div></div>
+          <div class="card cp stepCard card3d" style="display:flex;flex-direction:column;gap:12px;text-align:left;"><div style="width:36px;height:36px;border-radius:50%;background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">03</div><div><h3 style="font-size:.95rem;margin-bottom:6px;">Analyze Results</h3><p style="font-size:.85rem;color:var(--ink3);line-height:1.6;margin:0;">Monitor live, grade written answers, download CSV reports.</p></div></div>
         </div>
         <button class="btn btnP lg gsUp" style="margin-top:40px;" onclick="showPage('pg-auth');authTab('up')">Get started for free &rarr;</button>
       </div>
@@ -337,7 +564,7 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
 
     <!-- TAHCREATIONS -->
     <section style="width:100%;max-width:900px;margin:0 auto;padding:64px 24px;" id="tah-sec">
-      <div class="gsScale" style="background:linear-gradient(135deg,#1a0505 0%,#2d0a0a 50%,#1a1a2e 100%);border-radius:var(--rl);padding:48px 36px;color:#fff;position:relative;overflow:hidden;text-align:center;">
+      <div class="gsScale" style="background:linear-gradient(135deg,#1a0505 0%,#2d0a0a 50%,#1a1a2e 100%);border-radius:var(--rl);padding:48px 36px;color:#fff;position:relative;overflow:hidden;text-align:center;transform-style:preserve-3d;box-shadow:0 32px 80px rgba(15,14,13,.3),0 0 0 1px rgba(200,64,26,.2);">
         <div style="margin-bottom:24px;">
           <img src="data:image/png;base64,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" alt="TahCreations Logo" style="height:70px;width:auto;border-radius:8px;">
         </div>
@@ -376,7 +603,7 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
     </a>
   </nav>
   <main style="flex:1;display:flex;align-items:center;justify-content:center;padding:40px 20px;">
-    <div class="card" style="width:100%;max-width:420px;">
+    <div class="card" style="width:100%;max-width:420px;box-shadow:0 32px 80px rgba(15,14,13,.15),0 8px 24px rgba(15,14,13,.08),inset 0 1px 0 rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.6);">
       <div class="ch">
         <div class="tnav" style="margin-bottom:0;border-bottom:none;">
           <button class="tb on" id="atab-in" onclick="authTab('in')">Sign in</button>
@@ -417,8 +644,8 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
       <div class="logomark"><svg viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h8" stroke-linecap="round"/></svg></div>ExamFlow
     </a>
     <div class="navlinks">
-      <button class="btn btnG sm" onclick="showPage('pg-monitor')">&#128202; Live monitor</button>
-      <button class="btn btnP sm" onclick="openETO()">+ New exam</button>
+      <button class="btn btnG sm" onclick="showPage('pg-monitor')" style="white-space:nowrap">&#128202; Monitor</button>
+      <button class="btn btnP sm btn3d" onclick="openETO()" style="white-space:nowrap">+ New exam</button>
       <div style="position:relative;">
         <button onclick="toggleUM()" style="display:flex;align-items:center;gap:8px;border:1.5px solid var(--paper3);border-radius:999px;padding:5px 12px 5px 5px;background:#fff;cursor:pointer;font-size:.85rem;font-weight:500;color:var(--ink)">
           <div id="uavatar" style="width:28px;height:28px;border-radius:50%;background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700">T</div>
@@ -516,17 +743,17 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
       </svg>
     </div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
-      <div class="dstat"><div class="dicon" style="background:#fff3ef">&#128203;</div><div class="dval" id="ds-exams" style="color:var(--ac)">0</div><div class="dtitle">Total exams</div><div class="dsub">All created exams</div></div>
-      <div class="dstat"><div class="dicon" style="background:#edfaf0">&#128200;</div><div class="dval" id="ds-active" style="color:#22c55e">0</div><div class="dtitle">Active now</div><div class="dsub">Exams in progress</div></div>
-      <div class="dstat"><div class="dicon" style="background:#f0edfa">&#128101;</div><div class="dval" id="ds-students" style="color:#7c3aed">0</div><div class="dtitle">Total students</div><div class="dsub">Across all exams</div></div>
-      <div class="dstat"><div class="dicon" style="background:#fffbeb">&#11088;</div><div class="dval" id="ds-avg" style="color:#d97706">&#8212;</div><div class="dtitle">Avg score</div><div class="dsub">Performance overview</div></div>
+    <div class="dash-stats-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
+      <div class="dstat card3d"><div class="dicon" style="background:#fff3ef">&#128203;</div><div class="dval" id="ds-exams" style="color:var(--ac)">0</div><div class="dtitle">Total exams</div><div class="dsub">All created exams</div></div>
+      <div class="dstat card3d"><div class="dicon" style="background:#edfaf0">&#128200;</div><div class="dval" id="ds-active" style="color:#22c55e">0</div><div class="dtitle">Active now</div><div class="dsub">Exams in progress</div></div>
+      <div class="dstat card3d"><div class="dicon" style="background:#f0edfa">&#128101;</div><div class="dval" id="ds-students" style="color:#7c3aed">0</div><div class="dtitle">Total students</div><div class="dsub">Across all exams</div></div>
+      <div class="dstat card3d"><div class="dicon" style="background:#fffbeb">&#11088;</div><div class="dval" id="ds-avg" style="color:#d97706">&#8212;</div><div class="dtitle">Avg score</div><div class="dsub">Performance overview</div></div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
       <h3>Your exams</h3>
       <div style="display:flex;gap:8px;">
         <button class="btn btnS sm" onclick="openSecMgr()">&#128193; Sections</button>
-        <button class="btn btnP sm" onclick="openETO()">+ Create exam</button>
+        <button class="btn btnP sm btn3d" onclick="openETO()">+ Create exam</button>
       </div>
     </div>
     <div id="sec-filter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
@@ -551,9 +778,9 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
       <p style="color:rgba(255,255,255,.6);font-size:.95rem;">Select the format to get started</p>
     </div>
     <div class="etCards" style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap;">
-      <div class="etCard" onclick="pickET('mcq')"><div class="etIcon" style="background:#fff3ef">&#128203;</div><h3 style="margin-bottom:8px">MCQ Exam</h3><p style="font-size:.83rem;color:var(--ink3);line-height:1.5">Multiple choice with auto-grading and instant results.</p><div style="margin-top:16px" class="btn btnP sm">Choose &rarr;</div></div>
-      <div class="etCard" onclick="pickET('written')"><div class="etIcon" style="background:#f0edfa">&#9997;&#65039;</div><h3 style="margin-bottom:8px">Written Exam</h3><p style="font-size:.83rem;color:var(--ink3);line-height:1.5">Descriptive answers &amp; photo upload. Teacher grades manually.</p><div style="margin-top:16px" class="btn btnP sm">Choose &rarr;</div></div>
-      <div class="etCard" onclick="pickET('combined')"><div class="etIcon" style="background:#edf7f2">&#128196;</div><h3 style="margin-bottom:8px">MCQ + Written</h3><p style="font-size:.83rem;color:var(--ink3);line-height:1.5">Both question types merged in one exam.</p><div style="margin-top:16px" class="btn btnP sm">Choose &rarr;</div></div>
+      <div class="etCard" onclick="pickET('mcq')"><div class="etIcon" style="background:#fff3ef">&#128203;</div><h3 style="margin-bottom:8px">MCQ Exam</h3><p style="font-size:.83rem;color:var(--ink3);line-height:1.5">Multiple choice with auto-grading and instant results.</p><div style="margin-top:16px" class="btn btnP sm btn3d">Choose &rarr;</div></div>
+      <div class="etCard" onclick="pickET('written')"><div class="etIcon" style="background:#f0edfa">&#9997;&#65039;</div><h3 style="margin-bottom:8px">Written Exam</h3><p style="font-size:.83rem;color:var(--ink3);line-height:1.5">Descriptive answers &amp; photo upload. Teacher grades manually.</p><div style="margin-top:16px" class="btn btnP sm btn3d">Choose &rarr;</div></div>
+      <div class="etCard" onclick="pickET('combined')"><div class="etIcon" style="background:#edf7f2">&#128196;</div><h3 style="margin-bottom:8px">MCQ + Written</h3><p style="font-size:.83rem;color:var(--ink3);line-height:1.5">Both question types merged in one exam.</p><div style="margin-top:16px" class="btn btnP sm btn3d">Choose &rarr;</div></div>
     </div>
     <div style="text-align:center;margin-top:24px;"><button onclick="closeETO()" style="background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:.875rem">&#10005; Cancel</button></div>
   </div>
@@ -564,7 +791,7 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
   <div class="mbx" style="max-width:460px;">
     <div class="mh"><h3>Manage sections</h3><p style="color:var(--ink3);font-size:.85rem;margin-top:4px">Create panels to organise exams by class or batch.</p></div>
     <div class="mb">
-      <div style="display:flex;gap:8px;margin-bottom:14px;"><input class="fi" id="sec-inp" placeholder="e.g. CSE-A 2025" style="flex:1"><button class="btn btnP sm" onclick="addSec()">Add</button></div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;"><input class="fi" id="sec-inp" placeholder="e.g. CSE-A 2025" style="flex:1"><button class="btn btnP sm btn3d" onclick="addSec()">Add</button></div>
       <div id="sec-list" style="display:flex;flex-direction:column;gap:8px;max-height:240px;overflow-y:auto"></div>
     </div>
     <div class="mf"><button class="btn btnG" onclick="closeM('m-sec')">Close</button></div>
@@ -603,7 +830,7 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
           </div>
         </div>
       <div style="display:flex;justify-content:flex-end;margin-top:18px;">
-          <button class="btn btnP sm" onclick="mcqTab('t-qs',document.querySelectorAll('#mcq-tnav .tb')[1])">Next: Questions &rarr;</button>
+          <button class="btn btnP sm btn3d" onclick="mcqTab('t-qs',document.querySelectorAll('#mcq-tnav .tb')[1])">Next: Questions &rarr;</button>
         </div>
       </div>
       <div class="tp" id="t-qs">
@@ -622,18 +849,18 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
         <div style="background:var(--infobg);border-radius:var(--r);padding:10px 12px;font-size:.8rem;margin-top:10px"><strong style="color:var(--info)">CSV format:</strong><code style="font-family:var(--fm);color:var(--ink2);margin-left:6px">Question,A,B,C,D,Answer</code></div>
       <div style="display:flex;justify-content:space-between;margin-top:18px;">
           <button class="btn btnS sm" onclick="mcqTab('t-cfg',document.querySelectorAll('#mcq-tnav .tb')[0])">&larr; Back: Settings</button>
-          <button class="btn btnP sm" onclick="mcqTab('t-stu',document.querySelectorAll('#mcq-tnav .tb')[2])">Next: Students &rarr;</button>
+          <button class="btn btnP sm btn3d" onclick="mcqTab('t-stu',document.querySelectorAll('#mcq-tnav .tb')[2])">Next: Students &rarr;</button>
         </div>
       </div>
       <div class="tp" id="t-stu">
         <div style="background:var(--infobg);border-radius:var(--r);padding:12px 14px;font-size:.85rem;color:var(--info);margin-bottom:14px"><strong>Optional:</strong> Upload a student list so students pick from a dropdown. Prevents duplicate attempts.</div>
         <div class="upzone" onclick="document.getElementById('sf-inp').click()" style="padding:20px;margin-bottom:12px"><div style="font-size:1.5rem;margin-bottom:6px">&#128101;</div><strong style="font-size:.9rem">Upload student list (CSV)</strong><p style="font-size:.8rem;color:var(--ink3);margin-top:4px">Format: Name, Roll Number</p></div>
         <input type="file" id="sf-inp" accept=".csv" style="display:none" onchange="handleStuFile(this.files[0]);this.value=''">
-        <div style="display:flex;gap:8px;margin-bottom:10px;"><input class="fi" id="stu-name" placeholder="Student name" style="flex:2"><input class="fi" id="stu-roll" placeholder="Roll" style="flex:1"><button class="btn btnP sm" onclick="addStu()">Add</button></div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;"><input class="fi" id="stu-name" placeholder="Student name" style="flex:2"><input class="fi" id="stu-roll" placeholder="Roll" style="flex:1"><button class="btn btnP sm btn3d" onclick="addStu()">Add</button></div>
         <div id="stu-list" style="max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
       <div style="display:flex;justify-content:space-between;margin-top:18px;">
           <button class="btn btnS sm" onclick="mcqTab('t-qs',document.querySelectorAll('#mcq-tnav .tb')[1])">&larr; Back: Questions</button>
-          <button class="btn btnP sm" onclick="mcqTab('t-pre',document.querySelectorAll('#mcq-tnav .tb')[3])">Preview &rarr;</button>
+          <button class="btn btnP sm btn3d" onclick="mcqTab('t-pre',document.querySelectorAll('#mcq-tnav .tb')[3])">Preview &rarr;</button>
         </div>
       </div>
       <div class="tp" id="t-pre">
@@ -681,7 +908,7 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.875rem"><input type="checkbox" id="we-shuf"> Shuffle question order</label>
         </div>
       <div style="display:flex;justify-content:flex-end;margin-top:18px;">
-          <button class="btn btnP sm" onclick="wrtTab('wt-qs',document.querySelectorAll('#wrt-tnav .tb')[1])">Next: Questions &rarr;</button>
+          <button class="btn btnP sm btn3d" onclick="wrtTab('wt-qs',document.querySelectorAll('#wrt-tnav .tb')[1])">Next: Questions &rarr;</button>
         </div>
       </div>
       <div class="tp" id="wt-qs">
@@ -694,18 +921,18 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
         <div id="wq-empty" style="text-align:center;padding:24px;color:var(--ink3);font-size:.875rem">No questions yet. Add manually or upload a PDF.</div>
       <div style="display:flex;justify-content:space-between;margin-top:18px;">
           <button class="btn btnS sm" onclick="wrtTab('wt-cfg',document.querySelectorAll('#wrt-tnav .tb')[0])">&larr; Back: Settings</button>
-          <button class="btn btnP sm" onclick="wrtTab('wt-stu',document.querySelectorAll('#wrt-tnav .tb')[2])">Next: Students &rarr;</button>
+          <button class="btn btnP sm btn3d" onclick="wrtTab('wt-stu',document.querySelectorAll('#wrt-tnav .tb')[2])">Next: Students &rarr;</button>
         </div>
       </div>
       <div class="tp" id="wt-stu">
         <div style="background:var(--infobg);border-radius:var(--r);padding:12px 14px;font-size:.85rem;color:var(--info);margin-bottom:14px"><strong>Optional:</strong> Upload list to restrict access and prevent duplicate attempts.</div>
         <div class="upzone" onclick="document.getElementById('wsf-inp').click()" style="padding:20px;margin-bottom:12px"><div style="font-size:1.5rem;margin-bottom:6px">&#128101;</div><strong style="font-size:.9rem">Upload student list (CSV)</strong><p style="font-size:.8rem;color:var(--ink3);margin-top:4px">Name, Roll Number</p></div>
         <input type="file" id="wsf-inp" accept=".csv" style="display:none" onchange="handleWStuFile(this.files[0]);this.value=''">
-        <div style="display:flex;gap:8px;margin-bottom:10px;"><input class="fi" id="wstu-name" placeholder="Name" style="flex:2"><input class="fi" id="wstu-roll" placeholder="Roll" style="flex:1"><button class="btn btnP sm" onclick="addWStu()">Add</button></div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;"><input class="fi" id="wstu-name" placeholder="Name" style="flex:2"><input class="fi" id="wstu-roll" placeholder="Roll" style="flex:1"><button class="btn btnP sm btn3d" onclick="addWStu()">Add</button></div>
         <div id="wstu-list" style="max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
       <div style="display:flex;justify-content:space-between;margin-top:18px;">
           <button class="btn btnS sm" onclick="wrtTab('wt-qs',document.querySelectorAll('#wrt-tnav .tb')[1])">&larr; Back: Questions</button>
-          <button class="btn btnP sm" onclick="wrtTab('wt-pre',document.querySelectorAll('#wrt-tnav .tb')[3])">Preview &rarr;</button>
+          <button class="btn btnP sm btn3d" onclick="wrtTab('wt-pre',document.querySelectorAll('#wrt-tnav .tb')[3])">Preview &rarr;</button>
         </div>
       </div>
       <div class="tp" id="wt-pre">
@@ -881,8 +1108,10 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
     </div>
   </nav>
   <div style="height:4px;background:var(--paper3)"><div class="pfill" id="ex-prog" style="height:4px;width:0"></div></div>
-  <main style="flex:1;display:grid;grid-template-columns:260px 1fr;min-height:0">
-    <div style="border-right:1px solid var(--paper3);padding:20px;overflow-y:auto;background:var(--paper)">
+  <!-- Mobile Q-nav (shown only on mobile) -->
+  <div id="mob-qnav" style="display:none;padding:10px 16px;background:var(--paper2);border-bottom:1px solid var(--paper3);flex-wrap:wrap;gap:4px;"></div>
+  <main style="flex:1;display:grid;grid-template-columns:260px 1fr;min-height:0;overflow:hidden;">
+    <div class="exam-sidebar" style="border-right:1px solid var(--paper3);padding:20px;overflow-y:auto;background:var(--paper)">
       <h4 style="margin-bottom:14px">Questions</h4>
       <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:16px" id="qnav"></div>
       <div class="div"></div>
@@ -898,7 +1127,7 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
         <div style="display:flex;justify-content:space-between"><span>Flagged</span><strong id="sb-flg" style="color:var(--warn)">0</strong></div>
       </div>
     </div>
-    <div style="overflow-y:auto;padding:28px 32px">
+    <div class="exam-main" style="overflow-y:auto;padding:28px 32px">
       <div style="max-width:680px;margin:0 auto">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
           <div><span class="bx bN" id="q-num">Q 1 of —</span><span class="bx bN" style="margin-left:6px" id="q-mark">1 mark</span></div>
@@ -933,7 +1162,7 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
   <main style="flex:1;overflow-y:auto;padding:28px 32px">
     <div style="max-width:780px;margin:0 auto" id="wx-qs"></div>
     <div style="max-width:780px;margin:20px auto 0;display:flex;justify-content:flex-end">
-      <button class="btn btnP lg" onclick="confirmWSub()">Submit written exam &rarr;</button>
+      <button class="btn btnP lg btn3d" onclick="confirmWSub()">Submit written exam &rarr;</button>
     </div>
   </main>
 </div>
@@ -1137,7 +1366,7 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
         <div style="background:var(--infobg);border-radius:var(--r);padding:12px 14px;font-size:.85rem;color:var(--info);margin-bottom:14px"><strong>Optional:</strong> Upload to restrict access and prevent duplicate attempts.</div>
         <div class="upzone" onclick="document.getElementById('cb-sf').click()" style="padding:20px;margin-bottom:12px"><div style="font-size:1.5rem;margin-bottom:6px">&#128101;</div><strong style="font-size:.9rem">Upload student list (CSV)</strong><p style="font-size:.8rem;color:var(--ink3);margin-top:4px">Name, Roll Number</p></div>
         <input type="file" id="cb-sf" accept=".csv" style="display:none" onchange="cbHandleStu(this.files[0]);this.value=''">
-        <div style="display:flex;gap:8px;margin-bottom:10px;"><input class="fi" id="cb-sn" placeholder="Name" style="flex:2"><input class="fi" id="cb-sr" placeholder="Roll" style="flex:1"><button class="btn btnP sm" onclick="addCBStu()">Add</button></div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;"><input class="fi" id="cb-sn" placeholder="Name" style="flex:2"><input class="fi" id="cb-sr" placeholder="Roll" style="flex:1"><button class="btn btnP sm btn3d" onclick="addCBStu()">Add</button></div>
         <div id="cb-stu-list" style="max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:5px"></div>
       </div>
 
@@ -1218,6 +1447,7 @@ function initGSAP(){
   if(typeof gsap==='undefined'||typeof ScrollTrigger==='undefined')return;
   gsap.registerPlugin(ScrollTrigger);
   ScrollTrigger.refresh();
+  const isMobile=window.innerWidth<=640;
 
   // ── HERO: cinematic entrance ──
   const heroTL=gsap.timeline({defaults:{ease:'expo.out'}});
@@ -1243,8 +1473,8 @@ function initGSAP(){
 
   // ── FEATURE CARDS: cinematic stagger from bottom ──
   gsap.fromTo('#feat-grid .card',
-    {opacity:0,y:70,scale:.94,rotateX:6},
-    {opacity:1,y:0,scale:1,rotateX:0,duration:.8,stagger:{amount:.6,from:'start'},ease:'power3.out',
+    {opacity:0,y:isMobile?30:70,scale:isMobile?1:.94,rotateX:isMobile?0:6},
+    {opacity:1,y:0,scale:1,rotateX:0,duration:isMobile?.5:.8,stagger:{amount:isMobile?.3:.6,from:'start'},ease:'power3.out',
      scrollTrigger:{trigger:'#feat-grid',start:'top 82%',toggleActions:'play none none none'}});
 
   // ── FEATURE CARDS: hover 3D tilt effect ──
@@ -1852,6 +2082,7 @@ function renderQ(){
   document.getElementById('sb-una').textContent=tot-ans;
   document.getElementById('sb-flg').textContent=S.flagged.size;
   document.getElementById('qnav').innerHTML=S.questions.map((_,i)=>{let c='qbtn';if(i===S.curQ)c+=' qC';else if(S.answers[i]!==undefined)c+=' qA';if(S.flagged.has(i))c+=' qF';return`<button class="${c}" onclick="goQ(${i})">${i+1}</button>`;}).join('');
+  syncMobQNav();
 }
 function pickAns(i){S.answers[S.curQ]=i;renderQ();}
 function clearAns(){delete S.answers[S.curQ];renderQ();}
@@ -2047,7 +2278,7 @@ function renderWrtSubs(){
   const exam=S.exams[S.monIdx];const el=document.getElementById('wrt-subs');if(!exam)return;
   const wSess=(S.liveSess.length?S.liveSess:(exam.sessions||[])).filter(s=>s.submitted&&s.writtenAnswers&&Object.keys(s.writtenAnswers).length);
   if(!wSess.length){el.innerHTML='<p style="color:var(--ink3);font-size:.875rem;text-align:center;padding:16px">No written submissions yet.</p>';return;}
-  el.innerHTML=wSess.map(s=>`<div class="card cp" style="padding:14px"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:600">${esc(s.name)}</div><div style="font-size:.8rem;color:var(--ink3)">${esc(s.studentId||'')} &middot; Submitted ${new Date(s.submittedAt||0).toLocaleTimeString()}</div></div><button class="btn btnP sm" onclick="openGrade('${esc(s.id)}')">Grade answers &rarr;</button></div></div>`).join('');
+  el.innerHTML=wSess.map(s=>`<div class="card cp" style="padding:14px"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:600">${esc(s.name)}</div><div style="font-size:.8rem;color:var(--ink3)">${esc(s.studentId||'')} &middot; Submitted ${new Date(s.submittedAt||0).toLocaleTimeString()}</div></div><button class="btn btnP sm btn3d" onclick="openGrade('${esc(s.id)}')">Grade answers &rarr;</button></div></div>`).join('');
 }
 function openGrade(sessId){
   const exam=S.exams[S.monIdx];const sess=(S.liveSess.length?S.liveSess:(exam.sessions||[])).find(s=>s.id===sessId);
@@ -2110,6 +2341,91 @@ function checkURL(){
 }
 function showErr(msg){document.body.innerHTML+=`<div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--paper);font-family:var(--fb);z-index:99999;padding:24px;text-align:center"><div><div style="font-size:2.5rem;margin-bottom:16px">&#9888;&#65039;</div><h2 style="margin-bottom:10px">Cannot open exam</h2><p style="color:var(--ink3);line-height:1.7">${esc(msg)}</p></div></div>`;}
 
+// ═══ MOBILE NAV ═══
+function toggleMobNav(){
+  const btn=document.getElementById('ham-btn');
+  const nav=document.getElementById('mob-nav');
+  if(!btn||!nav)return;
+  const isOpen=nav.classList.contains('open');
+  btn.classList.toggle('open',!isOpen);
+  nav.classList.toggle('open',!isOpen);
+  document.body.style.overflow=isOpen?'':'hidden';
+}
+function closeMobNav(){
+  const btn=document.getElementById('ham-btn');
+  const nav=document.getElementById('mob-nav');
+  if(btn)btn.classList.remove('open');
+  if(nav)nav.classList.remove('open');
+  document.body.style.overflow='';
+}
+// Close mobile nav when clicking outside
+document.addEventListener('click',function(e){
+  const nav=document.getElementById('mob-nav');
+  const btn=document.getElementById('ham-btn');
+  if(nav&&nav.classList.contains('open')&&!nav.contains(e.target)&&!btn?.contains(e.target)){
+    closeMobNav();
+  }
+});
+// Show/hide desktop nav buttons based on screen size
+function updateNavVisibility(){
+  const isMobile=window.innerWidth<=640;
+  ['ln-login-btn','ln-start-btn'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.style.display=isMobile?'none':'inline-flex';
+  });
+}
+window.addEventListener('resize',updateNavVisibility);
+updateNavVisibility();
+
+// ═══ MOBILE EXAM Q-NAV ═══
+function syncMobQNav(){
+  const mob=document.getElementById('mob-qnav');
+  const desk=document.getElementById('qnav');
+  if(!mob||!desk)return;
+  // On mobile, show the qnav above the question area
+  if(window.innerWidth<=640){
+    mob.style.display='flex';
+    mob.innerHTML=desk.innerHTML;
+  }else{
+    mob.style.display='none';
+  }
+}
+
+// ═══ 3D TILT ON CARDS (desktop only) ═══
+function init3DTilts(){
+  if(window.innerWidth<=768)return;
+  document.querySelectorAll('.card3d').forEach(card=>{
+    card.addEventListener('mousemove',function(e){
+      const r=card.getBoundingClientRect();
+      const x=((e.clientX-r.left)/r.width-.5)*14;
+      const y=((e.clientY-r.top)/r.height-.5)*-14;
+      card.style.transform=`translateY(-6px) rotateX(${y}deg) rotateY(${x}deg)`;
+      card.style.boxShadow='0 24px 64px rgba(15,14,13,.18),0 8px 24px rgba(15,14,13,.1)';
+    });
+    card.addEventListener('mouseleave',function(){
+      card.style.transform='';
+      card.style.boxShadow='';
+    });
+  });
+}
+
+// ═══ 3D PARALLAX ON SCROLL (landing page) ═══
+function init3DParallax(){
+  if(window.innerWidth<=768)return;
+  window.addEventListener('scroll',function(){
+    const scrollY=window.scrollY;
+    const orbs=document.querySelectorAll('#pg-landing section:first-of-type > div:not(.hero2col)');
+    orbs.forEach((orb,i)=>{
+      const speed=i===0?.15:.1;
+      orb.style.transform=`translateY(${scrollY*speed}px)`;
+    });
+  },{passive:true});
+}
+
+// ═══ PATCH renderQ to sync mobile nav ═══
+const _origRenderQ=typeof renderQ!=='undefined'?renderQ:null;
+// Will be called after renderQ is defined
+
 // ═══ INIT ═══
 (function(){
   loadData();
@@ -2121,6 +2437,8 @@ function showErr(msg){document.body.innerHTML+=`<div style="position:fixed;inset
     if(cached)S.teacher=cached;
   }
   setTimeout(initGSAP,100);
+  setTimeout(init3DTilts,500);
+  setTimeout(init3DParallax,300);
 })();
 </script>
 </body>
