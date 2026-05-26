@@ -138,9 +138,20 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
 .opt.cor .ob{background:var(--ok);border-color:var(--ok);color:#fff}
 .opt.wrg .ob{background:var(--err);border-color:var(--err);color:#fff}
 /* Anti-cheat banner */
-.acbanner{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:var(--err);color:#fff;padding:12px 24px;border-radius:var(--r);font-weight:600;font-size:.9rem;box-shadow:var(--shl);z-index:8000;display:none;gap:8px;align-items:center}
-.acbanner.show{display:flex;animation:shake .4s ease}
-@keyframes shake{0%,100%{transform:translateX(-50%)}25%,75%{transform:translateX(calc(-50% - 6px))}50%{transform:translateX(calc(-50% + 6px))}}
+.acbanner{
+  position:fixed;top:0;left:0;right:0;
+  background:var(--err);color:#fff;
+  padding:14px 24px;
+  font-weight:600;font-size:.95rem;
+  box-shadow:0 4px 20px rgba(176,26,26,.5);
+  z-index:8000;display:none;
+  align-items:center;justify-content:center;
+  text-align:center;
+  border-bottom:2px solid rgba(255,255,255,.3);
+}
+.acbanner.show{display:flex;animation:shake .4s ease,flashRed 1.5s ease 0.4s;}
+@keyframes shake{0%,100%{}25%,75%{transform:translateX(-3px)}50%{transform:translateX(3px)}}
+@keyframes flashRed{0%,100%{background:var(--err)}50%{background:#8b0000;}}
 /* Score ring */
 .sring{position:relative;width:130px;height:130px}
 .sring svg{transform:rotate(-90deg)}
@@ -295,16 +306,7 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
 .ham.open span:nth-child(1){transform:rotate(45deg) translate(5px,5px);}
 .ham.open span:nth-child(2){opacity:0;}
 .ham.open span:nth-child(3){transform:rotate(-45deg) translate(5px,-5px);}
-/* Mobile nav drawer */
-.mob-nav{
-  position:fixed;inset:0;top:64px;background:rgba(15,14,13,.9);
-  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-  display:none;flex-direction:column;align-items:center;justify-content:center;
-  gap:12px;z-index:200;
-  transform:translateY(-100%);transition:transform .35s cubic-bezier(.4,0,.2,1);
-}
-.mob-nav.open{display:flex;transform:translateY(0);}
-.mob-nav .btn{font-size:1.1rem;padding:14px 40px;width:85%;max-width:300px;border-radius:14px;}
+/* mobile nav drawer removed */
 
 /* ═══════════════════════════════════════
    TABLET  ≤ 900px
@@ -331,33 +333,12 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
   .fr{grid-template-columns:1fr!important;}
 
   /* ── NAVBAR ── */
-  .nav{padding:0 14px;height:56px;position:sticky;top:0;z-index:100;}
-  .ham{display:flex!important;}
+  .nav{padding:0 12px;height:54px;position:sticky;top:0;z-index:100;}
   .nav-links-center{display:none!important;}
-  #ln-login-btn,#ln-start-btn{display:none!important;}
-
-  /* ── MOBILE DRAWER ── */
-  .mob-nav{
-    position:fixed;top:56px;left:0;right:0;bottom:0;
-    background:rgba(10,8,6,.92);
-    backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
-    display:none;flex-direction:column;align-items:center;
-    justify-content:center;gap:14px;z-index:200;
-    transition:opacity .25s;opacity:0;
-  }
-  .mob-nav.open{display:flex;opacity:1;animation:fadeIn .2s ease;}
-  @keyframes fadeIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
-  .mob-nav .mob-link{
-    width:80%;max-width:300px;
-    background:rgba(255,255,255,.08);
-    border:1px solid rgba(255,255,255,.15);
-    border-radius:16px;padding:16px 24px;
-    color:#fff;font-size:1.05rem;font-weight:500;
-    text-align:center;cursor:pointer;
-    transition:.2s;font-family:var(--fb);
-  }
-  .mob-nav .mob-link:active{background:rgba(255,255,255,.18);}
-  .mob-nav .mob-link.primary{background:var(--ac);border-color:var(--ac);}
+  .ham{display:none!important;}
+  /* Login button: compact text on mobile */
+  .ln-login{font-size:.78rem!important;padding:7px 12px!important;}
+  .ln-start{font-size:.78rem!important;padding:7px 14px!important;}
 
   /* ── HERO ── */
   .hero2col{padding:28px 18px 36px;gap:0;}
@@ -585,20 +566,11 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
       <a href="#" class="btn btnG sm" onclick="document.getElementById('sec-how').scrollIntoView({behavior:'smooth'});return false">How it works</a>
     </div>
     <div class="navlinks" style="display:flex;align-items:center;gap:8px;">
-      <button class="btn btnG sm" onclick="showPage('pg-auth');authTab('in')" style="display:none" id="ln-login-btn">Teacher login</button>
-      <button class="btn btnP sm btn3d" onclick="showPage('pg-auth');authTab('up')" style="display:none" id="ln-start-btn">Get started</button>
-      <button class="ham" id="ham-btn" onclick="toggleMobNav()" aria-label="Menu">
-        <span></span><span></span><span></span>
-      </button>
+      <button class="btn btnG sm ln-login" onclick="showPage('pg-auth');authTab('in')">Login</button>
+      <button class="btn btnP sm btn3d ln-start" onclick="showPage('pg-auth');authTab('up')">Get started</button>
     </div>
   </nav>
-  <!-- Mobile nav drawer -->
-  <div class="mob-nav" id="mob-nav">
-    <button class="mob-link" onclick="document.getElementById('sec-feat').scrollIntoView({behavior:'smooth'});closeMobNav()">✦ Features</button>
-    <button class="mob-link" onclick="document.getElementById('sec-how').scrollIntoView({behavior:'smooth'});closeMobNav()">✦ How it works</button>
-    <button class="mob-link" onclick="showPage('pg-auth');authTab('in');closeMobNav()">Teacher login</button>
-    <button class="mob-link primary" onclick="showPage('pg-auth');authTab('up');closeMobNav()">Get started free →</button>
-  </div>
+
   <main style="flex:1;display:flex;flex-direction:column;overflow-x:hidden;">
 
     <!-- HERO -->
@@ -1385,7 +1357,7 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
           </div>
         </div>
         <div id="mon-mcq-view">
-          <div style="overflow-x:auto"><table class="dt" id="mon-tbl"><thead><tr><th>Student</th><th>Progress</th><th>Violations</th><th>Status</th><th>Score</th></tr></thead><tbody id="mon-tbody"></tbody></table></div>
+          <div style="overflow-x:auto"><table class="dt" id="mon-tbl"><thead><tr><th>Student</th><th>Progress</th><th>Violations</th><th>Tab Switches</th><th>Status</th><th>Score</th></tr></thead><tbody id="mon-tbody"></tbody></table></div>
         </div>
         <div id="mon-wrt-view" style="display:none">
           <div id="wrt-subs" style="padding:16px;display:flex;flex-direction:column;gap:12px;min-height:80px"><p style="color:var(--ink3);font-size:.875rem;text-align:center;padding:16px">No written submissions yet.</p></div>
@@ -2116,8 +2088,26 @@ function createWRT(){
 
 // ═══ LINK ═══
 function buildLink(exam){return`${location.origin}${location.pathname}?ed=${encodeExam(exam)}`;}
-function encodeExam(exam){try{return btoa(unescape(encodeURIComponent(JSON.stringify({token:exam.token,course:exam.course,section:exam.section,duration:exam.duration,marks:exam.marks,startTime:exam.startTime,endTime:exam.endTime,shuffleQ:exam.shuffleQ,shuffleO:exam.shuffleO,questions:exam.questions,type:exam.type||'mcq',studentList:exam.studentList||[]}))));}catch(e){return btoa(JSON.stringify(exam));}}
-function decodeExam(s){try{return JSON.parse(decodeURIComponent(escape(atob(s))));}catch(e){try{return JSON.parse(atob(s));}catch{return null;}}}
+function encodeExam(exam){
+  try{
+    const p={token:exam.token,course:exam.course,section:exam.section,
+      duration:exam.duration,marks:exam.marks,
+      startTime:exam.startTime,endTime:exam.endTime,
+      shuffleQ:exam.shuffleQ,shuffleO:exam.shuffleO,
+      questions:exam.questions,type:exam.type||'mcq',
+      studentList:exam.studentList||[]};
+    return btoa(encodeURIComponent(JSON.stringify(p)));
+  }catch(e){
+    try{return btoa(unescape(encodeURIComponent(JSON.stringify(exam))));}catch(e2){return '';}
+  }
+}
+function decodeExam(s){
+  if(!s)return null;
+  try{return JSON.parse(decodeURIComponent(atob(s)));}catch(e){}
+  try{return JSON.parse(decodeURIComponent(escape(atob(s))));}catch(e){}
+  try{return JSON.parse(atob(s));}catch(e){}
+  return null;
+}
 function copyLink(){navigator.clipboard.writeText(document.getElementById('link-txt').textContent).then(()=>toast('Link copied!','ok'));}
 function copyLinkI(url){navigator.clipboard.writeText(url).then(()=>toast('Link copied!','ok'));}
 function previewAsStudent(){closeM('m-link');previewExam(S.exams.length-1);}
@@ -2165,7 +2155,25 @@ function startExam(){
     name=document.getElementById('si-name').value.trim();id=document.getElementById('si-id').value.trim();
   }
   S.stuInfo={name,studentId:id,section:exam.section||'',dept:document.getElementById('si-dept')?.value.trim()||'',session:document.getElementById('si-sess')?.value.trim()||'',date:document.getElementById('si-date').value,course:exam.course};
-  S.answers={};S.wAnswers={};S.flagged=new Set();S.violations=[];S.curQ=0;S.sessId='SS-'+Date.now();
+  // Save stuInfo so refresh can restore it
+  const _existSess=LS('ef_sess_'+exam.token)||{};
+  LS('ef_sess_'+exam.token,{..._existSess,stuInfo:S.stuInfo,t0:Date.now()});
+  S.answers={};S.wAnswers={};S.flagged=new Set();S.curQ=0;
+  // Restore or create session ID (persists across tab refreshes)
+  const _storedSessKey='ef_sess_'+exam.token;
+  const _storedSess=LS(_storedSessKey);
+  if(_storedSess&&_storedSess.sessId){
+    // Restore previous session state
+    S.sessId=_storedSess.sessId;
+    S.violations=_storedSess.violations||[];
+    S.answers=_storedSess.answers||{};
+    S.curQ=_storedSess.curQ||0;
+  } else {
+    S.sessId='SS-'+Date.now();
+    S.violations=[];
+    // Save new session key
+    LS(_storedSessKey,{sessId:S.sessId,violations:[],answers:{},curQ:0});
+  }
   let qs=[...exam.questions];
   if(exam.shuffleQ)qs=shuffle(qs);
   if(exam.shuffleO&&exam.type!=='written')qs=qs.map(q=>shuffleOpts(q));
@@ -2228,13 +2236,19 @@ function renderQ(){
   syncMobQNav();
 }
 function pickAns(i){
-  // Lock: if this question already has an answer, ignore
   if(S.answers[S.curQ]!==undefined)return;
   S.answers[S.curQ]=i;
+  _saveExamProgress();
   renderQ();
 }
-function clearAns(){delete S.answers[S.curQ];renderQ();}
-function goQ(i){S.curQ=i;renderQ();}
+function _saveExamProgress(){
+  const exam=S.exams[S.examIdx];if(!exam)return;
+  LS('ef_sess_'+exam.token,{sessId:S.sessId,violations:S.violations,answers:S.answers,curQ:S.curQ});
+  const sess=exam.sessions.find(s=>s.id===S.sessId);
+  if(sess){sess.answers=S.answers;sess.curQ=S.curQ;saveExams();}
+}
+function clearAns(){}
+function goQ(i){S.curQ=i;_saveExamProgress();renderQ();}
 function prevQ(){if(S.curQ>0){S.curQ--;renderQ();}}
 function nextQ(){if(S.curQ<S.questions.length-1){S.curQ++;renderQ();}else confirmSub();}
 function toggleFlag(){if(S.flagged.has(S.curQ))S.flagged.delete(S.curQ);else S.flagged.add(S.curQ);renderQ();}
@@ -2283,29 +2297,149 @@ function startTimer(id){
 let _acH={},_acOn=false;
 function setupAC(bannerId){
   _acOn=true;
-  _acH.vis=()=>{if(document.hidden&&_acOn){logViol('TAB_SWITCH');const b=document.getElementById(bannerId);if(b){b.classList.add('show');}setTimeout(()=>{if(_acOn)location.reload();},2500);}};
-  _acH.blur=()=>{if(_acOn){logViol('WIN_BLUR');clearTimeout(_acH._bt);_acH._bt=setTimeout(()=>{if(_acOn&&document.hidden)location.reload();},3000);}};
-  _acH.focus=()=>clearTimeout(_acH._bt);
-  _acH.ctx=e=>{if(_acOn){e.preventDefault();logViol('RIGHT_CLICK');}};
-  _acH.key=e=>{if(!_acOn)return;const blk=(e.ctrlKey&&['u','c','s','a','p'].includes(e.key.toLowerCase()))||(e.ctrlKey&&e.shiftKey&&['i','j','c'].includes(e.key.toLowerCase()))||['F12','PrintScreen'].includes(e.key);if(blk){e.preventDefault();logViol('KEY_'+e.key);}};
-  _acH.copy=()=>{if(_acOn)logViol('COPY');};
-  _acH.bul=e=>{if(_acOn){e.preventDefault();e.returnValue='';logViol('UNLOAD');}};
+  let _tabSwitchCount=0;
+  let _refreshPending=false;
+
+  // ── TAB SWITCH / APP SWITCH (visibility) ──────────────────────────────────
+  _acH.vis=()=>{
+    if(!_acOn)return;
+    if(document.hidden){
+      _tabSwitchCount++;
+      logViol('TAB_SWITCH_#'+_tabSwitchCount);
+      const b=document.getElementById(bannerId);
+      if(b){
+        b.textContent='⚠ Tab switch detected (#'+_tabSwitchCount+') — You are flagged. Refreshing…';
+        b.classList.add('show');
+      }
+      if(!_refreshPending){
+        _refreshPending=true;
+        setTimeout(()=>{
+          if(_acOn&&document.hidden){location.reload();}
+          else{_refreshPending=false;}
+        },1800);
+      }
+    }
+  };
+
+  // ── WINDOW BLUR (covers mobile app switching not caught by visibility) ─────
+  _acH.blur=()=>{
+    if(!_acOn)return;
+    logViol('WIN_BLUR');
+    clearTimeout(_acH._bt);
+    _acH._bt=setTimeout(()=>{
+      // Only refresh if tab is hidden (actual switch, not just devtools focus)
+      if(_acOn&&document.hidden&&!_refreshPending){
+        _refreshPending=true;
+        location.reload();
+      }
+    },2500);
+  };
+  _acH.focus=()=>{clearTimeout(_acH._bt);_refreshPending=false;};
+
+  // ── RIGHT CLICK ──────────────────────────────────────────────────────────
+  _acH.ctx=e=>{
+    if(!_acOn)return;
+    e.preventDefault();
+    logViol('RIGHT_CLICK');
+    const b=document.getElementById(bannerId);
+    if(b){b.textContent='⚠ Right-click is disabled during exam.';b.classList.add('show');setTimeout(()=>b.classList.remove('show'),2000);}
+  };
+
+  // ── KEYBOARD SHORTCUTS ───────────────────────────────────────────────────
+  _acH.key=e=>{
+    if(!_acOn)return;
+    const blk=(e.ctrlKey&&['u','c','s','a','p','i','j'].includes(e.key.toLowerCase()))||
+              (e.ctrlKey&&e.shiftKey&&['i','j','c','k'].includes(e.key.toLowerCase()))||
+              ['F12','PrintScreen'].includes(e.key)||
+              (e.altKey&&['Tab'].includes(e.key));
+    if(blk){
+      e.preventDefault();e.stopPropagation();
+      logViol('BLOCKED_KEY:'+e.key);
+    }
+  };
+
+  // ── COPY / PASTE ─────────────────────────────────────────────────────────
+  _acH.copy=()=>{if(_acOn)logViol('COPY_ATTEMPT');};
+  _acH.paste=()=>{if(_acOn)logViol('PASTE_ATTEMPT');};
+  _acH.cut=()=>{if(_acOn)logViol('CUT_ATTEMPT');};
+
+  // ── BEFORE UNLOAD ────────────────────────────────────────────────────────
+  _acH.bul=e=>{
+    if(!_acOn)return;
+    logViol('PAGE_UNLOAD');
+    e.preventDefault();e.returnValue='';
+  };
+
+  // ── SCREENSHOT ATTEMPT (limited detection) ────────────────────────────────
+  _acH.keyup=e=>{
+    if(_acOn&&(e.key==='PrintScreen'||(e.metaKey&&e.shiftKey&&['3','4','5'].includes(e.key)))){
+      logViol('SCREENSHOT_ATTEMPT');
+    }
+  };
+
   document.addEventListener('visibilitychange',_acH.vis);
-  window.addEventListener('blur',_acH.blur);window.addEventListener('focus',_acH.focus);
-  document.addEventListener('contextmenu',_acH.ctx);document.addEventListener('keydown',_acH.key);
-  document.addEventListener('copy',_acH.copy);window.addEventListener('beforeunload',_acH.bul);
+  window.addEventListener('blur',_acH.blur);
+  window.addEventListener('focus',_acH.focus);
+  document.addEventListener('contextmenu',_acH.ctx);
+  document.addEventListener('keydown',_acH.key);
+  document.addEventListener('keyup',_acH.keyup);
+  document.addEventListener('copy',_acH.copy);
+  document.addEventListener('paste',_acH.paste);
+  document.addEventListener('cut',_acH.cut);
+  window.addEventListener('beforeunload',_acH.bul);
+
+  // ── SHOW FLAGGED STATE IF RETURNING AFTER REFRESH ─────────────────────
+  if(S.violations.length>0){
+    const b=document.getElementById(bannerId);
+    if(b){
+      b.textContent='⚑ You have '+S.violations.length+' violation(s) recorded. You are flagged.';
+      b.classList.add('show');
+      setTimeout(()=>b.classList.remove('show'),4000);
+    }
+    // Immediately log that student returned after violation
+    logViol('RETURNED_AFTER_REFRESH');
+  }
 }
 function teardownAC(){
   _acOn=false;
   document.removeEventListener('visibilitychange',_acH.vis);
-  window.removeEventListener('blur',_acH.blur);window.removeEventListener('focus',_acH.focus);
-  document.removeEventListener('contextmenu',_acH.ctx);document.removeEventListener('keydown',_acH.key);
-  document.removeEventListener('copy',_acH.copy);window.removeEventListener('beforeunload',_acH.bul);
+  window.removeEventListener('blur',_acH.blur);
+  window.removeEventListener('focus',_acH.focus);
+  document.removeEventListener('contextmenu',_acH.ctx);
+  document.removeEventListener('keydown',_acH.key);
+  document.removeEventListener('keyup',_acH.keyup);
+  document.removeEventListener('copy',_acH.copy);
+  document.removeEventListener('paste',_acH.paste);
+  document.removeEventListener('cut',_acH.cut);
+  window.removeEventListener('beforeunload',_acH.bul);
 }
 function logViol(type){
-  const v={type,time:new Date().toISOString()};S.violations.push(v);
+  const v={type,time:new Date().toISOString(),q:S.curQ};
+  S.violations.push(v);
   const exam=S.exams[S.examIdx];if(!exam)return;
-  const sess=exam.sessions.find(s=>s.id===S.sessId);if(sess){sess.violations=S.violations;saveExams();}
+  const sess=exam.sessions.find(s=>s.id===S.sessId);
+  const isFlagged=S.violations.length>=1; // any violation = flagged
+  if(sess){
+    sess.violations=S.violations;
+    sess.isFlagged=isFlagged;
+    sess.flagCount=S.violations.length;
+    saveExams();
+  }
+  // Persist violations to localStorage
+  const key='ef_sess_'+exam.token;
+  const stored=LS(key)||{};
+  LS(key,{...stored,violations:S.violations,sessId:S.sessId});
+  // Save to Firebase immediately
+  try{
+    db.collection('sessions').doc(S.sessId).set({
+      violations:S.violations,
+      isFlagged:isFlagged,
+      flagCount:S.violations.length,
+      lastViolation:v,
+      examToken:exam.token,
+      savedAt:Date.now()
+    },{merge:true});
+  }catch(e){}
 }
 
 // ═══ SUBMIT ═══
@@ -2335,6 +2469,8 @@ function doSubmit(){
   const final={submitted:true,score,totalMarks,pct,timeTaken,submittedAt:Date.now(),violations:S.violations,answers:S.answers,writtenAnswers:S.wAnswers};
   if(sess)Object.assign(sess,final);saveExams();
   fbSaveSess(exam.token,{id:S.sessId,...S.stuInfo,...final});
+  // Clear stored session (exam complete)
+  try{localStorage.removeItem('ef_sess_'+exam.token);}catch(e){}
   showResults(score,totalMarks,pct,timeTaken,isW);
 }
 function showResults(score,total,pct,time,isWritten){
@@ -2401,7 +2537,9 @@ function setMonFilter(f,btn){S.monFilter=f;document.querySelectorAll('#mon-filte
 function renderMon(){
   const exam=S.exams[S.monIdx];if(!exam)return;
   const sessions=S.liveSess.length?S.liveSess:(exam.sessions||[]);
-  const sub=sessions.filter(s=>s.submitted),active=sessions.filter(s=>!s.submitted),flag=sessions.filter(s=>(s.violations||[]).length>=3);
+  const sub=sessions.filter(s=>s.submitted),active=sessions.filter(s=>!s.submitted);
+  // Flagged = any violation (1+), or explicitly marked isFlagged
+  const flag=sessions.filter(s=>s.isFlagged||(s.violations||[]).length>=1);
   document.getElementById('ms-total').textContent=sessions.length;
   document.getElementById('ms-active').textContent=active.length;
   document.getElementById('ms-sub').textContent=sub.length;
@@ -2411,7 +2549,9 @@ function renderMon(){
   let filtered=sessions;
   if(S.monFilter==='active')filtered=active;else if(S.monFilter==='flagged')filtered=flag;else if(S.monFilter==='submitted')filtered=sub;
   const tbody=document.getElementById('mon-tbody');
-  tbody.innerHTML=filtered.length?filtered.map(s=>{const vc=(s.violations||[]).length;const isFl=vc>=3;const sb=s.submitted?'<span class="bx bK">Submitted</span>':isFl?'<span class="bx bE">Flagged</span>':'<span class="bx bI">Active</span>';const qTot=(exam.questions||[]).length;const done=s.submitted?qTot:Object.keys(s.answers||{}).length;const pct=Math.round(done/Math.max(qTot,1)*100);return`<tr><td><strong>${esc(s.name)}</strong><br><span style="font-size:.75rem;color:var(--ink3)">${esc(s.studentId||'')}</span></td><td><div style="display:flex;align-items:center;gap:6px"><div class="pbar" style="width:70px;height:5px"><div class="pfill" style="width:${pct}%"></div></div><span style="font-size:.75rem;color:var(--ink3)">${pct}%</span></div></td><td><span class="bx ${vc>=5?'bE':vc>=2?'bW':'bN'}">${vc}</span></td><td>${sb}</td><td>${s.submitted?`<strong>${s.score}/${s.totalMarks}</strong> (${s.pct}%)`:'<span style="color:var(--ink3)">—</span>'}</td></tr>`;}).join(''):`<tr><td colspan="5" style="text-align:center;color:var(--ink3);padding:24px">No students.</td></tr>`;
+  tbody.innerHTML=filtered.length?filtered.map(s=>{const vc=(s.violations||[]).length;const isFl=s.isFlagged||(vc>=1);const sb=s.submitted?'<span class="bx bK">Submitted</span>'+(isFl?'<span class="bx bE" style="margin-left:4px">Flagged</span>':''):isFl?'<span class="bx bE">⚑ Flagged</span>':'<span class="bx bI">Active</span>';const qTot=(exam.questions||[]).length;const done=s.submitted?qTot:Object.keys(s.answers||{}).length;const pct=Math.round(done/Math.max(qTot,1)*100);const tabSwitches=(s.violations||[]).filter(v=>v.type&&v.type.startsWith('TAB_SWITCH')).length;
+    return`<tr style="${isFl?'background:rgba(176,26,26,.04)':''}">`+
+    `<td><strong>${esc(s.name)}</strong><br><span style="font-size:.75rem;color:var(--ink3)">${esc(s.studentId||'')}</span></td><td><div style="display:flex;align-items:center;gap:6px"><div class="pbar" style="width:70px;height:5px"><div class="pfill" style="width:${pct}%"></div></div><span style="font-size:.75rem;color:var(--ink3)">${pct}%</span></div></td><td><span class="bx ${vc>=3?'bE':vc>=1?'bW':'bN'}" title="${(s.violations||[]).map(v=>v.type).join(', ')}">${vc} ${vc===1?'violation':'violations'}</span></td><td>${sb}</td><td>${s.submitted?`<strong>${s.score}/${s.totalMarks}</strong> (${s.pct}%)`:'<span style="color:var(--ink3)">—</span>'}</td></tr>`;}).join(''):`<tr><td colspan="5" style="text-align:center;color:var(--ink3);padding:24px">No students.</td></tr>`;
   // Chart
   const buckets=[{l:'0–25%',max:.25},{l:'26–50%',max:.5},{l:'51–75%',max:.75},{l:'76–100%',max:1.01}];let prev=0;
   const counts=buckets.map(b=>{const c=sub.filter(s=>(s.score/(s.totalMarks||1))>prev&&(s.score/(s.totalMarks||1))<=b.max).length;prev=b.max;return c;});
@@ -2420,7 +2560,7 @@ function renderMon(){
   document.getElementById('mon-labs').innerHTML=buckets.map(b=>`<div class="clab">${b.l}</div>`).join('');
   // Violations
   const allV=sessions.flatMap(s=>(s.violations||[]).map(v=>({n:s.name,...v}))).sort((a,b)=>new Date(b.time)-new Date(a.time)).slice(0,15);
-  document.getElementById('viol-log').innerHTML=allV.length?allV.map(v=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--paper2);font-size:.8rem"><span style="font-weight:500">${esc((v.n||'').split(' ')[0])}</span><span style="color:var(--err)">${(v.type||'').toLowerCase()}</span></div>`).join(''):'<p style="color:var(--ink3);font-size:.825rem">No violations.</p>';
+  document.getElementById('viol-log').innerHTML=allV.length?allV.map(v=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--paper2);font-size:.8rem"><span style="font-weight:500">${esc((v.n||'').split(' ')[0])}</span><span style="color:var(--err)">${(({'TAB_SWITCH':'Tab switched','WIN_BLUR':'Window blur','RIGHT_CLICK':'Right click','COPY':'Copy attempt','PASTE_ATTEMPT':'Paste attempt','CUT_ATTEMPT':'Cut attempt','SCREENSHOT_ATTEMPT':'Screenshot','PAGE_UNLOAD':'Page unload','RETURNED_AFTER_TAB_SWITCH':'⚑ Returned after refresh','COPY_ATTEMPT':'Copy attempt'}[v.type])||((v.type||'').replace(/_/g,' ').toLowerCase()))}</span></div>`).join(''):'<p style="color:var(--ink3);font-size:.825rem">No violations.</p>';
 }
 function renderWrtSubs(){
   const exam=S.exams[S.monIdx];const el=document.getElementById('wrt-subs');if(!exam)return;
@@ -2476,18 +2616,71 @@ async function doExportCSV(idx){
 
 // ═══ URL EXAM HANDLING ═══
 function checkURL(){
-  const params=new URLSearchParams(location.search);const ed=params.get('ed');
+  const params=new URLSearchParams(location.search);
+  const ed=params.get('ed');
   if(!ed)return;
-  const examData=decodeExam(ed);
-  if(!examData){showErr('Invalid exam link. Ask your teacher for a new one.');return;}
-  const now=Date.now();
-  if(now<examData.startTime){showErr('Exam has not started yet. Opens on '+new Date(examData.startTime).toLocaleString());return;}
-  if(now>examData.endTime){showErr('Exam window closed. Contact your teacher.');return;}
-  let idx=S.exams.findIndex(e=>e.token===examData.token);
-  if(idx===-1){S.exams.push({...examData,sessions:[]});saveExams();idx=S.exams.length-1;}
-  S.examIdx=idx;showACWarn(S.exams[idx]);
+  // Show loading immediately
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const loader=document.createElement('div');
+  loader.id='exam-loader';
+  loader.style.cssText='position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--paper);z-index:9999;gap:16px;font-family:var(--fb);';
+  loader.innerHTML='<div style="width:40px;height:40px;border:3px solid var(--paper3);border-top-color:var(--ac);border-radius:50%;animation:spin .8s linear infinite;"></div><p style="color:var(--ink3);font-size:.9rem;">Loading exam…</p><style>@keyframes spin{to{transform:rotate(360deg)}}</style>';
+  document.body.appendChild(loader);
+  function done(){const l=document.getElementById('exam-loader');if(l)l.remove();}
+  setTimeout(function(){
+    const examData=decodeExam(ed);
+    if(!examData){done();showErr('This exam link is invalid or corrupted.<br>Please ask your teacher to share the link again.');return;}
+    const now=Date.now();
+    const SKEW=5*60*1000;
+    if(now<examData.startTime-SKEW){done();showErr('This exam has not started yet.<br>It opens on <strong>'+new Date(examData.startTime).toLocaleString()+'</strong>');return;}
+    if(now>examData.endTime+SKEW){done();showErr('The exam window has closed.<br>It ended on <strong>'+new Date(examData.endTime).toLocaleString()+'</strong><br>Contact your teacher.');return;}
+    let idx=S.exams.findIndex(e=>e.token===examData.token);
+    if(idx===-1){S.exams.push({...examData,sessions:[]});saveExams();idx=S.exams.length-1;}
+    else{const ex=S.exams[idx];S.exams[idx]={...ex,...examData,sessions:ex.sessions||[]};saveExams();}
+    S.examIdx=idx;
+    done();
+    // Check if student already started this exam (returning after refresh)
+    const _prevSess=LS('ef_sess_'+examData.token);
+    if(_prevSess&&_prevSess.sessId&&_prevSess.answers&&Object.keys(_prevSess.answers).length>0){
+      // Student was mid-exam - restore and skip to exam
+      S.sessId=_prevSess.sessId;
+      S.violations=_prevSess.violations||[];
+      S.answers=_prevSess.answers||{};
+      S.curQ=_prevSess.curQ||0;
+      const exam=S.exams[idx];
+      // Rebuild shuffled questions from stored session if possible
+      let qs=[...(exam.questions||[])];
+      if(exam.shuffleQ)qs=shuffle(qs);
+      if(exam.shuffleO&&exam.type!=='written')qs=qs.map(q=>shuffleOpts(q));
+      S.questions=qs;
+      S.secsLeft=Math.max(60,(exam.duration*60)-Math.round((Date.now()-((_prevSess.t0)||Date.now()))/1000));
+      S.t0=Date.now();
+      // Get stuInfo from localStorage
+      S.stuInfo=_prevSess.stuInfo||{name:'Student',studentId:'',section:exam.section||'',dept:'',session:'',date:new Date().toLocaleDateString('en-GB'),course:exam.course};
+      // Auto-flag: student refreshed
+      const _retViol={type:'RETURNED_AFTER_TAB_SWITCH',time:new Date().toISOString(),q:S.curQ};
+      S.violations.push(_retViol);
+      LS('ef_sess_'+exam.token,{..._prevSess,violations:S.violations});
+      // Update session in Firebase immediately
+      try{db.collection('sessions').doc(S.sessId).set({violations:S.violations,isFlagged:true,flagCount:S.violations.length,examToken:exam.token,savedAt:Date.now()},{merge:true});}catch(e){}
+      // Update local session
+      const sess=exam.sessions.find(s=>s.id===S.sessId);
+      if(sess){sess.violations=S.violations;sess.isFlagged=true;saveExams();}
+      // Go directly to exam (skip anti-cheat warning and student form)
+      if(exam.type==='written'){startWExam(exam);}
+      else{startMCQExam(exam);}
+    } else {
+      showACWarn(S.exams[idx]);
+    }
+  },80);
 }
-function showErr(msg){document.body.innerHTML+=`<div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--paper);font-family:var(--fb);z-index:99999;padding:24px;text-align:center"><div><div style="font-size:2.5rem;margin-bottom:16px">&#9888;&#65039;</div><h2 style="margin-bottom:10px">Cannot open exam</h2><p style="color:var(--ink3);line-height:1.7">${esc(msg)}</p></div></div>`;}
+function showErr(msg){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const d=document.createElement('div');
+  d.style.cssText='position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--paper);z-index:99999;padding:24px;text-align:center;font-family:var(--fb);';
+  d.innerHTML='<div style="max-width:380px;"><div style="font-size:2.5rem;margin-bottom:14px">⚠️</div><h2 style="margin-bottom:10px;font-size:1.2rem;">Cannot open exam</h2><p style="color:var(--ink3);line-height:1.7;font-size:.9rem;">'+msg+'</p></div>';
+  document.body.appendChild(d);
+}
 
 // ═══ MOBILE NAV ═══
 function toggleMobNav(){
@@ -2588,6 +2781,7 @@ const _origRenderQ=typeof renderQ!=='undefined'?renderQ:null;
   setTimeout(init3DTilts,500);
   setTimeout(init3DParallax,300);
 })();
+
 </script>
 </body>
 </html>
