@@ -31,9 +31,16 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is ExamFlow?","acceptedAnswer":{"@type":"Answer","text":"ExamFlow is a free online exam platform by TahCreations that lets teachers create MCQ and written exams, share a secure link, and monitor students live with built-in anti-cheat."}},{"@type":"Question","name":"Is ExamFlow free?","acceptedAnswer":{"@type":"Answer","text":"Yes, ExamFlow is completely free for teachers. No credit card required, no installation needed."}},{"@type":"Question","name":"Does ExamFlow have anti-cheat?","acceptedAnswer":{"@type":"Answer","text":"Yes. ExamFlow detects tab switching, auto-refreshes the exam page when students switch apps, blocks copy-paste, and logs all violations in real time to the teacher dashboard."}},{"@type":"Question","name":"Can I create written exams?","acceptedAnswer":{"@type":"Answer","text":"Yes. ExamFlow supports written exams where students type answers or upload photos. Teachers grade manually through the dashboard."}}]}</script>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%23c8401a'/><line x1='22' y1='34' x2='78' y2='34' stroke='white' stroke-width='10' stroke-linecap='round'/><line x1='22' y1='54' x2='78' y2='54' stroke='white' stroke-width='10' stroke-linecap='round'/><line x1='22' y1='74' x2='58' y2='74' stroke='white' stroke-width='10' stroke-linecap='round'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="dns-prefetch" href="//www.gstatic.com">
+<link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+<meta name="theme-color" content="#c8401a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
 <style>
-:root{--ink:#0f0e0d;--ink2:#3a3834;--ink3:#7a7670;--paper:#faf9f6;--paper2:#f0ede6;--paper3:#e4dfd5;--ac:#c8401a;--ac2:#e8855e;--acbg:#fdf0eb;--ok:#1a6b3a;--okbg:#edf7f2;--warn:#a05c10;--warnbg:#fef7ed;--err:#b01a1a;--errbg:#fdf0f0;--info:#1a4a8a;--infobg:#edf3fd;--r:10px;--rl:16px;--sh:0 1px 3px rgba(15,14,13,.08),0 4px 16px rgba(15,14,13,.06);--shl:0 8px 32px rgba(15,14,13,.12);--fd:'DM Serif Display',Georgia,serif;--fb:'DM Sans',system-ui,sans-serif;--fm:'JetBrains Mono',monospace;--tr:all .18s cubic-bezier(.4,0,.2,1)}
+:root{--ink:#0f0e0d;--ink2:#3a3834;--ink3:#7a7670;--paper:#faf9f6;--paper2:#f0ede6;--paper3:#e4dfd5;--ac:#c8401a;--ac2:#e8855e;--acbg:#fdf0eb;--ok:#1a6b3a;--okbg:#edf7f2;--warn:#a05c10;--warnbg:#fef7ed;--err:#b01a1a;--errbg:#fdf0f0;--info:#1a4a8a;--infobg:#edf3fd;--r:10px;--rl:16px;--sh:0 1px 3px rgba(15,14,13,.08),0 4px 16px rgba(15,14,13,.06);--shl:0 8px 32px rgba(15,14,13,.12);--fd:'DM Serif Display',Georgia,serif;--fb:'DM Sans',system-ui,sans-serif;--fm:'JetBrains Mono',monospace;--tr:all .15s cubic-bezier(.4,0,.2,1)}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:15px;scroll-behavior:smooth}
 body{font-family:var(--fb);background:var(--paper);color:var(--ink);line-height:1.6;min-height:100vh;-webkit-font-smoothing:antialiased}
@@ -42,7 +49,7 @@ h2{font-family:var(--fd);font-size:1.7rem;line-height:1.2;font-weight:400}
 h3{font-size:1.05rem;font-weight:600;letter-spacing:-.01em}
 h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3)}
 .hidden{display:none!important}
-.page{display:none;min-height:100vh;flex-direction:column}
+.page{display:none;min-height:100vh;flex-direction:column;content-visibility:auto;}
 .page.active{display:flex}
 /* Navbar */
 .nav{display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:64px;background:#fff;border-bottom:1px solid var(--paper3);position:sticky;top:0;z-index:100}
@@ -67,7 +74,7 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
 .fg{display:flex;flex-direction:column;gap:6px}
 .fl{font-size:.825rem;font-weight:500;color:var(--ink2)}
 .fl span{color:var(--ac)}
-.fi,.fs,.ft{width:100%;padding:10px 14px;border:1.5px solid var(--paper3);border-radius:var(--r);font-size:.9rem;font-family:var(--fb);background:#fff;color:var(--ink);transition:var(--tr);outline:none}
+.fi,.fs,.ft{width:100%;padding:10px 14px;border:1.5px solid var(--paper3);border-radius:var(--r);font-size:.9rem;-webkit-appearance:none;font-family:var(--fb);background:#fff;color:var(--ink);transition:var(--tr);outline:none}
 .fi:focus,.fs:focus,.ft:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(200,64,26,.1)}
 .fi.err,.fs.err{border-color:var(--err)}
 .fe{font-size:.8rem;color:var(--err);display:none}
@@ -96,7 +103,7 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
 .mbx{background:rgba(255,255,255,.97);border-radius:var(--rl);box-shadow:0 32px 80px rgba(15,14,13,.2),0 8px 24px rgba(15,14,13,.1),inset 0 1px 0 rgba(255,255,255,.9);width:100%;max-width:480px;overflow:hidden;animation:mIn .22s cubic-bezier(.34,1.56,.64,1);border:1px solid rgba(255,255,255,.5);}
 @keyframes mIn{from{transform:scale(.92);opacity:0}to{transform:none;opacity:1}}
 .mh{padding:20px 24px 0}
-.mb{padding:16px 24px}
+.mb{padding:16px 24px;-webkit-overflow-scrolling:touch;}
 .mf{padding:0 24px 20px;display:flex;gap:8px;justify-content:flex-end}
 /* Tabs — scoped via parent ID */
 .tnav{display:flex;gap:4px;border-bottom:1.5px solid var(--paper3);margin-bottom:20px}
@@ -119,6 +126,9 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
 .qbtn.qF{background:var(--warnbg);border-color:var(--warn);color:var(--warn)}
 /* MCQ option */
 .opt{display:flex;align-items:center;gap:12px;padding:13px 16px;border-radius:var(--r);border:1.5px solid var(--paper3);cursor:pointer;transition:var(--tr);background:#fff;font-size:.9rem;user-select:none}
+.opt-locked{cursor:default!important;}
+.opt-locked:hover{border-color:var(--paper3)!important;background:#fff!important;}
+.opt.sel.opt-locked{opacity:1!important;cursor:default;}
 .opt:hover{border-color:var(--ac2);background:var(--acbg)}
 .opt.sel{border-color:var(--ac);background:var(--acbg);font-weight:500}
 .opt.cor{border-color:var(--ok);background:var(--okbg)}
@@ -145,7 +155,7 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
 @keyframes tIn{from{transform:translateX(100%);opacity:0}to{transform:none;opacity:1}}
 /* Progress */
 .pbar{height:6px;background:var(--paper3);border-radius:999px;overflow:hidden}
-.pfill{height:100%;background:var(--ac);border-radius:999px;transition:width .4s ease}
+.pfill{height:100%;background:var(--ac);border-radius:999px;transition:width .4s ease;will-change:width;}
 /* Stat cards */
 .scard{background:var(--paper2);border-radius:var(--r);padding:16px 18px}
 .sv{font-size:1.9rem;font-weight:600;line-height:1;margin-bottom:4px}
@@ -299,145 +309,267 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
 /* ═══════════════════════════════════════
    TABLET  ≤ 900px
 ═══════════════════════════════════════ */
+
+/* ─── TABLET ≤900px ─── */
 @media(max-width:900px){
   .hero2col{grid-template-columns:1fr;padding:48px 24px;gap:32px;}
-  .heroMock{display:none;}
-  .nav-links-center{display:none;}
-  /* Dashboard stats: 2 col on tablet */
+  .heroMock{display:none!important;}
+  .nav-links-center{display:none!important;}
   .dash-stats-grid{grid-template-columns:repeat(2,1fr)!important;}
-  /* Monitoring: stack layout */
   .mon-layout{grid-template-columns:1fr!important;}
-  /* Exam sidebar: hide on tablet */
-  .exam-sidebar{display:none!important;}
-  .exam-main{padding:16px 20px!important;}
 }
 
-/* ═══════════════════════════════════════
-   MOBILE  ≤ 640px
-═══════════════════════════════════════ */
+/* ─── MOBILE ≤640px ─── */
 @media(max-width:640px){
-  /* Base */
+  /* Typography */
   html{font-size:14px;}
-  .fr{grid-template-columns:1fr;}
-  h1{font-size:1.75rem!important;}
-  h2{font-size:1.4rem!important;}
+  h1{font-size:1.8rem!important;line-height:1.2!important;}
+  h2{font-size:1.45rem!important;}
+
+  /* Layout */
   body{overflow-x:hidden;}
+  .fr{grid-template-columns:1fr!important;}
 
-  /* Nav */
-  .nav{padding:0 1rem;height:58px;}
-  .ham{display:flex;}
+  /* ── NAVBAR ── */
+  .nav{padding:0 14px;height:56px;position:sticky;top:0;z-index:100;}
+  .ham{display:flex!important;}
   .nav-links-center{display:none!important;}
-  /* Hide desktop nav links on landing */
-  #pg-landing .navlinks > .btn:not(.btn-ham-only){display:none;}
-  /* Dashboard nav: collapse extra buttons */
-  #pg-dash .navlinks > .btn:first-child{display:none;}
+  #ln-login-btn,#ln-start-btn{display:none!important;}
 
-  /* Hero */
-  .hero2col{padding:32px 18px 24px;gap:20px;}
-  .hero2col h1{font-size:2rem!important;}
-  .heroMock{display:none!important;}
-  /* Hero stats: 2x2 grid */
-  .hero-stats-row{display:grid!important;grid-template-columns:1fr 1fr;gap:12px;text-align:center;}
+  /* ── MOBILE DRAWER ── */
+  .mob-nav{
+    position:fixed;top:56px;left:0;right:0;bottom:0;
+    background:rgba(10,8,6,.92);
+    backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+    display:none;flex-direction:column;align-items:center;
+    justify-content:center;gap:14px;z-index:200;
+    transition:opacity .25s;opacity:0;
+  }
+  .mob-nav.open{display:flex;opacity:1;animation:fadeIn .2s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+  .mob-nav .mob-link{
+    width:80%;max-width:300px;
+    background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.15);
+    border-radius:16px;padding:16px 24px;
+    color:#fff;font-size:1.05rem;font-weight:500;
+    text-align:center;cursor:pointer;
+    transition:.2s;font-family:var(--fb);
+  }
+  .mob-nav .mob-link:active{background:rgba(255,255,255,.18);}
+  .mob-nav .mob-link.primary{background:var(--ac);border-color:var(--ac);}
+
+  /* ── HERO ── */
+  .hero2col{padding:28px 18px 36px;gap:0;}
+  #hero-badge{font-size:.75rem;}
+  .hero-stats-row{
+    display:grid!important;
+    grid-template-columns:1fr 1fr;
+    gap:14px;margin-top:28px!important;
+  }
   .hero-stat-div{display:none!important;}
+  .hero-stats-row > div{
+    background:rgba(200,64,26,.06);
+    border-radius:12px;padding:12px 8px;text-align:center;
+  }
 
-  /* Feature cards: stacked row layout */
+  /* Feature cards */
   .featGrid{display:flex!important;flex-direction:column!important;gap:10px!important;}
-  .featCard{display:flex!important;flex-direction:row!important;align-items:center!important;gap:12px!important;padding:12px 14px!important;}
-  .featCard .fi-icon{width:36px!important;height:36px!important;min-width:36px!important;font-size:1rem!important;margin-bottom:0!important;flex-shrink:0!important;}
-  .featCard h3{font-size:.875rem!important;margin-bottom:2px!important;}
+  .featCard{
+    display:flex!important;flex-direction:row!important;
+    align-items:center!important;gap:12px!important;
+    padding:14px 16px!important;
+  }
+  .featCard .fi-icon{
+    width:40px!important;height:40px!important;
+    min-width:40px!important;font-size:1.1rem!important;
+    margin-bottom:0!important;flex-shrink:0!important;
+  }
+  .featCard h3{font-size:.88rem!important;margin-bottom:2px!important;}
   .featCard p{font-size:.8rem!important;line-height:1.5!important;}
 
-  /* Dark stats bar: 2x2 */
-  .dark-stats-grid{grid-template-columns:repeat(2,1fr)!important;gap:16px!important;}
+  /* Dark stats */
+  .dark-stats-grid{
+    grid-template-columns:repeat(2,1fr)!important;
+    gap:20px 16px!important;padding:0 8px;
+  }
 
-  /* Steps: vertical */
+  /* Steps */
   .stepsGrid{display:flex!important;flex-direction:column!important;gap:12px!important;}
-  .stepCard{flex-direction:row!important;align-items:flex-start!important;gap:12px!important;text-align:left!important;padding:14px!important;}
+  .stepCard{
+    flex-direction:row!important;align-items:flex-start!important;
+    gap:14px!important;text-align:left!important;padding:16px!important;
+  }
 
-  /* Dashboard */
-  .wbanner{flex-direction:column;gap:10px;text-align:center;padding:20px 16px!important;}
+  /* ── DASHBOARD ── */
+  #pg-dash main{padding:14px 14px 80px!important;}
+  .wbanner{
+    flex-direction:column;gap:8px;padding:18px 16px!important;
+    text-align:center;border-radius:14px!important;
+  }
+  .wbanner h2{font-size:1.2rem!important;}
+  .wbanner p{font-size:.83rem!important;}
   .dash-illus{display:none!important;}
-  .wemoji{display:none;}
-  /* Stats: 2x2 */
-  .dash-stats-grid{grid-template-columns:repeat(2,1fr)!important;gap:10px!important;}
-  .dstat{padding:14px 16px!important;}
-  .dval{font-size:1.6rem!important;}
-  /* Exam table: scroll */
-  .card{overflow-x:auto;}
-  .dt{min-width:600px;}
-  /* Main padding */
-  #pg-dash main{padding:16px!important;}
-  #pg-monitor main{padding:16px!important;}
+  .wemoji{display:none!important;}
+  .dash-stats-grid{
+    grid-template-columns:repeat(2,1fr)!important;
+    gap:10px!important;margin-bottom:16px!important;
+  }
+  .dstat{padding:14px 14px!important;border-radius:14px!important;}
+  .dval{font-size:1.5rem!important;}
+  .dtitle{font-size:.8rem!important;}
+  .dsub{font-size:.72rem!important;}
+  /* Section filter pills */
+  #sec-filter{overflow-x:auto;flex-wrap:nowrap!important;-webkit-overflow-scrolling:touch;padding-bottom:4px;}
+  #sec-filter .btn{flex-shrink:0;}
+  /* Exam table horizontal scroll */
+  #pg-dash .card{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .dt{min-width:640px;font-size:.82rem;}
+  .dt th{padding:8px 10px;}
+  .dt td{padding:10px 10px;}
+  /* Dashboard action buttons compact */
+  #pg-dash .navlinks .btn:first-child{display:none!important;}
+  #pg-dash .navlinks{gap:6px!important;}
 
-  /* Modals: full screen bottom sheet */
-  .mbd{align-items:flex-end!important;padding:0!important;}
+  /* ── MODALS: FULL BOTTOM SHEET ── */
+  .mbd{
+    align-items:flex-end!important;padding:0!important;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  }
   .mbx{
-    max-width:100%!important;width:100%!important;
-    border-radius:20px 20px 0 0!important;
-    max-height:92vh!important;
-    animation:slideUp .3s cubic-bezier(.4,0,.2,1)!important;
+    width:100%!important;max-width:100%!important;
+    border-radius:24px 24px 0 0!important;
+    max-height:88vh;overflow:hidden;
+    animation:sheetUp .28s cubic-bezier(.32,0,.67,0)!important;
+    display:flex;flex-direction:column;
   }
-  @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-  .mb{max-height:65vh!important;overflow-y:auto;}
-  .mh{padding:16px 20px 0!important;}
-  .mf{padding:0 20px 24px!important;flex-direction:column-reverse!important;}
-  .mf .btn{width:100%!important;padding:14px!important;font-size:.95rem!important;}
-  /* Modal drag handle */
+  @keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
   .mbx::before{
-    content:'';display:block;width:40px;height:4px;
+    content:'';display:block;
+    width:36px;height:4px;
     background:var(--paper3);border-radius:2px;
-    margin:10px auto 0;
+    margin:12px auto 4px;flex-shrink:0;
+  }
+  .mh{padding:12px 20px 0!important;flex-shrink:0;}
+  .mb{
+    flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    padding:14px 18px!important;
+  }
+  .mf{
+    padding:12px 18px 20px!important;
+    flex-shrink:0;
+    flex-direction:column!important;gap:8px!important;
+    border-top:1px solid var(--paper2);
+  }
+  .mf .btn{
+    width:100%!important;padding:15px!important;
+    font-size:.95rem!important;border-radius:14px!important;
   }
 
-  /* Exam type overlay cards */
-  .etCards{flex-direction:column!important;gap:12px!important;}
-  .etCard{max-width:100%!important;padding:20px!important;flex-direction:row!important;text-align:left!important;gap:16px;align-items:center!important;}
-  .etIcon{width:48px!important;height:48px!important;margin:0!important;flex-shrink:0!important;}
+  /* ── TAB NAV ── */
+  .tnav{
+    overflow-x:auto;-webkit-overflow-scrolling:touch;
+    flex-wrap:nowrap!important;
+    scrollbar-width:none;padding-bottom:1px;
+  }
+  .tnav::-webkit-scrollbar{display:none;}
+  .tb{
+    white-space:nowrap;font-size:.8rem;
+    padding:10px 14px;flex-shrink:0;
+    min-height:44px;
+  }
 
-  /* MCQ exam page: no sidebar */
+  /* ── EXAM TYPE OVERLAY ── */
+  #etOverlay{align-items:flex-end!important;padding:0!important;}
+  .etCards{
+    flex-direction:column!important;gap:10px!important;
+    width:100%;background:#fff;
+    border-radius:24px 24px 0 0;
+    padding:20px 18px 32px;
+    position:relative;z-index:1;
+    animation:sheetUp .28s ease;
+  }
+  .etCard{
+    max-width:100%!important;
+    flex-direction:row!important;
+    text-align:left!important;
+    gap:14px;align-items:center!important;
+    padding:16px 18px!important;
+    border-radius:16px!important;
+  }
+  .etIcon{width:46px!important;height:46px!important;margin:0!important;flex-shrink:0!important;font-size:1.4rem!important;}
+  .etCard > div{display:none!important;}/* hide "Choose →" btn */
+  .etCard h3{font-size:.95rem!important;margin-bottom:4px!important;}
+  .etCard p{font-size:.8rem!important;line-height:1.4!important;}
+  .etBg{display:none!important;}/* use sheet bg instead */
+
+  /* ── MCQ EXAM PAGE ── */
+  #pg-exam .nav{height:52px;}
   .exam-sidebar{display:none!important;}
-  .exam-main{padding:16px!important;}
-  /* MCQ: show compact q nav at top */
-  .exam-layout{grid-template-columns:1fr!important;}
-  #pg-exam main{grid-template-columns:1fr!important;}
-  #qnav{display:flex;flex-wrap:wrap;gap:4px;padding:10px 16px;background:var(--paper2);border-bottom:1px solid var(--paper3);}
-  /* MCQ question text */
-  #q-text{font-size:.95rem!important;}
-  .opt{padding:11px 14px!important;font-size:.875rem!important;}
+  #pg-exam main{grid-template-columns:1fr!important;overflow:hidden;}
+  .exam-main{padding:16px 14px!important;overflow-y:auto;}
+  /* Compact mobile qnav bar */
+  #mob-qnav{
+    display:flex!important;
+    padding:8px 14px;
+    background:var(--paper2);
+    border-bottom:1px solid var(--paper3);
+    overflow-x:auto;-webkit-overflow-scrolling:touch;
+    flex-wrap:nowrap;
+    scrollbar-width:none;gap:5px;flex-shrink:0;
+  }
+  #mob-qnav::-webkit-scrollbar{display:none;}
+  #mob-qnav .qbtn{width:34px!important;height:34px!important;font-size:.75rem!important;flex-shrink:0;}
+  /* Question text and options */
+  #q-text{font-size:.95rem!important;line-height:1.6!important;margin-bottom:16px!important;}
+  .opt{padding:13px 14px!important;font-size:.875rem!important;border-radius:12px!important;gap:10px!important;}
+  .ob{width:28px!important;height:28px!important;min-width:28px!important;font-size:.78rem!important;}
+  /* Nav buttons */
+  #pg-exam .btn{min-height:44px;}
+  #q-num{font-size:.78rem!important;}
 
-  /* Written exam */
-  #pg-wexam main{padding:16px 14px!important;}
-  .wta{min-height:100px!important;}
+  /* ── WRITTEN EXAM PAGE ── */
+  #pg-wexam main{padding:14px!important;}
+  .wta{min-height:110px!important;font-size:.9rem!important;}
 
-  /* Student info */
-  #pg-sinfo main{padding:20px 14px!important;}
+  /* ── STUDENT INFO ── */
+  #pg-sinfo main{padding:16px 14px!important;}
 
-  /* Anti-cheat page */
-  #pg-acwarn main{padding:20px 14px!important;}
-  .acRule{padding:10px 12px!important;}
+  /* ── ANTICHEAT PAGE ── */
+  #pg-acwarn main{padding:16px 14px!important;}
+  .acRule{padding:12px 14px!important;gap:10px!important;}
+  .acRule > span{font-size:1rem!important;}
 
-  /* Results */
-  #pg-result main{padding:16px 14px!important;}
+  /* ── RESULTS ── */
+  #pg-result main{padding:14px!important;}
+  .sring{width:110px!important;height:110px!important;}
+  .sring svg{width:110px!important;height:110px!important;}
 
-  /* Tab nav: scroll horizontally */
-  .tnav{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;padding-bottom:2px;gap:0;}
-  .tb{white-space:nowrap;padding:10px 14px;font-size:.8rem;flex-shrink:0;}
+  /* ── MONITORING ── */
+  #pg-monitor main{padding:14px!important;}
+  #pg-monitor [style*="grid-template-columns:1fr 300px"]{
+    grid-template-columns:1fr!important;
+  }
 
-  /* Touch targets: min 44px */
+  /* ── TOUCH TARGETS ── */
   .btn{min-height:44px;}
-  .qbtn{width:38px!important;height:38px!important;}
-  .tb{min-height:44px;}
+  input,select,textarea{min-height:44px;font-size:16px!important;}/* prevent zoom on iOS */
+
+  /* ── SECTION MANAGER ── */
+  .secpanel{padding:12px 14px!important;}
+
+  /* ── AUTH PAGE ── */
+  #pg-auth main{padding:16px 14px!important;align-items:flex-start!important;padding-top:32px!important;}
+  #pg-auth .card{border-radius:20px!important;}
 }
 
-/* ═══════════════════════════════════════
-   VERY SMALL  ≤ 380px
-═══════════════════════════════════════ */
+/* ─── VERY SMALL ≤380px ─── */
 @media(max-width:380px){
-  .hero2col h1{font-size:1.65rem!important;}
-  .dash-stats-grid{grid-template-columns:1fr 1fr!important;}
-  .dval{font-size:1.4rem!important;}
+  h1{font-size:1.6rem!important;}
+  .dash-stats-grid{grid-template-columns:repeat(2,1fr)!important;}
+  .dval{font-size:1.3rem!important;}
+  .hero2col{padding:24px 14px 28px;}
 }
-
 </style>
 </head>
 <body>
@@ -462,10 +594,10 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
   </nav>
   <!-- Mobile nav drawer -->
   <div class="mob-nav" id="mob-nav">
-    <button class="btn btnG" onclick="document.getElementById('sec-feat').scrollIntoView({behavior:'smooth'});closeMobNav()" style="color:#fff;font-size:1.1rem;background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);width:85%;max-width:300px;border-radius:14px;padding:14px;">Features</button>
-    <button class="btn btnG" onclick="document.getElementById('sec-how').scrollIntoView({behavior:'smooth'});closeMobNav()" style="color:#fff;font-size:1.1rem;background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);width:85%;max-width:300px;border-radius:14px;padding:14px;">How it works</button>
-    <button class="btn btnS" onclick="showPage('pg-auth');authTab('in');closeMobNav()" style="font-size:1.1rem;width:85%;max-width:300px;border-radius:14px;padding:14px;">Teacher login</button>
-    <button class="btn btnP" onclick="showPage('pg-auth');authTab('up');closeMobNav()" style="font-size:1.1rem;width:85%;max-width:300px;border-radius:14px;padding:14px;">Get started free</button>
+    <button class="mob-link" onclick="document.getElementById('sec-feat').scrollIntoView({behavior:'smooth'});closeMobNav()">✦ Features</button>
+    <button class="mob-link" onclick="document.getElementById('sec-how').scrollIntoView({behavior:'smooth'});closeMobNav()">✦ How it works</button>
+    <button class="mob-link" onclick="showPage('pg-auth');authTab('in');closeMobNav()">Teacher login</button>
+    <button class="mob-link primary" onclick="showPage('pg-auth');authTab('up');closeMobNav()">Get started free →</button>
   </div>
   <main style="flex:1;display:flex;flex-direction:column;overflow-x:hidden;">
 
@@ -773,11 +905,11 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
 <div id="etOverlay">
   <div class="etBg" onclick="closeETO()"></div>
   <div style="position:relative;z-index:1;max-width:860px;width:100%;">
-    <div style="text-align:center;margin-bottom:32px;">
+    <div style="text-align:center;margin-bottom:32px;" id="et-title">
       <h2 style="color:#fff;font-size:1.9rem;margin-bottom:8px;">Choose exam type</h2>
       <p style="color:rgba(255,255,255,.6);font-size:.95rem;">Select the format to get started</p>
     </div>
-    <div class="etCards" style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap;">
+    <div class="etCards" style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap;" id="et-cards">
       <div class="etCard" onclick="pickET('mcq')"><div class="etIcon" style="background:#fff3ef">&#128203;</div><h3 style="margin-bottom:8px">MCQ Exam</h3><p style="font-size:.83rem;color:var(--ink3);line-height:1.5">Multiple choice with auto-grading and instant results.</p><div style="margin-top:16px" class="btn btnP sm btn3d">Choose &rarr;</div></div>
       <div class="etCard" onclick="pickET('written')"><div class="etIcon" style="background:#f0edfa">&#9997;&#65039;</div><h3 style="margin-bottom:8px">Written Exam</h3><p style="font-size:.83rem;color:var(--ink3);line-height:1.5">Descriptive answers &amp; photo upload. Teacher grades manually.</p><div style="margin-top:16px" class="btn btnP sm btn3d">Choose &rarr;</div></div>
       <div class="etCard" onclick="pickET('combined')"><div class="etIcon" style="background:#edf7f2">&#128196;</div><h3 style="margin-bottom:8px">MCQ + Written</h3><p style="font-size:.83rem;color:var(--ink3);line-height:1.5">Both question types merged in one exam.</p><div style="margin-top:16px" class="btn btnP sm btn3d">Choose &rarr;</div></div>
@@ -1137,7 +1269,7 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
         <div style="display:flex;flex-direction:column;gap:10px" id="q-opts"></div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:28px;padding-top:20px;border-top:1px solid var(--paper3)">
           <button class="btn btnS" onclick="prevQ()" id="prev-btn">&#8592; Previous</button>
-          <button class="btn btnG sm" onclick="clearAns()">Clear</button>
+          
           <button class="btn btnP" onclick="nextQ()" id="next-btn">Next &#8594;</button>
         </div>
       </div>
@@ -1427,8 +1559,8 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" defer></script>
 <script>
 // ═══ FIREBASE ═══
 firebase.initializeApp({apiKey:"AIzaSyAIlselZbtltdX9nDWIUF53SJbJFdlL0f4",authDomain:"examflow-195df.firebaseapp.com",projectId:"examflow-195df",storageBucket:"examflow-195df.firebasestorage.app",messagingSenderId:"21247533181",appId:"1:21247533181:web:233357cb482709b272d114"});
@@ -1443,8 +1575,14 @@ function saveSecs(){LS('secs',S.sections);}
 function loadData(){S.exams=LS('exams')||[];S.sections=LS('secs')||[];}
 
 // ═══ GSAP CINEMATIC SCROLL ANIMATIONS ═══
+let _gsapInitted=false;
 function initGSAP(){
-  if(typeof gsap==='undefined'||typeof ScrollTrigger==='undefined')return;
+  if(_gsapInitted)return;
+  if(typeof gsap==='undefined'||typeof ScrollTrigger==='undefined'){
+    // Retry after scripts load
+    setTimeout(initGSAP,200);return;
+  }
+  _gsapInitted=true;
   gsap.registerPlugin(ScrollTrigger);
   ScrollTrigger.refresh();
   const isMobile=window.innerWidth<=640;
@@ -2075,7 +2213,12 @@ function renderQ(){
   const fl=S.flagged.has(S.curQ);document.getElementById('flag-btn').innerHTML=fl?'&#9876; Unflag':'&#9872; Flag';document.getElementById('flag-btn').style.color=fl?'var(--warn)':'';
   document.getElementById('ex-prog').style.width=((S.curQ+1)/tot*100)+'%';
   document.getElementById('q-text').textContent=q.question_text;
-  document.getElementById('q-opts').innerHTML=q.options.map((o,i)=>{const sel=S.answers[S.curQ]===i;return`<div class="opt${sel?' sel':''}" onclick="pickAns(${i})"><div class="ob">${'ABCD'[i]}</div><span>${esc(o)}</span></div>`;}).join('');
+  const isLocked=S.answers[S.curQ]!==undefined;
+  document.getElementById('q-opts').innerHTML=q.options.map((o,i)=>{
+    const sel=S.answers[S.curQ]===i;
+    const locked=isLocked&&!sel;
+    return`<div class="opt${sel?' sel':''}${isLocked?' opt-locked':''}" ${isLocked?'':'onclick="pickAns('+i+')"'} style="${locked?'opacity:.45;cursor:not-allowed;':''}"><div class="ob">${'ABCD'[i]}</div><span>${esc(o)}</span></div>`;
+  }).join('');
   document.getElementById('prev-btn').disabled=S.curQ===0;
   document.getElementById('next-btn').textContent=S.curQ===tot-1?'Review ✓':'Next →';
   document.getElementById('sb-ans').textContent=ans;
@@ -2084,7 +2227,12 @@ function renderQ(){
   document.getElementById('qnav').innerHTML=S.questions.map((_,i)=>{let c='qbtn';if(i===S.curQ)c+=' qC';else if(S.answers[i]!==undefined)c+=' qA';if(S.flagged.has(i))c+=' qF';return`<button class="${c}" onclick="goQ(${i})">${i+1}</button>`;}).join('');
   syncMobQNav();
 }
-function pickAns(i){S.answers[S.curQ]=i;renderQ();}
+function pickAns(i){
+  // Lock: if this question already has an answer, ignore
+  if(S.answers[S.curQ]!==undefined)return;
+  S.answers[S.curQ]=i;
+  renderQ();
+}
 function clearAns(){delete S.answers[S.curQ];renderQ();}
 function goQ(i){S.curQ=i;renderQ();}
 function prevQ(){if(S.curQ>0){S.curQ--;renderQ();}}
