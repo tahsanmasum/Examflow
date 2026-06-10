@@ -56,9 +56,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
 <style>
-:root{--ink:#0f0e0d;--ink2:#3a3834;--ink3:#7a7670;--paper:#faf9f6;--paper2:#f0ede6;--paper3:#e4dfd5;--ac:#c8401a;--ac2:#e8855e;--acbg:#fdf0eb;--ok:#1a6b3a;--okbg:#edf7f2;--warn:#a05c10;--warnbg:#fef7ed;--err:#b01a1a;--errbg:#fdf0f0;--info:#1a4a8a;--infobg:#edf3fd;--r:10px;--rl:16px;--sh:0 1px 3px rgba(15,14,13,.08),0 4px 16px rgba(15,14,13,.06);--shl:0 8px 32px rgba(15,14,13,.12);--fd:'DM Serif Display',Georgia,serif;--fb:'DM Sans',system-ui,sans-serif;--fm:'JetBrains Mono',monospace;--tr:all .15s cubic-bezier(.4,0,.2,1)}
+:root{--ink:#0f0e0d;--ink2:#3a3834;--ink3:#7a7670;--paper:#faf9f6;--paper2:#f0ede6;--paper3:#e4dfd5;--ac:#c8401a;--ac2:#e8855e;--acbg:#fdf0eb;--ok:#1a6b3a;--okbg:#edf7f2;--warn:#a05c10;--warnbg:#fef7ed;--err:#b01a1a;--errbg:#fdf0f0;--info:#1a4a8a;--infobg:#edf3fd;--r:10px;--rl:16px;--sh:0 1px 3px rgba(15,14,13,.08),0 4px 16px rgba(15,14,13,.06);--shl:0 8px 32px rgba(15,14,13,.12);--fd:'Fraunces',Georgia,serif;--fb:'Plus Jakarta Sans',system-ui,sans-serif;--fm:'JetBrains Mono',monospace;--tr:all .15s cubic-bezier(.4,0,.2,1)}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:15px;scroll-behavior:smooth}
 body{font-family:var(--fb);background:var(--paper);color:var(--ink);line-height:1.6;min-height:100vh;-webkit-font-smoothing:antialiased}
@@ -928,6 +928,7 @@ body{background:#faf9f6}
       <span>ExamFlow</span>
     </a>
     <div class="ef-nav-right">
+      <a class="efbtn efbtn-ghost" onclick="openSwitchDevice()">🔀 Switch device</a>
       <a class="efbtn efbtn-ghost" onclick="showPage('pg-auth');authTab('in')">Sign in</a>
       <a class="efbtn efbtn-primary" onclick="showPage('pg-auth');authTab('up')">Get started →</a>
     </div>
@@ -1065,6 +1066,30 @@ body{background:#faf9f6}
   </section>
 
   <!-- FOOTER -->
+  <!-- #21: Manuals -->
+  <section style="padding:48px 36px;border-top:1px solid var(--line);text-align:center">
+    <div style="font-family:var(--fm);font-size:12px;letter-spacing:3px;color:var(--ac);text-transform:uppercase;margin-bottom:14px">Guides &amp; Manuals</div>
+    <h2 style="font-family:var(--serif);font-weight:400;font-size:clamp(24px,3vw,34px);margin-bottom:22px">How to use ExamFlow</h2>
+    <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap">
+      <button class="btn btnP" onclick="openManual('teacher')">📘 Teacher's Manual</button>
+      <button class="btn btnS" onclick="openManual('student')">🎓 Student's Manual</button>
+    </div>
+  </section>
+
+  <!-- #22: IUB support banner -->
+  <section style="padding:36px;border-top:1px solid var(--line);text-align:center;background:var(--bg-dim)">
+    <div style="font-family:var(--fm);font-size:11px;letter-spacing:2px;color:var(--ink3);text-transform:uppercase;margin-bottom:14px">Supported by</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap">
+      <!-- Replace the placeholder below with the IUB logo:
+           <img src="data:image/png;base64,..." alt="IUB" style="height:64px"> -->
+      <img id="iub-logo" src="data:image/png;base64,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" alt="Independent University, Bangladesh" style="height:84px;width:auto">
+      <div style="text-align:left">
+        <div style="font-family:var(--serif);font-size:18px;color:var(--ink)">Independent University, Bangladesh</div>
+        <div style="font-size:13px;color:var(--ink3)">Supporting ExamFlow</div>
+      </div>
+    </div>
+  </section>
+
   <footer class="ef-footer">
     <div class="ef-foot-wrap">
       <div class="ef-brand">
@@ -1105,9 +1130,9 @@ body{background:#faf9f6}
       </div>
       <div class="cb">
         <div id="aform-in" style="display:flex;flex-direction:column;gap:14px;">
-          <div class="fg"><label class="fl">Email <span>*</span></label><input class="fi" id="si-email" type="email" placeholder="you@university.edu"></div>
+          <div class="fg"><label class="fl">Email <span>*</span></label><input class="fi" id="si-email" type="email" placeholder="you@university.edu" onkeydown="if(event.key==='Enter')doSignIn()"></div>
           <div class="fg"><label class="fl">Password <span>*</span></label>
-            <div style="position:relative;"><input class="fi" id="si-pass" type="password" placeholder="••••••••" style="padding-right:44px"><button onclick="togglePw('si-pass')" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);border:none;background:none;cursor:pointer;color:var(--ink3)">&#128065;</button></div>
+            <div style="position:relative;"><input class="fi" id="si-pass" type="password" placeholder="••••••••" style="padding-right:44px" onkeydown="if(event.key==='Enter')doSignIn()"><button onclick="togglePw('si-pass')" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);border:none;background:none;cursor:pointer;color:var(--ink3)">&#128065;</button></div>
             <a href="#" onclick="doForgot();return false" style="font-size:.825rem;color:var(--ac)">Forgot password?</a>
           </div>
           <div id="si-err" style="display:none;background:var(--errbg);color:var(--err);padding:10px 14px;border-radius:var(--r);font-size:.85rem;"></div>
@@ -1246,6 +1271,8 @@ body{background:#faf9f6}
       <h3>Your exams</h3>
       <div style="display:flex;gap:8px;">
         <button class="btn btnS sm" onclick="openSecMgr()">&#128193; Sections</button>
+        <button class="btn btnS sm" onclick="openTrash()">&#128465; Trash</button>
+        <button class="btn btnS sm" onclick="openFeedback()">&#128172; Feedback</button>
         <button class="btn btnP sm btn3d" onclick="openETO()">+ Create exam</button>
       </div>
     </div>
@@ -1486,6 +1513,10 @@ body{background:#faf9f6}
     <div class="mh" style="text-align:center;padding:24px 24px 0"><div style="font-size:2.5rem;margin-bottom:8px">&#127881;</div><h3>Exam created!</h3><p style="color:var(--ink3);font-size:.875rem;margin-top:4px">Share this link with your students</p></div>
     <div class="mb">
       <div class="lchip" id="link-chip"><span id="link-txt"></span><button class="btn btnG sm" onclick="copyLink()" title="Copy">&#128203;</button></div>
+      <div style="text-align:center;margin-top:14px">
+        <div id="link-qr" style="display:inline-flex;justify-content:center;padding:10px;background:#fff;border:1px solid var(--paper3);border-radius:10px"></div>
+        <p style="font-size:.75rem;color:var(--ink3);margin-top:8px">📱 Students can scan this QR code to open the exam</p>
+      </div>
       <p style="font-size:.8rem;color:var(--ink3);margin-top:10px;text-align:center">Questions are shuffled per student session.</p>
     </div>
     <div class="mf"><button class="btn btnG" onclick="closeM('m-link')">Close</button><button class="btn btnP" onclick="previewAsStudent()">Preview as student &rarr;</button></div>
@@ -1501,13 +1532,122 @@ body{background:#faf9f6}
   </div>
 </div>
 
+<!-- ══ REVIEW LINK (teacher) MODAL with QR ══ -->
+<div class="mbd" id="m-revlink">
+  <div class="mbx" style="max-width:440px">
+    <div class="mh" style="text-align:center;padding:24px 24px 0"><div style="font-size:2.2rem;margin-bottom:6px">&#128196;</div><h3>Review link ready</h3><p style="color:var(--ink3);font-size:.85rem;margin-top:4px">Students view only their own graded script using their one-time password.</p></div>
+    <div class="mb">
+      <div class="lchip"><span id="revlink-txt" style="font-size:.78rem"></span><button class="btn btnG sm" onclick="copyRevLink()" title="Copy">&#128203;</button></div>
+      <div style="text-align:center;margin-top:14px">
+        <div id="revlink-qr" style="display:inline-flex;justify-content:center;padding:10px;background:#fff;border:1px solid var(--paper3);border-radius:10px"></div>
+        <p style="font-size:.75rem;color:var(--ink3);margin-top:8px">📱 Students can scan to open the review page</p>
+      </div>
+    </div>
+    <div class="mf"><button class="btn btnP" onclick="closeM('m-revlink')">Close</button></div>
+  </div>
+</div>
+
+<!-- ══ DEVICE SWITCH MODAL (#15) ══ -->
+<div class="mbd" id="m-switch">
+  <div class="mbx" style="max-width:480px">
+    <div class="mh"><h3>🔀 Switch Device</h3><p style="color:var(--ink3);font-size:.85rem;margin-top:4px">Continue your exam on another device.</p></div>
+    <div class="mb">
+      <div id="switch-show" style="text-align:center">
+        <p style="font-size:.85rem;color:var(--ink2);margin-bottom:12px"><b>Laptop → mobile:</b> scan this QR on your phone.</p>
+        <div id="switch-qr" style="display:flex;justify-content:center;margin-bottom:14px"></div>
+        <p style="font-size:.85rem;color:var(--ink2);margin-bottom:6px"><b>Mobile → laptop:</b> enter this code on the other device's home page (Switch device):</p>
+        <div id="switch-code" style="font-family:var(--fm);font-size:1.6rem;letter-spacing:4px;color:var(--ac);font-weight:600">——————</div>
+      </div>
+      <hr style="border:none;border-top:1px solid var(--paper2);margin:18px 0">
+      <div>
+        <label class="fl">Resume here using a code from another device</label>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <input class="fi" id="switch-input" placeholder="e.g. A23D4C" maxlength="6" style="text-transform:uppercase">
+          <button class="btn btnP" onclick="resumeByCode()">Resume</button>
+        </div>
+        <span style="font-size:.75rem;color:var(--ink3);display:block;margin-top:6px">You'll be asked for your one-time password.</span>
+      </div>
+    </div>
+    <div class="mf"><button class="btn btnG" onclick="closeM('m-switch')">Close</button></div>
+  </div>
+</div>
+
+<!-- ══ REVIEW SCRIPT MODAL (#17) ══ -->
+<div class="mbd" id="m-review">
+  <div class="mbx" style="max-width:640px">
+    <div class="mh"><h3>📄 Review Your Script</h3><p style="color:var(--ink3);font-size:.85rem;margin-top:4px" id="review-sub"></p></div>
+    <div class="mb">
+      <div id="review-gate">
+        <div class="fg"><label class="fl">Student ID / Roll <span>*</span></label><input class="fi" id="review-id" placeholder="Your roll/ID"></div>
+        <div class="fg" style="margin-top:10px"><label class="fl">Your one-time password <span>*</span></label><input class="fi" id="review-otp" placeholder="The password you set"></div>
+        <button class="btn btnP full" style="margin-top:14px" onclick="openMyScript()">View my script &rarr;</button>
+      </div>
+      <div id="review-content" style="display:none;max-height:60vh;overflow-y:auto"></div>
+    </div>
+    <div class="mf"><button class="btn btnG" onclick="closeM('m-review')">Close</button></div>
+  </div>
+</div>
+
+<!-- ══ MANUALS MODAL (#21) ══ -->
+<div class="mbd" id="m-manual">
+  <div class="mbx" style="max-width:640px">
+    <div class="mh"><h3 id="manual-title">Manual</h3></div>
+    <div class="mb"><div id="manual-body" style="max-height:60vh;overflow-y:auto;font-size:.9rem;line-height:1.7;color:var(--ink2)"></div></div>
+    <div class="mf"><button class="btn btnP" onclick="closeM('m-manual')">Close</button></div>
+  </div>
+</div>
+
+<!-- ══ FEEDBACK MODAL (#24) ══ -->
+<div class="mbd" id="m-feedback">
+  <div class="mbx" style="max-width:520px">
+    <div class="mh"><h3>&#128172; Send Feedback</h3><p style="color:var(--ink3);font-size:.85rem;margin-top:4px">Report a bug or suggest an improvement. This goes directly to the ExamFlow team.</p></div>
+    <div class="mb">
+      <div class="fg" style="margin-bottom:12px"><label class="fl">Your name <span>*</span></label><input class="fi" id="fb-name" placeholder="Your name"></div>
+      <div class="fg" style="margin-bottom:12px"><label class="fl">Institute <span>*</span></label><input class="fi" id="fb-inst" placeholder="Your institution"></div>
+      <div class="fg" style="margin-bottom:12px"><label class="fl">Type</label><select class="fs" id="fb-type"><option value="bug">🐞 Bug report</option><option value="feature">💡 Feature request</option><option value="other">💬 Other feedback</option></select></div>
+      <div class="fg"><label class="fl">Message <span>*</span></label><textarea class="wta" id="fb-msg" placeholder="Describe the bug or your suggestion…"></textarea></div>
+    </div>
+    <div class="mf"><button class="btn btnG" onclick="closeM('m-feedback')">Cancel</button><button class="btn btnP" onclick="sendFeedback()">Send feedback</button></div>
+  </div>
+</div>
+
+<!-- ══ EDIT EXAM QUESTIONS MODAL ══ -->
+<div class="mbd" id="m-editex">
+  <div class="mbx" style="max-width:680px">
+    <div class="mh"><h3>&#9998; Edit Exam</h3><p style="color:var(--ink3);font-size:.85rem;margin-top:4px" id="editex-sub"></p></div>
+    <div class="mb">
+      <div class="fg" style="margin-bottom:12px"><label class="fl">Course / Title</label><input class="fi" id="editex-course"></div>
+      <div id="editex-qs" style="max-height:46vh;overflow-y:auto"></div>
+    </div>
+    <div class="mf"><button class="btn btnG" onclick="closeM('m-editex')">Cancel</button><button class="btn btnP" onclick="saveEditExam()">Save changes</button></div>
+  </div>
+</div>
+
+<!-- ══ GENERIC CONFIRM MODAL ══ -->
+<div class="mbd" id="m-confirm">
+  <div class="mbx">
+    <div class="mh"><h3 id="confirm-title">Confirm</h3></div>
+    <div class="mb"><p id="confirm-msg" style="color:var(--ink2);font-size:.9rem;line-height:1.6"></p></div>
+    <div class="mf"><button class="btn btnG" onclick="closeM('m-confirm')">Cancel</button><button class="btn btnP" id="confirm-ok">Confirm</button></div>
+  </div>
+</div>
+
+<!-- ══ TRASH BIN MODAL ══ -->
+<div class="mbd" id="m-trash">
+  <div class="mbx" style="max-width:560px">
+    <div class="mh"><h3>&#128465; Trash Bin <span id="trash-count" style="font-family:var(--fm);font-size:.9rem;color:var(--ink3)">0</span></h3><p style="color:var(--ink3);font-size:.85rem;margin-top:4px">Restore deleted exams or remove them permanently.</p></div>
+    <div class="mb"><div id="trash-list"></div></div>
+    <div class="mf"><button class="btn btnP" onclick="closeM('m-trash')">Close</button></div>
+  </div>
+</div>
+
 <!-- ══ GRADE WRITTEN MODAL ══ -->
 <div class="mbd" id="m-grade">
   <div class="mbx" style="max-width:520px;">
     <div class="mh"><h3>Grade written answer</h3><p style="color:var(--ink3);font-size:.85rem;margin-top:4px" id="grade-info"></p></div>
     <div class="mb">
       <div style="background:var(--paper2);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;"><div style="font-size:.78rem;font-weight:600;color:var(--ink3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Question</div><div style="font-size:.9rem" id="grade-q"></div></div>
-      <div style="background:#fff;border:1px solid var(--paper3);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;"><div style="font-size:.78rem;font-weight:600;color:var(--ink3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Student answer</div><div style="font-size:.875rem;line-height:1.6" id="grade-ans"></div><div id="grade-photo" style="margin-top:8px;display:none"><img id="grade-img" style="max-width:100%;border-radius:8px;border:1px solid var(--paper3)" alt="answer"></div></div>
+      <div style="background:#fff;border:1px solid var(--paper3);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;"><div style="font-size:.78rem;font-weight:600;color:var(--ink3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Student answer</div><div style="font-size:.875rem;line-height:1.6" id="grade-ans"></div><div id="grade-photo" style="margin-top:8px;display:none"></div></div>
       <div class="fr">
         <div class="fg"><label class="fl">Marks awarded <span>*</span></label><input class="fi" id="grade-score" type="number" min="0"></div>
         <div class="fg"><label class="fl">Max marks</label><input class="fi" id="grade-max" readonly></div>
@@ -1580,6 +1720,7 @@ body{background:#faf9f6}
             </div>
           </div>
           <div class="fg"><label class="fl">Course name</label><input class="fi" id="si-course" readonly></div>
+          <div class="fg" style="margin-top:4px;padding:12px 14px;background:var(--acbg);border-radius:var(--r)"><label class="fl">Set a one-time password <span>*</span></label><input class="fi" id="si-otp" placeholder="Choose a 4–8 char password" maxlength="12"><span style="font-size:.75rem;color:var(--ink3);display:block;margin-top:4px">🔑 You'll need this to switch devices or review your script later. Remember it!</span></div>
           <button class="btn btnP full lg" onclick="startExam()">Start exam &rarr;</button>
         </div>
       </div>
@@ -1597,6 +1738,7 @@ body{background:#faf9f6}
     </div>
     <div style="display:flex;align-items:center;gap:12px">
       <div class="timer tOK" id="ex-timer">45:00</div>
+      <button class="btn btnG sm" onclick="openSwitchDevice()" title="Switch device">🔀</button>
       <button class="btn btnD sm" onclick="confirmSub()">Submit exam</button>
     </div>
   </nav>
@@ -1648,6 +1790,7 @@ body{background:#faf9f6}
     </div>
     <div style="display:flex;align-items:center;gap:12px">
       <div class="timer tOK" id="wx-timer">45:00</div>
+      <button class="btn btnG sm" onclick="openSwitchDevice()" title="Switch device / take photos on phone">📱 Switch</button>
       <button class="btn btnD sm" onclick="confirmWSub()">Submit exam</button>
     </div>
   </nav>
@@ -1706,6 +1849,7 @@ body{background:#faf9f6}
     <a class="brand" href="#" onclick="showPage('pg-dash');return false"><div class="logomark"><svg viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h8" stroke-linecap="round"/></svg></div>ExamFlow</a>
     <div class="navlinks">
       <button class="btn btnG sm" onclick="showPage('pg-dash')">&#8592; Dashboard</button>
+      <button class="btn btnG sm" onclick="genReviewLink()">📄 Review link</button>
       <button class="btn btnD sm" onclick="confirmEndExam()">End exam early</button>
     </div>
   </nav>
@@ -1746,7 +1890,7 @@ body{background:#faf9f6}
           </div>
         </div>
         <div id="mon-mcq-view">
-          <div style="overflow-x:auto"><table class="dt" id="mon-tbl"><thead><tr><th>Student</th><th>Progress</th><th>Violations</th><th>Tab Switches</th><th>Status</th><th>Score</th></tr></thead><tbody id="mon-tbody"></tbody></table></div>
+          <div style="overflow-x:auto"><table class="dt" id="mon-tbl"><thead><tr><th>Student</th><th>Progress</th><th>Started</th><th>Submitted</th><th>Violations</th><th>Status</th><th>Score</th></tr></thead><tbody id="mon-tbody"></tbody></table></div>
         </div>
         <div id="mon-wrt-view" style="display:none">
           <div id="wrt-subs" style="padding:16px;display:flex;flex-direction:column;gap:12px;min-height:80px"><p style="color:var(--ink3);font-size:.875rem;text-align:center;padding:16px">No written submissions yet.</p></div>
@@ -1920,6 +2064,10 @@ body{background:#faf9f6}
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script>
+// Load QRCode library defensively — if the CDN fails, the app still works (QR just won't render)
+(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';s.async=true;s.onerror=function(){window.QRCode=window.QRCode||function(el){if(el)el.textContent='(QR unavailable)';};};document.head.appendChild(s);})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 <script>
@@ -2183,6 +2331,13 @@ function toast(msg,type='info',dur=3200){
 // ═══ MODAL ═══
 function openM(id){document.getElementById(id).classList.add('open');}
 function closeM(id){document.getElementById(id).classList.remove('open');}
+function openConfirm(title,msg,onOk){
+  document.getElementById('confirm-title').textContent=title;
+  document.getElementById('confirm-msg').textContent=msg;
+  const btn=document.getElementById('confirm-ok');
+  btn.onclick=()=>{closeM('m-confirm');onOk&&onOk();};
+  openM('m-confirm');
+}
 
 // ═══ SCOPED TABS (each modal has its own tab switcher) ═══
 function mcqTab(paneId,btn){
@@ -2420,13 +2575,14 @@ function createCombined(){
   S.exams.push(exam);saveExams();fbSave(exam);
   closeM('m-combined');renderDash();
   document.getElementById('link-txt').textContent=buildLink(exam);
+  renderQR('link-qr',buildLink(exam),150);
   openM('m-link');toast('MCQ + Written exam created!','ok');
 }
 
 // ═══ DASHBOARD ═══
 function renderDash(secFilter){
   if(!S.teacher)return;
-  let exams=S.exams;
+  let exams=S.exams.filter(e=>!e._trashed);
   if(secFilter&&secFilter!=='all')exams=exams.filter(e=>e.section===secFilter);
   const totalStu=exams.reduce((a,e)=>a+(e.sessions||[]).length,0);
   const scores=exams.flatMap(e=>(e.sessions||[]).filter(s=>s.submitted&&s.pct!=null).map(s=>s.pct));
@@ -2458,10 +2614,295 @@ function renderDash(secFilter){
       <td><div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn btnG sm" onclick="copyLinkI('${esc(link)}')">&#128203; Copy</button>
         <button class="btn btnG sm" onclick="openMonitor(${realIdx})">&#128202; Monitor</button>
+        <button class="btn btnG sm" onclick="editExam(${realIdx})">&#9998; Edit</button>
         <button class="btn btnG sm" onclick="previewExam(${realIdx})">&#9654; Preview</button>
         <button class="btn btnG sm" onclick="doExportCSV(${realIdx})">&#128190; CSV</button>
+        ${st==='ended'?`<button class="btn btnG sm" onclick="reopenExam(${realIdx})">&#128275; Reopen</button>`:''}
+        <button class="btn btnG sm" style="color:var(--err)" onclick="trashExam(${realIdx})">&#128465; Delete</button>
       </div></td></tr>`;
   }).join('');
+}
+// #12: move exam to trash (soft delete) + trash bin
+function trashExam(idx){
+  const exam=S.exams[idx];if(!exam)return;
+  openConfirm('Move to Trash?','"'+esc(exam.course)+'" will be moved to the Trash bin. You can restore it later, or delete it permanently from there.',()=>{
+    exam._trashed=true;exam._trashedAt=Date.now();
+    saveExams();
+    try{db.collection('exams').doc(exam.token).set({_trashed:true,_trashedAt:Date.now()},{merge:true});}catch(e){}
+    renderDash(currentSecFilter());toast('Moved to Trash','ok');
+  });
+}
+function restoreExam(token){
+  const exam=S.exams.find(e=>e.token===token);if(!exam)return;
+  exam._trashed=false;saveExams();
+  try{db.collection('exams').doc(token).set({_trashed:false},{merge:true});}catch(e){}
+  renderTrash();renderDash(currentSecFilter());toast('Exam restored','ok');
+}
+function deleteExamForever(token){
+  openConfirm('Delete permanently?','This will permanently delete the exam and cannot be undone. Student sessions remain in records.',()=>{
+    const i=S.exams.findIndex(e=>e.token===token);if(i>-1)S.exams.splice(i,1);
+    saveExams();
+    try{db.collection('exams').doc(token).delete();}catch(e){}
+    renderTrash();toast('Permanently deleted','ok');
+  });
+}
+function currentSecFilter(){const el=document.getElementById('sec-filter');return el?el.value:'all';}
+function renderTrash(){
+  const wrap=document.getElementById('trash-list');if(!wrap)return;
+  const trashed=S.exams.filter(e=>e._trashed);
+  document.getElementById('trash-count').textContent=trashed.length;
+  if(!trashed.length){wrap.innerHTML='<p style="color:var(--ink3);font-size:.85rem;padding:12px 0">Trash is empty.</p>';return;}
+  wrap.innerHTML=trashed.map(e=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--paper2)">
+    <div><strong>${esc(e.course)}</strong><br><span style="font-size:.75rem;color:var(--ink3);font-family:var(--fm)">${esc(e.token)} · deleted ${e._trashedAt?new Date(e._trashedAt).toLocaleDateString():''}</span></div>
+    <div style="display:flex;gap:6px">
+      <button class="btn btnG sm" onclick="restoreExam('${esc(e.token)}')">&#8634; Restore</button>
+      <button class="btn btnG sm" style="color:var(--err)" onclick="deleteExamForever('${esc(e.token)}')">&#128465; Delete forever</button>
+    </div>
+  </div>`).join('');
+}
+function openTrash(){renderTrash();openM('m-trash');}
+// #24: feedback stored in Firebase (read it in your admin panel); also prefilled with teacher info
+// #21: Teacher & Student manuals
+function openManual(which){
+  const T={
+    teacher:{title:'📘 Teacher\'s Manual',body:`
+      <h4 style="font-family:var(--serif);font-size:1.1rem;margin:8px 0">Getting started</h4>
+      <ol style="margin-left:18px">
+        <li>Create a free account or sign in.</li>
+        <li>Click <b>+ Create exam</b> and choose MCQ, Written, or Combined.</li>
+        <li>Add questions manually, paste CSV, or import JSON. Set the start time, duration (or choose no fixed timer), and marks.</li>
+        <li>Click generate — a short secure link is created.</li>
+      </ol>
+      <h4 style="font-family:var(--serif);font-size:1.1rem;margin:14px 0 8px">Sharing &amp; monitoring</h4>
+      <ul style="margin-left:18px">
+        <li>Copy the link and share via WhatsApp, Classroom, or email.</li>
+        <li>Open <b>Monitor</b> to watch students live — progress, start/submit times, violations, and scores.</li>
+        <li>Flagged students (tab switches, app switches) appear in red. A brief absence is marked as a possible phone call.</li>
+      </ul>
+      <h4 style="font-family:var(--serif);font-size:1.1rem;margin:14px 0 8px">Grading &amp; managing</h4>
+      <ul style="margin-left:18px">
+        <li>MCQ grades automatically. For written answers, open <b>Grade answers</b>, review text and images, use the <b>red pen</b> to annotate, and award marks.</li>
+        <li>Edit an exam anytime with <b>Edit</b>. Reopen an ended exam with <b>Reopen</b>. Delete exams to the <b>Trash</b> (restore or remove permanently).</li>
+        <li>Generate a <b>review link</b> so students can see their graded scripts using their one-time password.</li>
+        <li>Export results as CSV. Send us feedback anytime via the <b>Feedback</b> button.</li>
+      </ul>`},
+    student:{title:'🎓 Student\'s Manual',body:`
+      <h4 style="font-family:var(--serif);font-size:1.1rem;margin:8px 0">Taking an exam</h4>
+      <ol style="margin-left:18px">
+        <li>Open the exam link your teacher shared — works on phone, tablet, laptop, or desktop.</li>
+        <li>Select your name (you can choose it <b>only once</b>) and enter your details.</li>
+        <li>Set a <b>one-time password</b> — you'll need it to switch devices or review your script later.</li>
+        <li>The timer starts. Answer the questions. For written answers you can type, <b>upload multiple images</b>, or <b>take a photo</b>.</li>
+      </ol>
+      <h4 style="font-family:var(--serif);font-size:1.1rem;margin:14px 0 8px">Important rules</h4>
+      <ul style="margin-left:18px">
+        <li>Do <b>not</b> switch tabs, apps, or leave the exam window — this is detected and flagged to your teacher.</li>
+        <li>If you get a brief phone call, you can tap <b>Continue Exam</b> and keep going (it is still recorded).</li>
+        <li>Your answers are saved as you go — a refresh or short connection drop won't lose your work.</li>
+      </ul>
+      <h4 style="font-family:var(--serif);font-size:1.1rem;margin:14px 0 8px">Switching devices</h4>
+      <ul style="margin-left:18px">
+        <li>Laptop → mobile: scan the QR code shown on screen.</li>
+        <li>Mobile → laptop: use <b>Switch device</b> on the home page and enter the short code from your phone.</li>
+      </ul>`}
+  };
+  const m=T[which]||T.teacher;
+  document.getElementById('manual-title').textContent=m.title;
+  document.getElementById('manual-body').innerHTML=m.body;
+  openM('m-manual');
+}
+// #24: feedback stored in Firebase (read it in your admin panel); also prefilled with teacher info
+function openFeedback(){
+  if(S.teacher){document.getElementById('fb-name').value=S.teacher.name||'';}
+  openM('m-feedback');
+}
+// ═══ #15 DEVICE SWITCH ═══
+function ensureQR(cb,tries){
+  tries=tries||0;
+  if(typeof QRCode==='function'){cb(true);return;}
+  if(tries>20){cb(false);return;} // ~5s max
+  setTimeout(()=>ensureQR(cb,tries+1),250);
+}
+function renderQR(elId,url,size){
+  size=size||150;
+  const el=document.getElementById(elId);if(!el)return;
+  el.innerHTML='<div style="font-size:.75rem;color:var(--ink3)">Generating QR…</div>';
+  ensureQR(function(ok){
+    el.innerHTML='';
+    if(ok){
+      try{new QRCode(el,{text:url,width:size,height:size,colorDark:'#1a0f0a',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});}
+      catch(e){el.innerHTML='<div style="font-size:.75rem;color:var(--ink3)">Scan unavailable — use the link below.</div>';}
+    } else {
+      el.innerHTML='<div style="font-size:.72rem;color:var(--ink3);word-break:break-all">QR could not load. Use this link:<br><b>'+esc(url)+'</b></div>';
+    }
+  });
+}
+function openSwitchDevice(){
+  const show=document.getElementById('switch-show');
+  if(S.sessId&&S.stuInfo&&S.stuInfo.switchCode){
+    document.getElementById('switch-code').textContent=S.stuInfo.switchCode;
+    const exam=S.exams[S.examIdx]||{};
+    const url=location.origin+location.pathname+'?e='+encodeURIComponent(exam.token||'')+'&resume='+S.stuInfo.switchCode;
+    renderQR('switch-qr',url,160);
+    show.style.display='block';
+  } else {
+    show.style.display='none';
+  }
+  openM('m-switch');
+}
+// resume an exam on THIS device using a code from another device
+async function resumeByCode(){
+  const code=(document.getElementById('switch-input').value||'').trim().toUpperCase();
+  if(!code){toast('Enter the 6-character code','err');return;}
+  try{
+    const snap=await db.collection('sessions').where('switchCode','==',code).limit(1).get();
+    if(snap.empty){toast('No active session found for that code','err');return;}
+    const sess=snap.docs[0].data();
+    const otp=prompt('Enter your one-time password to continue:');
+    if(!otp||otp.trim()!==(sess.otp||'')){toast('Incorrect one-time password','err');return;}
+    // load the exam and resume
+    const exam=await fbLoadExamByToken(sess.examToken);
+    if(!exam){toast('Exam not found','err');return;}
+    closeM('m-switch');
+    let idx=S.exams.findIndex(e=>e.token===exam.token);
+    if(idx<0){S.exams.push(exam);idx=S.exams.length-1;saveExams();}
+    S.examIdx=idx;S.sessId=sess.id;
+    S.stuInfo={name:sess.name,studentId:sess.studentId,section:sess.section,dept:sess.dept,session:sess.session,date:sess.date,course:sess.course,otp:sess.otp,switchCode:sess.switchCode};
+    // restore answers
+    S.answers={};Object.keys(sess.answers||{}).forEach(k=>{S.answers[k.replace(/^q/,'')]=sess.answers[k];});
+    S.wAnswers=sess.writtenAnswers||{};S.violations=sess.violations||[];
+    toast('Resumed on this device ✓','ok');
+    if(exam.type==='written')startWExam(exam);else startMCQExam(exam);
+  }catch(e){toast('Could not resume: '+e.message,'err');}
+}
+// ═══ #17 REVIEW SCRIPT PORTAL ═══
+let _reviewToken=null;
+// teacher generates the review link from the monitor
+let _revUrl='';
+function genReviewLink(){
+  const exam=S.exams[S.monIdx];if(!exam)return;
+  _revUrl=location.origin+location.pathname+'?review='+encodeURIComponent(exam.token);
+  document.getElementById('revlink-txt').textContent=_revUrl;
+  renderQR('revlink-qr',_revUrl,150);
+  openM('m-revlink');
+}
+function copyRevLink(){navigator.clipboard.writeText(_revUrl).then(()=>toast('Review link copied','ok')).catch(()=>{});}
+// student opens ?review=TOKEN → enters roll + OTP → sees only their script
+function openReviewPortal(token){
+  _reviewToken=token;
+  document.getElementById('review-sub').textContent='Enter your details to view your graded script.';
+  document.getElementById('review-gate').style.display='block';
+  document.getElementById('review-content').style.display='none';
+  openM('m-review');
+}
+async function openMyScript(){
+  const id=(document.getElementById('review-id').value||'').trim();
+  const otp=(document.getElementById('review-otp').value||'').trim();
+  if(!id||!otp){toast('Enter your roll and one-time password','err');return;}
+  try{
+    const snap=await db.collection('sessions').where('examToken','==',_reviewToken).get();
+    const mine=snap.docs.map(d=>d.data()).find(s=>(s.studentId||'').trim()===id&&(s.otp||'')===otp);
+    if(!mine){toast('No matching script — check your roll and password','err');return;}
+    const exam=await fbLoadExamByToken(_reviewToken)||{};
+    const qsrc=exam.type==='written'?(exam.questions||[]):(exam.writtenQuestions||exam.questions||[]);
+    const wm=mine.writtenMarks||{};const wa=mine.writtenAnswers||{};
+    let html='<div style="background:var(--acbg);border-radius:var(--r);padding:14px;margin-bottom:14px"><div style="font-size:1.3rem;font-weight:700;color:var(--ac)">'+(mine.score!=null?mine.score:'—')+' / '+(mine.totalMarks||'—')+(mine.pct!=null?' ('+mine.pct+'%)':'')+'</div><div style="font-size:.8rem;color:var(--ink3)">'+esc(mine.name)+' · '+esc(mine.studentId)+'</div></div>';
+    if(Object.keys(wm).length){
+      html+=qsrc.map((q,i)=>{
+        const mk=wm[i];if(!mk)return '';
+        let imgs=wa['photos_'+i];if(!Array.isArray(imgs))imgs=wa['photo_'+i]?[wa['photo_'+i]]:[];
+        const annos=mk.annotations||{};
+        return '<div class="card" style="padding:14px;margin-bottom:12px"><div style="font-weight:600;font-size:.9rem;margin-bottom:6px">Q'+(i+1)+' — '+mk.score+'/'+mk.max+' marks</div>'
+          +(wa[i]?'<div style="font-size:.85rem;color:var(--ink2);margin-bottom:8px">'+esc(wa[i])+'</div>':'')
+          +imgs.map((src,j)=>{const an=annos[i+'_'+j];return '<div style="position:relative;display:inline-block;margin:4px"><img src="'+src+'" style="max-width:100%;border-radius:8px;border:1px solid var(--paper3)">'+(an?'<img src="'+an+'" style="position:absolute;top:0;left:0;max-width:100%">':'')+'</div>';}).join('')
+          +(mk.feedback?'<div style="font-size:.8rem;color:var(--ac);margin-top:8px">📝 '+esc(mk.feedback)+'</div>':'')
+          +'</div>';
+      }).join('');
+    } else {
+      html+='<p style="color:var(--ink3);font-size:.85rem">Your script has not been graded yet. Please check back later.</p>';
+    }
+    document.getElementById('review-gate').style.display='none';
+    const rc=document.getElementById('review-content');rc.style.display='block';rc.innerHTML=html;
+  }catch(e){toast('Could not load script: '+e.message,'err');}
+}
+function sendFeedback(){
+  const name=document.getElementById('fb-name').value.trim();
+  const inst=document.getElementById('fb-inst').value.trim();
+  const type=document.getElementById('fb-type').value;
+  const msg=document.getElementById('fb-msg').value.trim();
+  if(!name||!inst||!msg){toast('Please fill in name, institute, and message','err');return;}
+  const fb={name,institute:inst,type,message:msg,teacherEmail:S.teacher?.email||'',createdAt:Date.now(),at:new Date().toISOString()};
+  try{
+    db.collection('feedback').add(fb);
+    toast('Thank you! Your feedback was sent ✓','ok',4000);
+    document.getElementById('fb-msg').value='';
+    closeM('m-feedback');
+  }catch(e){toast('Could not send — please try again','err');}
+}
+let _editExIdx=null;
+// #2: edit an existing exam's questions without creating a new one
+function editExam(idx){
+  const exam=S.exams[idx];if(!exam)return;_editExIdx=idx;
+  document.getElementById('editex-sub').textContent=exam.token+' · '+(exam.type||'mcq');
+  document.getElementById('editex-course').value=exam.course||'';
+  const isWritten=exam.type==='written';
+  const mcqQs=exam.questions||[];
+  const wrtQs=exam.writtenQuestions||(isWritten?exam.questions:[])||[];
+  let html='';
+  if(mcqQs.length&&!isWritten){
+    html+='<div style="font-size:.78rem;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;margin:6px 0 10px">MCQ Questions</div>';
+    html+=mcqQs.map((q,i)=>{
+      const opts=q.options||[q.A,q.B,q.C,q.D].filter(x=>x!=null);
+      const ans=typeof q.answer==='number'?q.answer:(typeof q.correct==='number'?q.correct:0);
+      return `<div class="card" style="padding:14px;margin-bottom:12px">
+        <label class="fl">Q${i+1} text</label>
+        <textarea class="wta" style="min-height:54px" data-eq="mcq" data-i="${i}" data-f="text">${esc(q.text||q.question_text||q.question||'')}</textarea>
+        ${opts.map((o,oi)=>`<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><input type="radio" name="eq-ans-${i}" ${oi===ans?'checked':''} data-eq="mcq" data-i="${i}" data-f="answer" data-oi="${oi}"><input class="fi" data-eq="mcq" data-i="${i}" data-f="opt" data-oi="${oi}" value="${esc(o||'')}"></div>`).join('')}
+      </div>`;
+    }).join('');
+  }
+  if(wrtQs.length){
+    html+='<div style="font-size:.78rem;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 10px">Written Questions</div>';
+    html+=wrtQs.map((q,i)=>`<div class="card" style="padding:14px;margin-bottom:12px">
+      <label class="fl">Q${i+1} text</label>
+      <textarea class="wta" style="min-height:54px" data-eq="wrt" data-i="${i}" data-f="text">${esc(q.text||q.question_text||q.question||'')}</textarea>
+      <label class="fl" style="margin-top:8px">Marks</label>
+      <input class="fi" type="number" min="0" data-eq="wrt" data-i="${i}" data-f="marks" value="${q.marks||10}">
+    </div>`).join('');
+  }
+  if(!html)html='<p style="color:var(--ink3);font-size:.85rem">No editable questions found.</p>';
+  document.getElementById('editex-qs').innerHTML=html;
+  openM('m-editex');
+}
+function saveEditExam(){
+  const exam=S.exams[_editExIdx];if(!exam)return;
+  exam.course=document.getElementById('editex-course').value.trim()||exam.course;
+  const root=document.getElementById('editex-qs');
+  const isWritten=exam.type==='written';
+  const mcqQs=exam.questions||[];
+  const wrtQs=exam.writtenQuestions||(isWritten?exam.questions:[])||[];
+  root.querySelectorAll('[data-eq]').forEach(el=>{
+    const eq=el.dataset.eq,i=+el.dataset.i,f=el.dataset.f;
+    const arr=eq==='mcq'?mcqQs:wrtQs;if(!arr[i])return;
+    if(f==='text'){if(arr[i].text!==undefined||true){arr[i].text=el.value;arr[i].question_text=el.value;}}
+    else if(f==='opt'){const oi=+el.dataset.oi;if(arr[i].options)arr[i].options[oi]=el.value;else{['A','B','C','D'][oi]&&(arr[i][['A','B','C','D'][oi]]=el.value);}}
+    else if(f==='answer'){if(el.checked){arr[i].answer=+el.dataset.oi;arr[i].correct=+el.dataset.oi;}}
+    else if(f==='marks'){arr[i].marks=+el.value||10;}
+  });
+  saveExams();
+  // persist to Firebase
+  try{const{sessions:_,...d}=exam;db.collection('exams').doc(exam.token).set({...d,teacherUid:S.teacher?.uid||''},{merge:true});}catch(e){}
+  closeM('m-editex');renderDash(currentSecFilter());toast('Exam updated ✓','ok');
+}
+// #11: reopen an ended exam
+function reopenExam(idx){
+  const exam=S.exams[idx];if(!exam)return;
+  openConfirm('Reopen this exam?','Students will be able to access "'+esc(exam.course)+'" again using the same link, even though the original end time has passed. You can end it again from the Monitor.',()=>{
+    exam.reopened=true;exam.manualEnd=true;
+    saveExams();
+    try{db.collection('exams').doc(exam.token).set({reopened:true,manualEnd:true},{merge:true});}catch(e){}
+    renderDash(currentSecFilter());toast('Exam reopened — link works again','ok');
+  });
 }
 
 // ═══ MCQ EXAM CREATION ═══
@@ -2521,6 +2962,7 @@ function createMCQ(){
   S.exams.push(exam);saveExams();fbSave(exam);
   closeM('m-mcq');renderDash();
   document.getElementById('link-txt').textContent=buildLink(exam);
+  renderQR('link-qr',buildLink(exam),150);
   openM('m-link');toast('Exam created!','ok');
 }
 
@@ -2572,11 +3014,25 @@ function createWRT(){
   S.exams.push(exam);saveExams();fbSave(exam);
   closeM('m-wrt');renderDash();
   document.getElementById('link-txt').textContent=buildLink(exam);
+  renderQR('link-qr',buildLink(exam),150);
   openM('m-link');toast('Written exam created!','ok');
 }
 
 // ═══ LINK ═══
-function buildLink(exam){return`${location.origin}${location.pathname}?ed=${encodeExam(exam)}`;}
+function buildLink(exam){
+  // SHORT LINK (#8): use the exam token only. Exam data loads from Firebase by token.
+  // Falls back to embedded data only if Firebase is unavailable.
+  return`${location.origin}${location.pathname}?e=${encodeURIComponent(exam.token)}`;
+}
+function buildLinkLong(exam){return`${location.origin}${location.pathname}?ed=${encodeExam(exam)}`;}
+// Load an exam by its short token from Firebase
+async function fbLoadExamByToken(token){
+  try{
+    const doc=await db.collection('exams').doc(token).get();
+    if(doc.exists)return doc.data();
+  }catch(e){console.warn('fbLoadExamByToken',e.message);}
+  return null;
+}
 function encodeExam(exam){
   try{
     const p={token:exam.token,course:exam.course,section:exam.section,
@@ -2605,7 +3061,7 @@ function previewExam(idx){const exam=S.exams[idx];if(!exam)return;S.examIdx=idx;
 // ═══ STUDENT FLOW ═══
 function showACWarn(exam){document.getElementById('acw-badge').textContent=exam.course||'Exam';document.getElementById('pg-acwarn').dataset.idx=S.examIdx;showPage('pg-acwarn');}
 function goStudentForm(){const idx=parseInt(document.getElementById('pg-acwarn').dataset.idx||'0');S.examIdx=idx;loadSInfoPage(S.exams[idx]);}
-function loadSInfoPage(exam){
+async function loadSInfoPage(exam){
   document.getElementById('si-badge').textContent=exam.course;
   document.getElementById('si-title').textContent=exam.course;
   document.getElementById('si-sub').textContent=exam.section+' · '+exam.duration+' min';
@@ -2622,20 +3078,47 @@ function loadSInfoPage(exam){
     document.getElementById('si-drop-wrap').style.display='block';
     document.getElementById('si-manual').style.display='none';
     const sel=document.getElementById('si-drop');
-    sel.innerHTML='<option value="">— Choose your name —</option>'+sl.map(s=>`<option value="${esc(s.name)}|||${esc(s.roll)}">${esc(s.name)} — ${esc(s.roll)}</option>`).join('');
+    // #1: find rolls that already used this exam (from Firebase) and remove them from the list
+    let usedRolls=[];
+    try{
+      const snap=await db.collection('sessions').where('examToken','==',exam.token).get();
+      usedRolls=snap.docs.map(d=>(d.data().studentId||'').trim()).filter(Boolean);
+    }catch(e){console.warn('used-roll check',e.message);}
+    const avail=sl.filter(s=>!usedRolls.includes((s.roll||'').trim()));
+    if(!avail.length){
+      sel.innerHTML='<option value="">— All students have taken this exam —</option>';
+    } else {
+      sel.innerHTML='<option value="">— Choose your name —</option>'+avail.map(s=>`<option value="${esc(s.name)}|||${esc(s.roll)}">${esc(s.name)} — ${esc(s.roll)}</option>`).join('');
+    }
   }else{document.getElementById('si-drop-wrap').style.display='none';document.getElementById('si-manual').style.display='block';}
   showPage('pg-sinfo');
 }
-function startExam(){
+async function startExam(){
   const exam=S.exams[S.examIdx];const sl=exam.studentList||[];
+  // JOIN CUT-OFF: a NEW student cannot start after the exam window has closed.
+  // (Students already in progress resume via the device-switch flow, not startExam.)
+  const _now=Date.now();const _skew=5*60*1000;
+  if(exam.reopened!==true && exam.manualEnd!==true && exam.endTime && _now>exam.endTime+_skew){
+    toast('⛔ The join window for this exam has closed. You can no longer start it.','err',6000);
+    showErr('The join window for this exam has closed.<br>New students can no longer start.<br>If you were already taking it, use <strong>Switch device</strong> with your code to resume.');
+    return;
+  }
+  if(exam.startTime && _now<exam.startTime-_skew){
+    toast('⏳ This exam has not opened yet. Please wait until the start time.','err',6000);
+    return;
+  }
   let name,id;
   if(sl.length){
     const v=document.getElementById('si-drop').value;const err=document.getElementById('si-drop-err');
     if(!v){document.getElementById('si-drop').classList.add('err');err.classList.add('on');return;}
     document.getElementById('si-drop').classList.remove('err');err.classList.remove('on');
     const parts=v.split('|||');name=parts[0];id=parts[1]||'';
-    // Duplicate check
-    if((exam.sessions||[]).some(s=>s.studentId===id&&s.submitted)){toast('⚠️ This roll already completed the exam. Flagged.','err',5000);return;}
+    // #1: a name/roll may be used only ONCE — block if any session exists for this roll
+    try{
+      const snap=await db.collection('sessions').where('examToken','==',exam.token).get();
+      const used=snap.docs.some(d=>(d.data().studentId||'').trim()===id.trim());
+      if(used){toast('⚠️ This name has already been used for this exam and cannot be selected again.','err',5000);loadSInfoPage(exam);return;}
+    }catch(e){}
   }else{
     const fields=[{f:'si-name',e:'si-name-e'},{f:'si-id',e:'si-id-e'}];
     let ok=true;
@@ -2643,7 +3126,11 @@ function startExam(){
     if(!ok){toast('Fill in required fields','err');return;}
     name=document.getElementById('si-name').value.trim();id=document.getElementById('si-id').value.trim();
   }
-  S.stuInfo={name,studentId:id,section:exam.section||'',dept:document.getElementById('si-dept')?.value.trim()||'',session:document.getElementById('si-sess')?.value.trim()||'',date:document.getElementById('si-date').value,course:exam.course};
+  const _otp=(document.getElementById('si-otp')?.value||'').trim();
+  if(!_otp||_otp.length<4){toast('Please set a one-time password (at least 4 characters)','err');return;}
+  // #15: short device-switch code
+  const _switchCode=Math.random().toString(36).slice(2,8).toUpperCase();
+  S.stuInfo={name,studentId:id,section:exam.section||'',dept:document.getElementById('si-dept')?.value.trim()||'',session:document.getElementById('si-sess')?.value.trim()||'',date:document.getElementById('si-date').value,course:exam.course,otp:_otp,switchCode:_switchCode};
   // Save stuInfo so refresh can restore it
   const _existSess=LS('ef_sess_'+exam.token)||{};
   LS('ef_sess_'+exam.token,{..._existSess,stuInfo:S.stuInfo,t0:Date.now()});
@@ -2667,7 +3154,7 @@ function startExam(){
   if(exam.shuffleQ)qs=shuffle(qs);
   if(exam.shuffleO&&exam.type!=='written')qs=qs.map(q=>shuffleOpts(q));
   S.questions=qs;S.secsLeft=exam.duration*60;S.t0=Date.now();
-  const sessObj={id:S.sessId,...S.stuInfo,startedAt:Date.now(),submitted:false,score:0,totalMarks:qs.length*(exam.marks||1),violations:[],answers:{},writtenAnswers:{}};
+  const sessObj={id:S.sessId,...S.stuInfo,startedAt:Date.now(),submitted:false,score:0,totalMarks:qs.length*(exam.marks||1),violations:[],answers:{},writtenAnswers:{},otp:S.stuInfo.otp,switchCode:S.stuInfo.switchCode};
   exam.sessions=exam.sessions||[];exam.sessions.push(sessObj);saveExams();
   fbSaveSess(exam.token,sessObj);
   if(exam.type==='written'){startWExam(exam);}
@@ -2759,21 +3246,58 @@ function renderWExam(qs){
       <textarea class="wta" id="wa-${i}" placeholder="Write your answer here…" oninput="updWProg()" oncopy="return false" onpaste="return false" oncut="return false"></textarea>
       <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <label class="btn btnS sm" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
-          &#128247; Upload photo answer
-          <input type="file" accept="image/*" capture="environment" style="display:none" onchange="attPhoto(${i},this)">
+          &#10133; Upload image(s)
+          <input type="file" accept="image/*" multiple style="display:none" onchange="attPhotos(${i},this)">
         </label>
-        <span id="photo-ok-${i}" style="display:none;font-size:.8rem;color:var(--ok)">&#128206; Photo attached</span>
+        <label class="btn btnS sm" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+          &#128247; Take photo
+          <input type="file" accept="image/*" capture="environment" style="display:none" onchange="attPhotos(${i},this)">
+        </label>
+        <span id="photo-cnt-${i}" style="font-size:.8rem;color:var(--ink3)"></span>
       </div>
+      <div id="photo-prev-${i}" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:10px"></div>
     </div>`).join('');
   document.getElementById('wx-prog').style.width='0%';
 }
 function updWProg(){const tas=document.querySelectorAll('#wx-qs textarea');const done=Array.from(tas).filter(t=>t.value.trim()).length;document.getElementById('wx-prog').style.width=(done/Math.max(tas.length,1)*100)+'%';}
-function attPhoto(i,inp){const f=inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=ev=>{S.wAnswers['photo_'+i]=ev.target.result;const ok=document.getElementById('photo-ok-'+i);if(ok)ok.style.display='inline';toast('Photo attached for Q'+(i+1),'ok');};rd.readAsDataURL(f);}
+// #3+#4: multiple images per question (upload or camera) with previews
+function attPhotos(i,inp){
+  const files=Array.from(inp.files||[]);if(!files.length)return;
+  const key='photos_'+i;
+  S.wAnswers[key]=S.wAnswers[key]||[];
+  let pending=files.length;
+  files.forEach(f=>{
+    const rd=new FileReader();
+    rd.onload=ev=>{S.wAnswers[key].push(ev.target.result);if(--pending===0)renderPhotoPrev(i);};
+    rd.readAsDataURL(f);
+  });
+  inp.value='';
+  toast(files.length+' image(s) added to Q'+(i+1),'ok');
+}
+function renderPhotoPrev(i){
+  const key='photos_'+i;const arr=S.wAnswers[key]||[];
+  const wrap=document.getElementById('photo-prev-'+i);const cnt=document.getElementById('photo-cnt-'+i);
+  if(cnt)cnt.textContent=arr.length?('📎 '+arr.length+' image(s) attached'):'';
+  if(!wrap)return;
+  wrap.innerHTML=arr.map((src,j)=>`<div style="position:relative;width:84px;height:84px;border-radius:8px;overflow:hidden;border:1px solid var(--paper3)"><img src="${src}" style="width:100%;height:100%;object-fit:cover"><button onclick="rmPhoto(${i},${j})" style="position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;border:none;background:rgba(176,26,26,.92);color:#fff;font-size:13px;line-height:1;cursor:pointer">&times;</button></div>`).join('');
+}
+function rmPhoto(i,j){const key='photos_'+i;if(S.wAnswers[key]){S.wAnswers[key].splice(j,1);renderPhotoPrev(i);}}
 function confirmWSub(){document.getElementById('csub-msg').textContent='Submit all written answers? This cannot be undone. Your teacher will grade manually.';openM('m-csub');}
 
 // ═══ TIMER & ANTI-CHEAT ═══
 function startTimer(id){
   clearInterval(S.timer);
+  const exam=S.exams[S.examIdx]||{};
+  // #23: if teacher set no fixed timer (manual end), count UP and never auto-submit
+  if(exam.noTimer===true){
+    let up=0;
+    S.timer=setInterval(()=>{
+      up++;const el=document.getElementById(id);if(!el)return;
+      const mm=String(Math.floor(up/60)).padStart(2,'0'),ss=String(up%60).padStart(2,'0');
+      el.textContent='⏱ '+mm+':'+ss+' (no limit)';el.className='timer tOK';
+    },1000);
+    return;
+  }
   S.timer=setInterval(()=>{
     S.secsLeft--;
     if(S.secsLeft<=0){clearInterval(S.timer);toast('Time\'s up! Auto-submitting…','warn',2000);setTimeout(doSubmit,1200);return;}
@@ -2789,41 +3313,35 @@ function setupAC(bannerId){
   let _tabSwitchCount=0;
   let _refreshPending=false;
 
+  let _hiddenAt=0;
   // ── TAB SWITCH / APP SWITCH (visibility) ──────────────────────────────────
   _acH.vis=()=>{
     if(!_acOn)return;
     if(document.hidden){
+      _hiddenAt=Date.now();
+    } else {
+      // returned to the exam — measure how long we were away
+      const away=_hiddenAt?Math.round((Date.now()-_hiddenAt)/1000):0;
+      _hiddenAt=0;
       _tabSwitchCount++;
-      logViol('TAB_SWITCH_#'+_tabSwitchCount);
-      const b=document.getElementById(bannerId);
-      if(b){
-        b.textContent='⚠ Tab switch detected (#'+_tabSwitchCount+') — You are flagged. Refreshing…';
-        b.classList.add('show');
+      // #14: short absence (<6s) = likely a phone call / notification (lower severity),
+      //      longer = a real tab/app switch (high severity). Both are recorded.
+      if(away>0&&away<6){
+        logViol('POSSIBLE_CALL:'+away+'s');
+      } else {
+        logViol('TAB_SWITCH:'+away+'s');
       }
-      if(!_refreshPending){
-        _refreshPending=true;
-        setTimeout(()=>{
-          if(_acOn&&document.hidden){location.reload();}
-          else{_refreshPending=false;}
-        },1800);
-      }
+      // #19: do NOT reload. Show a flagged overlay with a "Continue Exam" button.
+      showFlagOverlay(away);
     }
   };
 
   // ── WINDOW BLUR (covers mobile app switching not caught by visibility) ─────
   _acH.blur=()=>{
     if(!_acOn)return;
-    logViol('WIN_BLUR');
-    clearTimeout(_acH._bt);
-    _acH._bt=setTimeout(()=>{
-      // Only refresh if tab is hidden (actual switch, not just devtools focus)
-      if(_acOn&&document.hidden&&!_refreshPending){
-        _refreshPending=true;
-        location.reload();
-      }
-    },2500);
+    if(!_hiddenAt)_hiddenAt=Date.now();
   };
-  _acH.focus=()=>{clearTimeout(_acH._bt);_refreshPending=false;};
+  _acH.focus=()=>{ /* handled by visibilitychange */ };
 
   // ── RIGHT CLICK ──────────────────────────────────────────────────────────
   _acH.ctx=e=>{
@@ -2901,6 +3419,24 @@ function teardownAC(){
   document.removeEventListener('paste',_acH.paste);
   document.removeEventListener('cut',_acH.cut);
   window.removeEventListener('beforeunload',_acH.bul);
+}
+// #19: flagged overlay with a "Continue Exam" button (replaces the old auto-reload)
+function showFlagOverlay(awaySec){
+  if(document.getElementById('flag-overlay'))return; // only one at a time
+  const ov=document.createElement('div');
+  ov.id='flag-overlay';
+  ov.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(14,8,6,.92);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:24px;font-family:var(--fb)';
+  const msg = (awaySec>0&&awaySec<6)
+    ? 'We detected you briefly left the exam (about '+awaySec+'s). This has been recorded. If it was a phone call or notification, you can continue.'
+    : 'We detected you left the exam'+(awaySec?(' for about '+awaySec+'s'):'')+'. This has been recorded and your teacher will see it.';
+  ov.innerHTML='<div style="max-width:400px;background:#fff;border-radius:16px;padding:32px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)">'
+    +'<div style="font-size:2.4rem;margin-bottom:12px">⚑</div>'
+    +'<h2 style="font-family:var(--fd);font-size:1.3rem;margin-bottom:10px;color:var(--err)">You have been flagged</h2>'
+    +'<p style="color:var(--ink3);font-size:.9rem;line-height:1.6;margin-bottom:22px">'+msg+'</p>'
+    +'<button class="btn btnP full lg" onclick="document.getElementById(\'flag-overlay\').remove()">Continue Exam →</button>'
+    +'<p style="color:var(--ink3);font-size:.75rem;margin-top:12px">You can finish and submit — your answers are safe.</p>'
+    +'</div>';
+  document.body.appendChild(ov);
 }
 function logViol(type){
   const v={type,time:new Date().toISOString(),q:S.curQ};
@@ -3038,9 +3574,18 @@ function renderMon(){
   let filtered=sessions;
   if(S.monFilter==='active')filtered=active;else if(S.monFilter==='flagged')filtered=flag;else if(S.monFilter==='submitted')filtered=sub;
   const tbody=document.getElementById('mon-tbody');
-  tbody.innerHTML=filtered.length?filtered.map(s=>{const vc=(s.violations||[]).length;const isFl=s.isFlagged||(vc>=1);const sb=s.submitted?'<span class="bx bK">Submitted</span>'+(isFl?'<span class="bx bE" style="margin-left:4px">Flagged</span>':''):isFl?'<span class="bx bE">⚑ Flagged</span>':'<span class="bx bI">Active</span>';const qTot=(exam.questions||[]).length;const done=s.submitted?qTot:Object.keys(s.answers||{}).length;const pct=Math.round(done/Math.max(qTot,1)*100);const tabSwitches=(s.violations||[]).filter(v=>v.type&&v.type.startsWith('TAB_SWITCH')).length;
+  tbody.innerHTML=filtered.length?filtered.map(s=>{const vc=(s.violations||[]).length;const isFl=s.isFlagged||(vc>=1);const sb=s.submitted?'<span class="bx bK">Submitted</span>'+(isFl?'<span class="bx bE" style="margin-left:4px">Flagged</span>':''):isFl?'<span class="bx bE">⚑ Flagged</span>':'<span class="bx bI">Active</span>';const qTot=(exam.questions||[]).length;const done=s.submitted?qTot:Object.keys(s.answers||{}).length;const pct=Math.round(done/Math.max(qTot,1)*100);
+    const tFmt=ms=>ms?new Date(ms).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'—';
+    const started=tFmt(s.startedAt);const submitted=s.submitted?tFmt(s.submittedAt):'—';
+    const scoreCell=s.submitted?(s.graded||s.writtenMarks?`<strong>${s.score}/${s.totalMarks}</strong> (${s.pct}%) <span class="bx bK" style="font-size:.65rem">graded</span>`:`<strong>${s.score}/${s.totalMarks}</strong> (${s.pct}%)`):'<span style="color:var(--ink3)">—</span>';
     return`<tr style="${isFl?'background:rgba(176,26,26,.04)':''}">`+
-    `<td><strong>${esc(s.name)}</strong><br><span style="font-size:.75rem;color:var(--ink3)">${esc(s.studentId||'')}</span></td><td><div style="display:flex;align-items:center;gap:6px"><div class="pbar" style="width:70px;height:5px"><div class="pfill" style="width:${pct}%"></div></div><span style="font-size:.75rem;color:var(--ink3)">${pct}%</span></div></td><td><span class="bx ${vc>=3?'bE':vc>=1?'bW':'bN'}" title="${(s.violations||[]).map(v=>v.type).join(', ')}">${vc} ${vc===1?'violation':'violations'}</span></td><td>${sb}</td><td>${s.submitted?`<strong>${s.score}/${s.totalMarks}</strong> (${s.pct}%)`:'<span style="color:var(--ink3)">—</span>'}</td></tr>`;}).join(''):`<tr><td colspan="5" style="text-align:center;color:var(--ink3);padding:24px">No students.</td></tr>`;
+    `<td><strong>${esc(s.name)}</strong><br><span style="font-size:.75rem;color:var(--ink3)">${esc(s.studentId||'')}</span></td>`+
+    `<td><div style="display:flex;align-items:center;gap:6px"><div class="pbar" style="width:60px;height:5px"><div class="pfill" style="width:${pct}%"></div></div><span style="font-size:.75rem;color:var(--ink3)">${pct}%</span></div></td>`+
+    `<td style="font-size:.78rem;color:var(--ink3);font-family:var(--fm)">${started}</td>`+
+    `<td style="font-size:.78rem;color:var(--ink3);font-family:var(--fm)">${submitted}</td>`+
+    `<td><span class="bx ${vc>=3?'bE':vc>=1?'bW':'bN'}" title="${(s.violations||[]).map(v=>v.type).join(', ')}">${vc} ${vc===1?'violation':'violations'}</span></td>`+
+    `<td>${sb}</td>`+
+    `<td>${scoreCell}</td></tr>`;}).join(''):`<tr><td colspan="7" style="text-align:center;color:var(--ink3);padding:24px">No students.</td></tr>`;
   // Chart
   const buckets=[{l:'0–25%',max:.25},{l:'26–50%',max:.5},{l:'51–75%',max:.75},{l:'76–100%',max:1.01}];let prev=0;
   const counts=buckets.map(b=>{const c=sub.filter(s=>(s.score/(s.totalMarks||1))>prev&&(s.score/(s.totalMarks||1))<=b.max).length;prev=b.max;return c;});
@@ -3049,7 +3594,21 @@ function renderMon(){
   document.getElementById('mon-labs').innerHTML=buckets.map(b=>`<div class="clab">${b.l}</div>`).join('');
   // Violations
   const allV=sessions.flatMap(s=>(s.violations||[]).map(v=>({n:s.name,...v}))).sort((a,b)=>new Date(b.time)-new Date(a.time)).slice(0,15);
-  document.getElementById('viol-log').innerHTML=allV.length?allV.map(v=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--paper2);font-size:.8rem"><span style="font-weight:500">${esc((v.n||'').split(' ')[0])}</span><span style="color:var(--err)">${(({'TAB_SWITCH':'Tab switched','WIN_BLUR':'Window blur','RIGHT_CLICK':'Right click','COPY':'Copy attempt','PASTE_ATTEMPT':'Paste attempt','CUT_ATTEMPT':'Cut attempt','SCREENSHOT_ATTEMPT':'Screenshot','PAGE_UNLOAD':'Page unload','RETURNED_AFTER_TAB_SWITCH':'⚑ Returned after refresh','COPY_ATTEMPT':'Copy attempt'}[v.type])||((v.type||'').replace(/_/g,' ').toLowerCase()))}</span></div>`).join(''):'<p style="color:var(--ink3);font-size:.825rem">No violations.</p>';
+  document.getElementById('viol-log').innerHTML=allV.length?allV.map(v=>{
+    const t=v.type||'';
+    let label,color='var(--err)',icon='⚠';
+    if(t.startsWith('POSSIBLE_CALL')){label='Possible phone call / notification ('+t.split(':')[1]+')';color='var(--warn)';icon='📞';}
+    else if(t.startsWith('TAB_SWITCH')){const s=t.split(':')[1]||'';label='Switched away from exam'+(s?(' ('+s+')'):'');icon='🔄';}
+    else if(t.startsWith('BLOCKED_KEY')){label='Blocked shortcut: '+t.split(':')[1];icon='⌨';}
+    else{label=({'WIN_BLUR':'Left exam window','RIGHT_CLICK':'Right-click attempt','COPY_ATTEMPT':'Copy attempt','PASTE_ATTEMPT':'Paste attempt','CUT_ATTEMPT':'Cut attempt','SCREENSHOT_ATTEMPT':'Screenshot attempt','PAGE_UNLOAD':'Tried to close/leave page','RETURNED_AFTER_TAB_SWITCH':'Returned after refresh','RETURNED_AFTER_REFRESH':'Returned after refresh'}[t])||t.replace(/_/g,' ').toLowerCase();}
+    const when=v.time?new Date(v.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--paper2);font-size:.82rem">
+      <span style="font-size:1rem">${icon}</span>
+      <span style="font-weight:600;min-width:90px">${esc((v.n||'').split(' ')[0]||'Student')}</span>
+      <span style="color:${color};flex:1">${esc(label)}</span>
+      <span style="color:var(--ink3);font-family:var(--fm);font-size:.72rem">${when}</span>
+    </div>`;
+  }).join(''):'<p style="color:var(--ink3);font-size:.825rem;padding:8px 0">✓ No violations recorded — clean session.</p>';
 }
 function renderWrtSubs(){
   const exam=S.exams[S.monIdx];const el=document.getElementById('wrt-subs');if(!exam)return;
@@ -3062,32 +3621,75 @@ function openGrade(sessId){
   if(!sess)return;_gradSess=sess;_gradQIdx=0;showGradeQ(0);
 }
 function showGradeQ(i){
-  const exam=S.exams[S.monIdx];const q=(exam.questions||[])[i];if(!q)return;
-  const ans=(_gradSess.writtenAnswers||{})[i]||'';const photo=(_gradSess.writtenAnswers||{})['photo_'+i]||null;
-  document.getElementById('grade-info').textContent=_gradSess.name+' — Q'+(i+1)+' of '+(exam.questions||[]).length;
-  document.getElementById('grade-q').textContent=q.text||q.question_text;
+  const exam=S.exams[S.monIdx];
+  const qsrc=exam.type==='written'?(exam.questions||[]):(exam.writtenQuestions||exam.questions||[]);
+  const q=qsrc[i];if(!q)return;
+  const wa=_gradSess.writtenAnswers||{};
+  const ans=wa[i]||wa['wa_'+i]||'';
+  // support BOTH new photos_i array and legacy photo_i single
+  let imgs=wa['photos_'+i];
+  if(!Array.isArray(imgs)){imgs=wa['photo_'+i]?[wa['photo_'+i]]:[];}
+  document.getElementById('grade-info').textContent=_gradSess.name+' — Q'+(i+1)+' of '+qsrc.length;
+  document.getElementById('grade-q').textContent=q.text||q.question_text||q.question||'';
   document.getElementById('grade-ans').textContent=ans||'(no text answer)';
-  document.getElementById('grade-score').value='';
+  document.getElementById('grade-score').value=(_gradSess.writtenMarks&&_gradSess.writtenMarks[i])?_gradSess.writtenMarks[i].score:'';
   document.getElementById('grade-max').value=q.marks||10;
-  document.getElementById('grade-fb').value='';
+  document.getElementById('grade-fb').value=(_gradSess.writtenMarks&&_gradSess.writtenMarks[i])?(_gradSess.writtenMarks[i].feedback||''):'';
+  // #5/#6: render each image with a red-pen annotation canvas overlay
   const ph=document.getElementById('grade-photo');
-  if(photo){ph.style.display='block';document.getElementById('grade-img').src=photo;}else ph.style.display='none';
+  if(imgs.length){
+    ph.style.display='block';
+    ph.innerHTML='<div style="font-size:.78rem;font-weight:600;color:var(--ink3);margin-bottom:8px">📎 '+imgs.length+' image(s) — use the red pen to annotate</div>'+
+      imgs.map((src,j)=>`<div style="position:relative;margin-bottom:12px">
+        <div style="position:relative;display:inline-block;max-width:100%">
+          <img src="${src}" id="ann-img-${j}" style="max-width:100%;display:block;border-radius:8px;border:1px solid var(--paper3)">
+          <canvas id="ann-cv-${j}" style="position:absolute;top:0;left:0;cursor:crosshair;touch-action:none"></canvas>
+        </div>
+        <div style="margin-top:6px;display:flex;gap:8px">
+          <button class="btn btnG sm" onclick="clearAnn(${j})">↺ Clear pen</button>
+          <span style="font-size:.75rem;color:var(--ink3);align-self:center">🖊 Red pen — draw on the script</span>
+        </div>
+      </div>`).join('');
+    // init annotation canvases after images load
+    setTimeout(()=>imgs.forEach((s,j)=>initAnnCanvas(j)),60);
+  } else {
+    ph.style.display='none';ph.innerHTML='';
+  }
   _gradQIdx=i;openM('m-grade');
 }
+// #6: red-pen annotation on a student's script image
+let _annData={};
+function initAnnCanvas(j){
+  const img=document.getElementById('ann-img-'+j),cv=document.getElementById('ann-cv-'+j);
+  if(!img||!cv)return;
+  const setSize=()=>{cv.width=img.clientWidth;cv.height=img.clientHeight;};
+  setSize();
+  const ctx=cv.getContext('2d');ctx.strokeStyle='#e01b1b';ctx.lineWidth=3;ctx.lineCap='round';ctx.lineJoin='round';
+  let drawing=false;
+  const pos=e=>{const r=cv.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:t.clientX-r.left,y:t.clientY-r.top};};
+  const start=e=>{drawing=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);e.preventDefault();};
+  const move=e=>{if(!drawing)return;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();e.preventDefault();};
+  const end=()=>{drawing=false;_annData[_gradQIdx+'_'+j]=cv.toDataURL();};
+  cv.onmousedown=start;cv.onmousemove=move;cv.onmouseup=end;cv.onmouseleave=end;
+  cv.ontouchstart=start;cv.ontouchmove=move;cv.ontouchend=end;
+}
+function clearAnn(j){const cv=document.getElementById('ann-cv-'+j);if(cv){cv.getContext('2d').clearRect(0,0,cv.width,cv.height);delete _annData[_gradQIdx+'_'+j];}}
 function saveGrade(){
   const score=parseInt(document.getElementById('grade-score').value);
   const max=parseInt(document.getElementById('grade-max').value);
   const fb=document.getElementById('grade-fb').value.trim();
   if(isNaN(score)||score<0||score>max){toast('Valid marks 0–'+max,'err');return;}
   _gradSess.writtenMarks=_gradSess.writtenMarks||{};
-  _gradSess.writtenMarks[_gradQIdx]={score,max,feedback:fb};
+  // collect any red-pen annotations for this question
+  const annos={};Object.keys(_annData).forEach(k=>{if(k.startsWith(_gradQIdx+'_'))annos[k]=_annData[k];});
+  _gradSess.writtenMarks[_gradQIdx]={score,max,feedback:fb,annotations:annos,gradedAt:Date.now()};
   const ts=Object.values(_gradSess.writtenMarks).reduce((a,v)=>a+v.score,0);
   const tm=Object.values(_gradSess.writtenMarks).reduce((a,v)=>a+v.max,0);
-  _gradSess.score=ts;_gradSess.pct=Math.round(ts/tm*100);
+  _gradSess.score=ts;_gradSess.pct=tm?Math.round(ts/tm*100):0;_gradSess.graded=true;
   try{fbSaveSess(S.exams[S.monIdx]?.token,_gradSess);}catch(e){}
   closeM('m-grade');toast('Marks saved Q'+(_gradQIdx+1),'ok');
-  const qs=S.exams[S.monIdx]?.questions||[];
-  if(_gradQIdx<qs.length-1)setTimeout(()=>showGradeQ(_gradQIdx+1),400);else renderWrtSubs();
+  const qs=(S.exams[S.monIdx]?.type==='written'?S.exams[S.monIdx]?.questions:S.exams[S.monIdx]?.writtenQuestions)||S.exams[S.monIdx]?.questions||[];
+  if(_gradQIdx<qs.length-1)setTimeout(()=>showGradeQ(_gradQIdx+1),400);else{renderWrtSubs();renderMon();}
 }
 function confirmEndExam(){if(confirm('End this exam for all students?')){const exam=S.exams[S.monIdx];if(exam)exam.endTime=Date.now()-1000;saveExams();toast('Exam ended.','warn');renderMon();}}
 
@@ -3104,10 +3706,19 @@ async function doExportCSV(idx){
 }
 
 // ═══ URL EXAM HANDLING ═══
-function checkURL(){
+async function checkURL(){
   const params=new URLSearchParams(location.search);
-  const ed=params.get('ed');
-  if(!ed)return;
+  const shortTok=params.get('e');           // NEW short link: ?e=TOKEN
+  const ed=params.get('ed');                // legacy long link: ?ed=<base64>
+  const reviewTok=params.get('review');     // #17 review portal
+  const resumeCode=params.get('resume');    // #15 resume on device
+  if(reviewTok){openReviewPortal(reviewTok);return;}
+  if(shortTok&&resumeCode){
+    // auto-open switch modal prefilled to resume
+    setTimeout(()=>{const inp=document.getElementById('switch-input');if(inp){inp.value=resumeCode;}openM('m-switch');},400);
+    return;
+  }
+  if(!shortTok&&!ed)return;
   // Show loading immediately
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   const loader=document.createElement('div');
@@ -3116,13 +3727,23 @@ function checkURL(){
   loader.innerHTML='<div style="width:40px;height:40px;border:3px solid var(--paper3);border-top-color:var(--ac);border-radius:50%;animation:spin .8s linear infinite;"></div><p style="color:var(--ink3);font-size:.9rem;">Loading exam…</p><style>@keyframes spin{to{transform:rotate(360deg)}}</style>';
   document.body.appendChild(loader);
   function done(){const l=document.getElementById('exam-loader');if(l)l.remove();}
-  setTimeout(function(){
-    const examData=decodeExam(ed);
+  // Resolve exam data: short token → Firebase; legacy → decode embedded
+  let examData=null;
+  if(shortTok){
+    examData=await fbLoadExamByToken(shortTok);
+    if(!examData){done();showErr('This exam link could not be found.<br>Please check the link or ask your teacher to share it again.');return;}
+  } else {
+    examData=decodeExam(ed);
     if(!examData){done();showErr('This exam link is invalid or corrupted.<br>Please ask your teacher to share the link again.');return;}
+  }
+  (function(){
     const now=Date.now();
     const SKEW=5*60*1000;
-    if(now<examData.startTime-SKEW){done();showErr('This exam has not started yet.<br>It opens on <strong>'+new Date(examData.startTime).toLocaleString()+'</strong>');return;}
-    if(now>examData.endTime+SKEW){done();showErr('The exam window has closed.<br>It ended on <strong>'+new Date(examData.endTime).toLocaleString()+'</strong><br>Contact your teacher.');return;}
+    // #7 entrance/start time + #11 reopen support
+    if(examData.reopened!==true){
+      if(now<examData.startTime-SKEW){done();showErr('This exam has not started yet.<br>It opens on <strong>'+new Date(examData.startTime).toLocaleString()+'</strong>');return;}
+      if(examData.manualEnd!==true && examData.endTime && now>examData.endTime+SKEW){done();showErr('The exam window has closed.<br>It ended on <strong>'+new Date(examData.endTime).toLocaleString()+'</strong><br>Contact your teacher.');return;}
+    }
     let idx=S.exams.findIndex(e=>e.token===examData.token);
     if(idx===-1){S.exams.push({...examData,sessions:[]});saveExams();idx=S.exams.length-1;}
     else{const ex=S.exams[idx];S.exams[idx]={...ex,...examData,sessions:ex.sessions||[]};saveExams();}
@@ -3161,7 +3782,7 @@ function checkURL(){
     } else {
       showACWarn(S.exams[idx]);
     }
-  },80);
+  })();
 }
 function showErr(msg){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
