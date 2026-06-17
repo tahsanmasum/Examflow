@@ -1732,6 +1732,31 @@ Here is my file:</textarea>
   </div>
 </div>
 
+<!-- ══ REOPEN EXAM MODAL (#11) ══ -->
+<div class="mbd" id="m-reopen">
+  <div class="mbx">
+    <div class="mh"><h3>&#128275; Reopen exam</h3><p style="color:var(--ink3);font-size:.85rem;margin-top:4px">Set a fresh window. The same link &amp; QR keep working for students.</p></div>
+    <div class="mb">
+      <div class="card cp" style="padding:12px 14px;margin-bottom:16px;background:var(--paper2)">
+        <div style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin-bottom:6px">Current schedule</div>
+        <div style="font-size:.85rem;color:var(--ink2)">Opened &middot; <strong id="ro-old-start">—</strong></div>
+        <div style="font-size:.85rem;color:var(--ink2)">Ended &middot; <strong id="ro-old-end">—</strong></div>
+      </div>
+      <div class="fg" style="margin-bottom:14px">
+        <label class="fl">New opening time <span>*</span></label>
+        <input type="datetime-local" class="fi" id="ro-new-start">
+      </div>
+      <div class="fg">
+        <label class="fl">New ending time <span>*</span></label>
+        <input type="datetime-local" class="fi" id="ro-new-end">
+      </div>
+      <p id="ro-err" class="fe" style="margin-top:10px"></p>
+      <p style="font-size:.78rem;color:var(--ink3);margin-top:12px">Leave the opening time as now to reopen immediately. Students who were mid-exam can keep going with <b>Switch device</b>.</p>
+    </div>
+    <div class="mf"><button class="btn btnG" onclick="closeM('m-reopen')">Cancel</button><button class="btn btnP" onclick="confirmReopen()">Reopen exam</button></div>
+  </div>
+</div>
+
 <!-- ══ TRASH BIN MODAL ══ -->
 <div class="mbd" id="m-trash">
   <div class="mbx" style="max-width:560px">
@@ -2018,7 +2043,8 @@ Here is my file:</textarea>
         </div>
         <div class="card cp">
           <h4 style="margin-bottom:12px">Export</h4>
-          <button class="btn btnS full" onclick="exportCSV()">&#128190; Download CSV</button>
+          <button class="btn btnS full" onclick="exportCSV()">&#128190; Download CSV report</button>
+          <button class="btn btnS full" style="margin-top:8px" onclick="exportAnswersPDF(S.monIdx)">&#128196; Answer scripts (PDF)</button>
         </div>
       </div>
     </div>
@@ -2711,9 +2737,7 @@ function createCombined(draft){
   if(draft===true){exam._draft=true;S.exams.push(exam);closeM('m-combined');saveAsDraft(exam);return;}
   S.exams.push(exam);saveExams();fbSave(exam);
   closeM('m-combined');renderDash();
-  document.getElementById('link-txt').textContent=buildLink(exam);
-  renderQR('link-qr',buildLink(exam),150);
-  openM('m-link');toast('MCQ + Written exam created!','ok');
+  showExamLink(S.exams.length-1,{created:true});toast('MCQ + Written exam created!','ok');
 }
 
 // ═══ DASHBOARD ═══
@@ -2739,7 +2763,6 @@ function renderDash(secFilter){
   tbody.innerHTML=exams.map(exam=>{
     const st=examStatus(exam);
     const realIdx=S.exams.indexOf(exam);
-    const link=buildLink(exam);
     return`<tr>
       <td><strong>${esc(exam.course)}</strong><br><span style="font-size:.78rem;color:var(--ink3);font-family:var(--fm)">${exam.token}</span></td>
       <td>${typeB[exam.type||'mcq']||typeB.mcq}</td>
@@ -2749,11 +2772,12 @@ function renderDash(secFilter){
       <td><span class="bx bI">${(exam.sessions||[]).length}</span></td>
       <td>${statB[st]||statB.draft}</td>
       <td><div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn btnG sm" onclick="copyLinkI('${esc(link)}')">&#128203; Copy</button>
+        <button class="btn btnG sm" onclick="openLinkModal(${realIdx})">&#128279; Link</button>
         <button class="btn btnG sm" onclick="openMonitor(${realIdx})">&#128202; Monitor</button>
         <button class="btn btnG sm" onclick="editExam(${realIdx})">&#9998; Edit</button>
         <button class="btn btnG sm" onclick="previewExam(${realIdx})">&#9654; Preview</button>
         <button class="btn btnG sm" onclick="doExportCSV(${realIdx})">&#128190; CSV</button>
+        <button class="btn btnG sm" onclick="exportAnswersPDF(${realIdx})">&#128196; PDF</button>
         ${st==='ended'?`<button class="btn btnG sm" onclick="reopenExam(${realIdx})">&#128275; Reopen</button>`:''}
         ${(exam._draft||st==='draft')?`<button class="btn btnP sm" onclick="publishDraft(${realIdx})">&#128640; Publish</button>`:''}
         <button class="btn btnG sm" style="color:var(--err)" onclick="trashExam(${realIdx})">&#128465; Delete</button>
@@ -2906,11 +2930,23 @@ async function resumeByCode(){
     if(idx<0){S.exams.push(exam);idx=S.exams.length-1;saveExams();}
     S.examIdx=idx;S.sessId=sess.id;
     S.stuInfo={name:sess.name,studentId:sess.studentId,section:sess.section,dept:sess.dept,session:sess.session,date:sess.date,course:sess.course,otp:sess.otp,switchCode:sess.switchCode};
-    // restore answers
+    // restore answers (Firebase stores MCQ keys with a "q" prefix)
     S.answers={};Object.keys(sess.answers||{}).forEach(k=>{S.answers[k.replace(/^q/,'')]=sess.answers[k];});
-    S.wAnswers=sess.writtenAnswers||{};S.violations=sess.violations||[];
+    S.wAnswers=sess.writtenAnswers||{};S.violations=sess.violations||[];S.flagged=new Set();
+    // Rebuild the EXACT question set the student was taking (preserves shuffle order).
+    let _rq=(Array.isArray(sess.qSnapshot)&&sess.qSnapshot.length)?sess.qSnapshot:[...((exam.questions)||[])];
+    S.questions=_rq;
+    // Restore position and remaining time from where the other device left off.
+    S.curQ=Math.min(Math.max(0,parseInt(sess.curQ)||0),Math.max(0,_rq.length-1));
+    const _dur=(sess.duration||exam.duration||0)*60;
+    const _elapsed=sess.startedAt?Math.floor((Date.now()-sess.startedAt)/1000):0;
+    S.secsLeft=exam.noTimer===true?0:Math.max(30,_dur-_elapsed);
+    S.t0=sess.startedAt||Date.now();
     toast('Resumed on this device ✓','ok');
-    if(exam.type==='written')startWExam(exam);else startMCQExam(exam);
+    if(exam.type==='written')startWExam(exam);
+    else if(exam.type==='combined')startCombinedExam(exam);
+    else startMCQExam(exam);
+    try{_saveExamProgress();}catch(e){}
   }catch(e){toast('Could not resume: '+e.message,'err');}
 }
 // ═══ #17 REVIEW SCRIPT PORTAL ═══
@@ -3032,22 +3068,39 @@ function saveEditExam(){
   try{const{sessions:_,...d}=exam;db.collection('exams').doc(exam.token).set({...d,teacherUid:S.teacher?.uid||''},{merge:true});}catch(e){}
   closeM('m-editex');renderDash(currentSecFilter());toast('Exam updated ✓','ok');
 }
-// #11: reopen an ended exam
+// #11: reopen an ended exam — teacher sets a brand-new opening & ending time
+let _reopenIdx=null;
+function _toLocalInput(ts){const d=ts?new Date(ts):new Date();const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());}
 function reopenExam(idx){
   const exam=S.exams[idx];if(!exam)return;
-  openConfirm('Reopen this exam?','Students will be able to access "'+esc(exam.course)+'" again using the same link, even though the original end time has passed. You can end it again from the Monitor.',()=>{
-    // #5 fix: extend the window so the link works AND the in-exam timer isn't already expired.
-    const newEnd=Date.now()+ (exam.duration?exam.duration*60*1000 : 3*60*60*1000);
-    exam.reopened=true;
-    exam.manualEnd=false;          // not force-ended anymore
-    exam.endTime=newEnd;           // push the end time into the future
-    saveExams();
-    try{
-      db.collection('exams').doc(exam.token).set({reopened:true,manualEnd:false,endTime:newEnd},{merge:true});
-    }catch(e){}
-    renderDash(currentSecFilter());
-    toast('Exam reopened — link works again for '+(exam.duration||180)+' more minutes','ok',5000);
-  });
+  _reopenIdx=idx;
+  document.getElementById('ro-old-start').textContent=fmt(exam.startTime);
+  document.getElementById('ro-old-end').textContent=fmt(exam.endTime);
+  const now=Date.now();
+  const dur=(exam.duration||180)*60*1000;
+  document.getElementById('ro-new-start').value=_toLocalInput(now);
+  document.getElementById('ro-new-end').value=_toLocalInput(now+dur);
+  const err=document.getElementById('ro-err');err.classList.remove('on');err.textContent='';
+  openM('m-reopen');
+}
+function confirmReopen(){
+  const exam=S.exams[_reopenIdx];if(!exam)return;
+  const sv=document.getElementById('ro-new-start').value;
+  const ev=document.getElementById('ro-new-end').value;
+  const err=document.getElementById('ro-err');
+  const fail=m=>{err.textContent=m;err.classList.add('on');};
+  if(!sv||!ev){fail('Please set both a new opening and ending time.');return;}
+  const st=new Date(sv).getTime(),en=new Date(ev).getTime();
+  if(isNaN(st)||isNaN(en)){fail('Those times don\'t look valid.');return;}
+  if(en<=st){fail('The ending time must be after the opening time.');return;}
+  exam.reopened=true;exam.manualEnd=false;exam._draft=false;
+  exam.startTime=st;exam.endTime=en;
+  saveExams();
+  try{db.collection('exams').doc(exam.token).set({reopened:true,manualEnd:false,_draft:false,startTime:st,endTime:en},{merge:true});}catch(e){}
+  closeM('m-reopen');
+  renderDash(currentSecFilter());
+  const mins=Math.max(1,Math.round((en-st)/60000));
+  toast('Exam reopened — window set for '+mins+' min ✓','ok',5000);
 }
 
 // #14: DRAFT exams — save an exam as a draft and publish it later
@@ -3128,9 +3181,7 @@ function createMCQ(draft){
   if(draft===true){exam._draft=true;S.exams.push(exam);closeM('m-mcq');saveAsDraft(exam);return;}
   S.exams.push(exam);saveExams();fbSave(exam);
   closeM('m-mcq');renderDash();
-  document.getElementById('link-txt').textContent=buildLink(exam);
-  renderQR('link-qr',buildLink(exam),150);
-  openM('m-link');toast('Exam created!','ok');
+  showExamLink(S.exams.length-1,{created:true});toast('Exam created!','ok');
 }
 
 // ═══ WRITTEN EXAM CREATION ═══
@@ -3181,9 +3232,7 @@ function createWRT(draft){
   if(draft===true){exam._draft=true;S.exams.push(exam);closeM('m-wrt');saveAsDraft(exam);return;}
   S.exams.push(exam);saveExams();fbSave(exam);
   closeM('m-wrt');renderDash();
-  document.getElementById('link-txt').textContent=buildLink(exam);
-  renderQR('link-qr',buildLink(exam),150);
-  openM('m-link');toast('Written exam created!','ok');
+  showExamLink(S.exams.length-1,{created:true});toast('Written exam created!','ok');
 }
 
 // ═══ LINK ═══
@@ -3223,7 +3272,26 @@ function decodeExam(s){
 }
 function copyLink(){navigator.clipboard.writeText(document.getElementById('link-txt').textContent).then(()=>toast('Link copied!','ok'));}
 function copyLinkI(url){navigator.clipboard.writeText(url).then(()=>toast('Link copied!','ok'));}
-function previewAsStudent(){closeM('m-link');previewExam(S.exams.length-1);}
+let _linkModalIdx=null;
+// Single place to show the share-link + QR sheet — used both right after creation
+// and whenever the teacher taps "Link" on a dashboard row.
+function showExamLink(idx,opts){
+  opts=opts||{};
+  const exam=S.exams[idx];if(!exam)return;
+  _linkModalIdx=idx;
+  const link=buildLink(exam);
+  const mh=document.querySelector('#m-link .mh');
+  if(mh){
+    const dv=mh.querySelector('div'),h=mh.querySelector('h3'),p=mh.querySelector('p');
+    if(opts.created){if(dv)dv.textContent='🎉';if(h)h.textContent='Exam created!';if(p)p.textContent='Share this link with your students';}
+    else{if(dv)dv.textContent='🔗';if(h)h.textContent='Share exam link';if(p)p.textContent=exam.course;}
+  }
+  document.getElementById('link-txt').textContent=link;
+  renderQR('link-qr',link,150);
+  openM('m-link');
+}
+function openLinkModal(idx){showExamLink(idx,{created:false});}
+function previewAsStudent(){closeM('m-link');previewExam(_linkModalIdx!=null?_linkModalIdx:S.exams.length-1);}
 function previewExam(idx){const exam=S.exams[idx];if(!exam)return;S.examIdx=idx;showACWarn(exam);}
 
 // ═══ STUDENT FLOW ═══
@@ -3322,7 +3390,7 @@ async function startExam(){
   if(exam.shuffleQ)qs=shuffle(qs);
   if(exam.shuffleO&&exam.type!=='written')qs=qs.map(q=>shuffleOpts(q));
   S.questions=qs;S.secsLeft=exam.duration*60;S.t0=Date.now();
-  const sessObj={id:S.sessId,...S.stuInfo,startedAt:Date.now(),submitted:false,score:0,totalMarks:qs.length*(exam.marks||1),violations:[],answers:{},writtenAnswers:{},otp:S.stuInfo.otp,switchCode:S.stuInfo.switchCode};
+  const sessObj={id:S.sessId,...S.stuInfo,startedAt:S.t0,submitted:false,score:0,totalMarks:qs.length*(exam.marks||1),violations:[],answers:{},writtenAnswers:{},qSnapshot:qs,curQ:0,duration:exam.duration,inProgress:true,otp:S.stuInfo.otp,switchCode:S.stuInfo.switchCode};
   exam.sessions=exam.sessions||[];exam.sessions.push(sessObj);saveExams();
   fbSaveSess(exam.token,sessObj);
   if(exam.type==='written'){startWExam(exam);}
@@ -3387,9 +3455,24 @@ function pickAns(i){
 }
 function _saveExamProgress(){
   const exam=S.exams[S.examIdx];if(!exam)return;
-  LS('ef_sess_'+exam.token,{sessId:S.sessId,violations:S.violations,answers:S.answers,curQ:S.curQ});
+  LS('ef_sess_'+exam.token,{sessId:S.sessId,violations:S.violations,answers:S.answers,curQ:S.curQ,t0:S.t0});
   const sess=exam.sessions.find(s=>s.id===S.sessId);
   if(sess){sess.answers=S.answers;sess.curQ=S.curQ;saveExams();}
+  _syncProgressToCloud(exam);
+}
+// Keep the cloud copy of an in-progress attempt fresh (throttled) so the same
+// student can resume it on another device via the Switch-device code.
+let _cloudSyncAt=0,_cloudSyncTimer=null;
+function _syncProgressToCloud(exam,force){
+  if(!exam||!S.sessId)return;
+  const push=()=>{
+    _cloudSyncAt=Date.now();
+    const payload={id:S.sessId,...(S.stuInfo||{}),startedAt:S.t0||Date.now(),duration:exam.duration,submitted:false,inProgress:true,answers:S.answers||{},curQ:S.curQ||0,violations:S.violations||[],qSnapshot:S.questions||[],lastSeen:Date.now()};
+    try{fbSaveSess(exam.token,payload);}catch(e){}
+  };
+  const since=Date.now()-_cloudSyncAt;
+  clearTimeout(_cloudSyncTimer);
+  if(force||since>=4000)push();else _cloudSyncTimer=setTimeout(push,4000-since);
 }
 function clearAns(){}
 function goQ(i){S.curQ=i;_saveExamProgress();renderQ();}
@@ -3892,7 +3975,137 @@ async function doExportCSV(idx){
   const hdr=['Name','Student ID','Section','Dept','Score','Total','%','Grade','Time(s)','Violations','Type','Submitted'];
   const rows=sessions.map(s=>{const g=!s.submitted?'—':s.pct>=90?'A+':s.pct>=80?'A':s.pct>=70?'B':s.pct>=60?'C':s.pct>=50?'D':'F';return[s.name,s.studentId,s.section,s.dept||'',s.submitted?s.score:'—',s.totalMarks,s.submitted?s.pct+'%':'—',g,s.timeTaken||'—',(s.violations||[]).length,exam.type||'mcq',s.submittedAt?new Date(s.submittedAt).toLocaleString():'—'].map(v=>`"${String(v||'').replace(/"/g,'""')}"`);});
   const csv=[hdr,...rows].map(r=>r.join(',')).join('\n');
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`results_${exam.course.replace(/\s/g,'_')}_${new Date().toISOString().slice(0,10)}.csv`;a.click();toast('CSV downloaded!','ok');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`results_${exam.course.replace(/\s/g,'_')}_${new Date().toISOString().slice(0,10)}.csv`;a.click();toast('CSV downloaded — building answers PDF…','ok',3000);
+  // The report also includes each student's full answer script as a PDF.
+  setTimeout(()=>{try{exportAnswersPDF(idx);}catch(e){}},650);
+}
+
+// ═══ ANSWER-SCRIPT PDF EXPORT ═══
+// jsPDF is loaded on demand (teacher-side only) so it never slows the page.
+function ensureJsPDF(cb){
+  if(window.jspdf&&window.jspdf.jsPDF){cb(true);return;}
+  if(window._jspdfPending){window._jspdfCbs.push(cb);return;}
+  window._jspdfPending=true;window._jspdfCbs=[cb];
+  const s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+  s.onload=function(){window._jspdfPending=false;const ok=!!(window.jspdf&&window.jspdf.jsPDF);(window._jspdfCbs||[]).forEach(f=>{try{f(ok);}catch(e){}});window._jspdfCbs=[];};
+  s.onerror=function(){window._jspdfPending=false;(window._jspdfCbs||[]).forEach(f=>{try{f(false);}catch(e){}});window._jspdfCbs=[];};
+  document.head.appendChild(s);
+}
+function _imgSize(src){return new Promise(function(res){const im=new Image();im.onload=function(){res({w:im.naturalWidth||1,h:im.naturalHeight||1});};im.onerror=function(){res(null);};im.src=src;});}
+async function exportAnswersPDF(idx){
+  const exam=S.exams[idx];if(!exam){toast('Exam not found','err');return;}
+  const fbS=await fbLoadSess(exam.token);
+  const sessions=(fbS.length?fbS:(exam.sessions||[])).filter(s=>s&&s.submitted);
+  if(!sessions.length){toast('No submitted answers to export yet','warn');return;}
+  toast('Building answers PDF…','info',2500);
+  ensureJsPDF(function(ok){
+    if(!ok){toast('Could not load the PDF engine — check your connection.','err',5000);return;}
+    _renderAnswersPDF(exam,sessions).catch(function(e){toast('PDF error: '+((e&&e.message)||e),'err',5000);});
+  });
+}
+async function _renderAnswersPDF(exam,sessions){
+  const jsPDF=window.jspdf.jsPDF;
+  const doc=new jsPDF({unit:'mm',format:'a4',compress:true});
+  const PW=210,PH=297,M=15,CW=PW-M*2;
+  const C={ink:[26,15,10],soft:[92,82,76],ac:[200,64,26],ok:[26,107,58],err:[176,26,26],line:[214,209,199],chip:[244,240,234]};
+  let y=M;
+  const lh=pt=>pt*0.3528*1.35;
+  function need(h){if(y+h>PH-M){doc.addPage();y=M;}}
+  function para(str,o){o=o||{};const size=o.size||10;doc.setFont('helvetica',o.style||'normal');doc.setFontSize(size);doc.setTextColor.apply(doc,o.color||C.ink);const x=o.x||M;const w=o.w||CW;const lines=doc.splitTextToSize(String(str==null?'':str),w);for(let i=0;i<lines.length;i++){need(lh(size));doc.text(lines[i],x,y);y+=lh(size);}if(o.gap)y+=o.gap;}
+  function hr(){need(3);doc.setDrawColor.apply(doc,C.line);doc.setLineWidth(0.2);doc.line(M,y,PW-M,y);y+=4;}
+  function pill(label){const size=8;doc.setFont('helvetica','bold');doc.setFontSize(size);const tw=doc.getTextWidth(label)+6;need(8);doc.setFillColor.apply(doc,C.chip);doc.roundedRect(M,y-3.6,tw,5.8,1.2,1.2,'F');doc.setTextColor.apply(doc,C.soft);doc.text(label,M+3,y);y+=lh(size)+2;}
+  function getAns(s){const a=s.answers||{};return function(i){if(a['q'+i]!==undefined)return a['q'+i];if(a[i]!==undefined)return a[i];if(a[String(i)]!==undefined)return a[String(i)];return undefined;};}
+  async function addImg(src){
+    if(!src||typeof src!=='string')return;
+    const sz=await _imgSize(src);
+    if(!sz){para('[image could not be displayed]',{size:9,style:'italic',color:C.soft});return;}
+    let dataURL=src,fmt='JPEG';
+    if(/^data:image\/png/i.test(src))fmt='PNG';
+    else if(/^data:image\/jpe?g/i.test(src))fmt='JPEG';
+    else{try{const cv=document.createElement('canvas');cv.width=sz.w;cv.height=sz.h;const cx=cv.getContext('2d');const im=new Image();await new Promise(r=>{im.onload=r;im.onerror=r;im.src=src;});cx.drawImage(im,0,0);dataURL=cv.toDataURL('image/jpeg',0.9);fmt='JPEG';}catch(e){}}
+    let w=Math.min(CW,140),h=w*sz.h/sz.w;const maxH=PH-2*M-12;
+    if(h>maxH){h=maxH;w=h*sz.w/sz.h;}
+    need(h+5);
+    try{doc.addImage(dataURL,fmt,M,y,w,h);}catch(e){para('[image could not be embedded]',{size:9,style:'italic',color:C.err});return;}
+    y+=h+5;
+  }
+  // ── Cover header ──
+  doc.setFillColor.apply(doc,C.ac);doc.rect(0,0,PW,3,'F');
+  y=M+4;
+  para(exam.course||'Exam',{size:20,style:'bold',color:C.ink});
+  para('Token '+(exam.token||'—')+'   ·   '+({mcq:'MCQ',written:'Written',combined:'MCQ + Written'}[exam.type||'mcq']||'MCQ')+'   ·   '+sessions.length+' submission'+(sessions.length>1?'s':''),{size:9.5,color:C.soft});
+  para('Answer scripts · generated '+new Date().toLocaleString(),{size:9.5,color:C.soft,gap:2});
+  hr();
+  const isW=exam.type==='written',isC=exam.type==='combined';
+  const mcqQsBase=exam.questions||[];
+  const wrtQsBase=isW?(exam.questions||[]):(exam.writtenQuestions||[]);
+  for(let si=0;si<sessions.length;si++){
+    const s=sessions[si];
+    if(si>0){doc.addPage();y=M;}
+    // student header card
+    need(28);
+    const cardTop=y;
+    doc.setFillColor.apply(doc,C.chip);doc.roundedRect(M,cardTop,CW,21,2,2,'F');
+    y=cardTop+7;
+    doc.setFont('helvetica','bold');doc.setFontSize(13);doc.setTextColor.apply(doc,C.ink);doc.text(String(s.name||'Unnamed'),M+5,y);
+    const pct=(s.pct!=null?s.pct+'%':'—');
+    doc.setFontSize(11);doc.setTextColor.apply(doc,C.ac);
+    doc.text((s.score!=null?String(s.score):'—')+' / '+(s.totalMarks!=null?String(s.totalMarks):'—')+'  ('+pct+')',PW-M-5,y,{align:'right'});
+    y+=6;
+    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor.apply(doc,C.soft);
+    const meta=[s.studentId?('ID '+s.studentId):'',s.section||'',s.dept||'',(s.violations&&s.violations.length?(s.violations.length+' flag'+(s.violations.length>1?'s':'')):'clean'),s.submittedAt?('submitted '+new Date(s.submittedAt).toLocaleString()):''].filter(Boolean).join('   ·   ');
+    doc.text(doc.splitTextToSize(meta,CW-10),M+5,y);
+    y=cardTop+21+6;
+    // ── MCQ answers ──
+    if(!isW){
+      const qsnap=(Array.isArray(s.qSnapshot)&&s.qSnapshot.length)?s.qSnapshot:mcqQsBase;
+      if(qsnap.length){
+        pill('MULTIPLE CHOICE — '+qsnap.length+' question'+(qsnap.length>1?'s':''));
+        const a=getAns(s);
+        for(let i=0;i<qsnap.length;i++){
+          const q=qsnap[i]||{};const sel=a(i);const corr=q.correct_answer;
+          para('Q'+(i+1)+'.  '+(q.question_text||q.text||q.question||''),{size:10.5,style:'bold'});
+          const opts=q.options||[];
+          for(let oi=0;oi<opts.length;oi++){
+            const isSel=sel===oi,isCorr=corr===oi;
+            let col=C.soft;if(isCorr)col=C.ok;else if(isSel&&!isCorr)col=C.err;
+            let tag='';if(isSel&&isCorr)tag='   ✓ your answer (correct)';else if(isSel)tag='   ✗ your answer';else if(isCorr)tag='   ✓ correct answer';
+            para('ABCD'[oi]+'.  '+opts[oi]+tag,{size:9.5,x:M+4,w:CW-4,color:col});
+          }
+          if(sel===undefined)para('— not answered —',{size:9,style:'italic',color:C.soft});
+          y+=2;
+        }
+      }
+    }
+    // ── Written answers ──
+    if(isW||isC){
+      const wq=wrtQsBase;
+      if(wq.length){
+        if(isC)y+=2;
+        pill('WRITTEN — '+wq.length+' question'+(wq.length>1?'s':''));
+        const wa=s.writtenAnswers||{};const wm=s.writtenMarks||{};
+        for(let i=0;i<wq.length;i++){
+          const q=wq[i]||{};const mk=wm[i];
+          para('Q'+(i+1)+'.  '+(q.text||q.question_text||q.question||''),{size:10.5,style:'bold'});
+          if(mk)para('Marks: '+mk.score+' / '+(mk.max!=null?mk.max:(q.marks||10))+(mk.feedback?('   ·   '+mk.feedback):''),{size:9,color:C.ac});
+          else para('Marks: ungraded'+(q.marks?(' (out of '+q.marks+')'):''),{size:9,color:C.soft});
+          const txt=(wa[i]!==undefined?wa[i]:(wa['wa_'+i]||''));
+          para('Answer:',{size:9,style:'bold',color:C.soft});
+          para(txt&&String(txt).trim()?txt:'(no typed answer)',{size:10,color:txt?C.ink:C.soft});
+          let imgs=wa['photos_'+i];if(!Array.isArray(imgs))imgs=wa['photo_'+i]?[wa['photo_'+i]]:[];
+          for(let j=0;j<imgs.length;j++){para('Uploaded image '+(j+1)+':',{size:8.5,color:C.soft});await addImg(imgs[j]);}
+          y+=2;hr();
+        }
+      }
+    }
+  }
+  // footer page numbers
+  const pages=doc.getNumberOfPages();
+  for(let p=1;p<=pages;p++){doc.setPage(p);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,C.soft);doc.text('ExamFlow · '+(exam.course||'')+'  —  page '+p+' of '+pages,PW/2,PH-8,{align:'center'});}
+  const fname='answers_'+String(exam.course||'exam').replace(/[^a-z0-9]+/gi,'_').replace(/^_|_$/g,'')+'_'+new Date().toISOString().slice(0,10)+'.pdf';
+  doc.save(fname);
+  toast('Answers PDF downloaded ✓','ok',3500);
 }
 
 // ═══ URL EXAM HANDLING ═══
