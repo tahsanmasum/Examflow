@@ -1182,6 +1182,11 @@ body{background:#faf9f6}
           </div>
           <div id="si-err" style="display:none;background:var(--errbg);color:var(--err);padding:10px 14px;border-radius:var(--r);font-size:.85rem;"></div>
           <button class="btn btnP full" id="si-btn" onclick="doSignIn()">Sign in &rarr;</button>
+          <div style="display:flex;align-items:center;gap:10px;color:var(--ink3);font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;margin:2px 0"><span style="flex:1;height:1px;background:var(--paper3)"></span>or<span style="flex:1;height:1px;background:var(--paper3)"></span></div>
+          <button class="btn full" onclick="doGoogleSignIn()" style="background:#fff;border:1.5px solid var(--paper3);color:var(--ink);display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600">
+            <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.02-3.7H.96v2.34A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.98 10.72a5.4 5.4 0 0 1 0-3.44V4.94H.96a9 9 0 0 0 0 8.12l3.02-2.34z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.46 3.44 1.35l2.58-2.58C13.47.9 11.43 0 9 0A9 9 0 0 0 .96 4.94l3.02 2.34C4.68 5.16 6.66 3.58 9 3.58z"/></svg>
+            Continue with Google
+          </button>
           <div style="text-align:center;font-size:.825rem;color:var(--ink3)">No account? <a href="#" onclick="authTab('up');return false" style="color:var(--ac);font-weight:500">Create one free</a></div>
         </div>
         <div id="aform-up" style="display:none;flex-direction:column;gap:14px;">
@@ -1193,6 +1198,11 @@ body{background:#faf9f6}
           <div class="fg"><label class="fl">Institution</label><input class="fi" id="su-inst" placeholder="BUET, DU, BRAC University"></div>
           <div id="su-err" style="display:none;background:var(--errbg);color:var(--err);padding:10px 14px;border-radius:var(--r);font-size:.85rem;"></div>
           <button class="btn btnP full" id="su-btn" onclick="doSignUp()">Create account &rarr;</button>
+          <div style="display:flex;align-items:center;gap:10px;color:var(--ink3);font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;margin:2px 0"><span style="flex:1;height:1px;background:var(--paper3)"></span>or<span style="flex:1;height:1px;background:var(--paper3)"></span></div>
+          <button class="btn full" onclick="doGoogleSignIn()" style="background:#fff;border:1.5px solid var(--paper3);color:var(--ink);display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600">
+            <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.02-3.7H.96v2.34A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.98 10.72a5.4 5.4 0 0 1 0-3.44V4.94H.96a9 9 0 0 0 0 8.12l3.02-2.34z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.46 3.44 1.35l2.58-2.58C13.47.9 11.43 0 9 0A9 9 0 0 0 .96 4.94l3.02 2.34C4.68 5.16 6.66 3.58 9 3.58z"/></svg>
+            Sign up with Google
+          </button>
           <div style="text-align:center;font-size:.825rem;color:var(--ink3)">Have an account? <a href="#" onclick="authTab('in');return false" style="color:var(--ac);font-weight:500">Sign in</a></div>
         </div>
       </div>
@@ -2560,6 +2570,38 @@ function doSignUp(){
       .then(()=>{btn.textContent='Create account →';btn.disabled=false;onAuth(c.user,name,true);}))
     .catch(e=>{btn.textContent='Create account →';btn.disabled=false;err.style.display='block';err.textContent=e.message;});
 }
+function doGoogleSignIn(){
+  const provider=new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({prompt:'select_account'});
+  const onUp=document.getElementById('aform-up').style.display==='flex';
+  const err=document.getElementById(onUp?'su-err':'si-err');
+  if(err)err.style.display='none';
+  const showErr=m=>{if(err){err.style.display='block';err.textContent=m;}else toast(m,'err');};
+  const goRedirect=()=>{try{sessionStorage.setItem('ef_gauth','1');}catch(_){}
+    auth.signInWithRedirect(provider).catch(e=>{try{sessionStorage.removeItem('ef_gauth');}catch(_){}showErr(e.message);});};
+  // Mobile and in-app browsers often block popups → go straight to redirect there.
+  const mobile=/Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile/i.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Mac/i.test(navigator.userAgent));
+  if(mobile){goRedirect();return;}
+  auth.signInWithPopup(provider).then(res=>_finishGoogle(res.user,err)).catch(e=>{
+    if(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment'){goRedirect();return;}
+    if(e.code==='auth/popup-closed-by-user'||e.code==='auth/cancelled-popup-request')return; // user dismissed it
+    showErr(e.message);
+  });
+}
+// Shared completion for both popup and redirect Google sign-in
+function _finishGoogle(user,errEl){
+  if(!user)return;
+  const name=user.displayName||user.email.split('@')[0];
+  const ref=db.collection('teachers').doc(user.uid);
+  return ref.get().then(doc=>{
+    if(!doc.exists){
+      // first Google sign-in → create the teacher profile from their Google account
+      return ref.set({name,email:user.email,institution:'',uid:user.uid,photoURL:user.photoURL||'',provider:'google',createdAt:Date.now()})
+                .then(()=>onAuth(user,name,true));
+    }
+    onAuth(user,null,true);
+  }).catch(e=>{if(errEl){errEl.style.display='block';errEl.textContent=e.message;}else toast(e.message,'err');});
+}
 function doForgot(){const e=document.getElementById('si-email').value.trim();if(!e){toast('Enter your email first','warn');return;}auth.sendPasswordResetEmail(e).then(()=>toast('Reset email sent!','ok')).catch(e=>toast(e.message,'err'));}
 function doLogout(){auth.signOut().then(()=>{S.teacher=null;S.exams=[];LS('teacher',null);LS('exams',null);showPage('pg-landing');});}
 function onAuth(user,name,showWelcome){
@@ -2577,8 +2619,17 @@ function onAuth(user,name,showWelcome){
     loadFBExams(user.uid);
   });
 }
+// Complete a mobile redirect sign-in (and create the profile for first-time Google users)
+auth.getRedirectResult().then(res=>{
+  if(res&&res.user)_finishGoogle(res.user);
+}).catch(e=>{if(e&&e.code&&e.code!=='auth/no-auth-event')toast(e.message,'err');})
+  .finally(()=>{try{sessionStorage.removeItem('ef_gauth');}catch(_){}});
 auth.onAuthStateChanged(user=>{
-  if(user&&!new URLSearchParams(location.search).get('ed')){onAuth(user,null,false);}
+  if(user&&!new URLSearchParams(location.search).get('ed')){
+    let pending=false;try{pending=sessionStorage.getItem('ef_gauth')==='1';}catch(_){}
+    if(pending)return; // a Google redirect is mid-flight; getRedirectResult will finish it cleanly
+    onAuth(user,null,false);
+  }
 });
 function updateDashUI(){
   if(!S.teacher)return;
