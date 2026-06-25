@@ -1227,6 +1227,7 @@ body{background:#faf9f6}
         </button>
         <div id="umenu" style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:#fff;border:1px solid var(--paper3);border-radius:var(--r);box-shadow:var(--shl);min-width:200px;z-index:200;overflow:hidden;">
           <div style="padding:14px;border-bottom:1px solid var(--paper2);"><div style="font-size:.875rem;font-weight:600;margin-bottom:2px" id="um-name"></div><div style="font-size:.775rem;color:var(--ink3)" id="um-email"></div></div>
+          <button id="um-admin" onclick="toggleUM();openAdmin()" style="display:none;width:100%;text-align:left;padding:11px 14px;border:none;background:none;cursor:pointer;font-size:.875rem;color:var(--ink);align-items:center;gap:8px;border-bottom:1px solid var(--paper2)">&#128737;&#65039; Admin Monitor</button>
           <button onclick="doLogout()" style="width:100%;text-align:left;padding:11px 14px;border:none;background:none;cursor:pointer;font-size:.875rem;color:var(--err);display:flex;align-items:center;gap:8px">&#128682; Sign out</button>
         </div>
       </div>
@@ -2062,6 +2063,55 @@ Here is my file:</textarea>
 </div>
 
 
+<!-- ══ ADMIN MONITOR (owner only) ══ -->
+<div class="page" id="pg-admin">
+  <nav class="nav">
+    <a class="brand" href="#" onclick="showPage('pg-dash');return false"><div class="logomark"><svg viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h8" stroke-linecap="round"/></svg></div>ExamFlow</a>
+    <div class="navlinks">
+      <span class="bx bK" style="background:#1f1712;color:#fff;border-color:#1f1712">ADMIN</span>
+      <button class="btn btnG sm" onclick="openAdmin()">&#8635; Refresh</button>
+      <button class="btn btnG sm" onclick="showPage('pg-dash')">&#8592; Dashboard</button>
+    </div>
+  </nav>
+  <main style="flex:1;padding:28px;max-width:1200px;width:100%;margin:0 auto">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:8px">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:2px"><h2 style="font-size:1.5rem">Admin Monitor</h2><span class="ldot"></span></div>
+        <p style="color:var(--ink3);font-size:.85rem">Everything across ExamFlow &mdash; teachers, exams, live sessions, and feedback.</p>
+      </div>
+      <span id="adm-status" style="font-size:.78rem;color:var(--ink3)"></span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px">
+      <div class="scard"><div class="sv" id="as-teachers">0</div><div class="sl">Teachers</div></div>
+      <div class="scard"><div class="sv" id="as-exams">0</div><div class="sl">Exams</div></div>
+      <div class="scard"><div class="sv" id="as-live" style="color:var(--info)">0</div><div class="sl">In progress</div></div>
+      <div class="scard"><div class="sv" id="as-subs" style="color:var(--ok)">0</div><div class="sl">Submissions</div></div>
+      <div class="scard"><div class="sv" id="as-flags" style="color:var(--err)">0</div><div class="sl">Flags</div></div>
+      <div class="scard"><div class="sv" id="as-fb" style="color:var(--ac)">0</div><div class="sl">Feedback</div></div>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px" id="adm-tabs">
+      <button class="btn btnS sm" data-tab="overview" onclick="_adminTab('overview')">&#128202; Overview</button>
+      <button class="btn btnS sm" data-tab="teachers" onclick="_adminTab('teachers')">&#128100; Teachers</button>
+      <button class="btn btnS sm" data-tab="exams" onclick="_adminTab('exams')">&#128221; Exams</button>
+      <button class="btn btnS sm" data-tab="live" onclick="_adminTab('live')">&#128994; Live &amp; sessions</button>
+      <button class="btn btnS sm" data-tab="feedback" onclick="_adminTab('feedback')">&#128172; Feedback</button>
+    </div>
+    <div id="adm-overview" class="adm-sec"></div>
+    <div id="adm-teachers" class="adm-sec" style="display:none"></div>
+    <div id="adm-exams" class="adm-sec" style="display:none"></div>
+    <div id="adm-live" class="adm-sec" style="display:none">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <input id="adm-sess-q" oninput="_renderAdmSessions()" placeholder="&#128269; student / id / course" style="font-family:var(--fm);font-size:.82rem;padding:7px 11px;border:1px solid var(--paper3);border-radius:8px;min-width:220px">
+        <span id="adm-sess-chip"></span>
+        <span id="adm-sess-count" style="color:var(--ink3);font-size:.8rem;margin-left:auto"></span>
+      </div>
+      <div id="adm-sess-table"></div>
+    </div>
+    <div id="adm-feedback" class="adm-sec" style="display:none"></div>
+  </main>
+</div>
+
+
 <!-- ══ MCQ + WRITTEN COMBINED MODAL ══ -->
 <div class="mbd" id="m-combined">
   <div class="mbx" style="max-width:700px;">
@@ -2631,6 +2681,9 @@ auth.onAuthStateChanged(user=>{
     onAuth(user,null,false);
   }
 });
+// Owner/admin allow-list (client-side gate ONLY — real protection lives in Firestore rules)
+const ADMIN_EMAILS=['hellotahcreations@gmail.com'];
+function isAdmin(){return ADMIN_EMAILS.includes(((S.teacher&&S.teacher.email)||'').toLowerCase());}
 function updateDashUI(){
   if(!S.teacher)return;
   const n=S.teacher.name||'';
@@ -2640,6 +2693,7 @@ function updateDashUI(){
   document.getElementById('um-name').textContent=n;
   document.getElementById('um-email').textContent=S.teacher.email||'';
   document.getElementById('wname').textContent=n.split(' ')[0]||n;
+  const am=document.getElementById('um-admin');if(am)am.style.display=isAdmin()?'flex':'none';
 }
 
 // ═══ FIREBASE HELPERS ═══
@@ -3063,6 +3117,132 @@ function sendFeedback(){
     document.getElementById('fb-msg').value='';
     closeM('m-feedback');
   }catch(e){toast('Could not send — please try again','err');}
+}
+
+// ═══ ADMIN MONITOR ═══
+let _admTab='overview',_admSessFilter='';
+async function openAdmin(){
+  if(!isAdmin()){toast('Admins only','err');return;}
+  showPage('pg-admin');_adminTab(_admTab);
+  const st=document.getElementById('adm-status');if(st)st.textContent='Loading…';
+  try{
+    const [tS,eS,sS,fS]=await Promise.all([
+      db.collection('teachers').get(),
+      db.collection('exams').get(),
+      db.collection('sessions').get(),
+      db.collection('feedback').get()
+    ]);
+    S.admin={
+      teachers:tS.docs.map(d=>({id:d.id,...d.data()})),
+      exams:eS.docs.map(d=>({id:d.id,...d.data()})),
+      sessions:sS.docs.map(d=>({id:d.id,...d.data()})),
+      feedback:fS.docs.map(d=>({id:d.id,...d.data()}))
+    };
+    if(st)st.textContent='Updated '+new Date().toLocaleTimeString();
+    _renderAdmin();
+  }catch(e){
+    if(st)st.textContent='Load error';
+    toast('Admin load failed: '+e.message+'. Check Firestore rules (admin needs read access).','err',9000);
+  }
+}
+function _adminTab(name){
+  _admTab=name;
+  document.querySelectorAll('#pg-admin .adm-sec').forEach(s=>s.style.display='none');
+  const sec=document.getElementById('adm-'+name);if(sec)sec.style.display='block';
+  document.querySelectorAll('#adm-tabs [data-tab]').forEach(b=>{
+    const on=b.getAttribute('data-tab')===name;
+    b.style.background=on?'var(--ac)':'';b.style.color=on?'#fff':'';b.style.borderColor=on?'var(--ac)':'';
+  });
+}
+function _admTable(h,rows){return '<div class="card" style="padding:0;overflow-x:auto"><table class="dt" style="width:100%"><thead><tr>'+h.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody>'+rows.join('')+'</tbody></table></div>';}
+function _admEmpty(m){return '<div class="card" style="padding:30px;text-align:center;color:var(--ink3)">'+esc(m)+'</div>';}
+function _fbType(t){const m={bug:['#b01c1c','#fde8e8'],feature:['#1a4a8a','#e8f0fb'],praise:['#1a6b3a','#e8f7ee'],question:['#7a5b1a','#fbf3e0'],other:['#5a524c','#f0ece6']};const c=m[(t||'other').toLowerCase()]||m.other;return '<span style="background:'+c[1]+';color:'+c[0]+';font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;border-radius:999px;white-space:nowrap">'+esc(t||'other')+'</span>';}
+function _fbMini(f){const msg=f.message||'';return '<div style="border-left:3px solid var(--paper3);padding:1px 0 1px 10px"><div style="display:flex;gap:8px;align-items:center;margin-bottom:2px">'+_fbType(f.type)+'<span style="font-size:.8rem;font-weight:600">'+esc(f.name||'—')+'</span></div><div style="font-size:.82rem;color:var(--ink2);line-height:1.4">'+esc(msg.slice(0,110))+(msg.length>110?'…':'')+'</div></div>';}
+function _fbCard(f){return '<div class="card" style="padding:14px 16px"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+_fbType(f.type)+'<strong>'+esc(f.name||'—')+'</strong>'+(f.institute?'<span style="color:var(--ink3);font-size:.82rem">'+esc(f.institute)+'</span>':'')+'</div><div style="display:flex;gap:10px;align-items:center"><span style="color:var(--ink3);font-size:.78rem">'+(f.createdAt?fmt(f.createdAt):'')+'</span><button class="btn btnD sm" onclick="admDeleteFeedback(\''+f.id+'\')">Delete</button></div></div><p style="font-size:.9rem;line-height:1.55;color:var(--ink);white-space:pre-wrap;margin:0">'+esc(f.message||'')+'</p>'+(f.teacherEmail?'<p style="margin:8px 0 0;font-size:.78rem;color:var(--ink3)">From account: '+esc(f.teacherEmail)+'</p>':'')+'</div>';}
+function _renderAdmin(){
+  const A=S.admin;if(!A)return;
+  const exams=A.exams.filter(e=>!e._trashed);
+  const subs=A.sessions.filter(s=>s.submitted===true);
+  const live=A.sessions.filter(s=>s.submitted!==true);
+  const flags=A.sessions.reduce((n,s)=>n+((s.violations&&s.violations.length)||0),0);
+  const setT=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  setT('as-teachers',A.teachers.length);setT('as-exams',exams.length);setT('as-live',live.length);
+  setT('as-subs',subs.length);setT('as-flags',flags);setT('as-fb',A.feedback.length);
+  const tByUid={};A.teachers.forEach(t=>tByUid[t.id]=t);
+  const exByTok={};A.exams.forEach(e=>exByTok[e.id]=e);
+  const sessByTok={};A.sessions.forEach(s=>{(sessByTok[s.examToken]=sessByTok[s.examToken]||[]).push(s);});
+  const tname=uid=>{const t=tByUid[uid];return t?esc(t.name||t.email||uid):'<span style="color:var(--ink3)">unknown</span>';};
+  const ts=v=>v?fmt(v):'—';
+  const fbSorted=[...A.feedback].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  // OVERVIEW
+  const subsSorted=[...subs].sort((a,b)=>(b.submittedAt||0)-(a.submittedAt||0));
+  const exSorted=[...exams].sort((a,b)=>(b.createdAt||b.startTime||0)-(a.createdAt||a.startTime||0));
+  let ov='<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
+  ov+='<div class="card"><div class="ch"><h3>&#128172; Latest feedback</h3></div><div style="padding:14px;display:flex;flex-direction:column;gap:10px">';
+  ov+= fbSorted.length? fbSorted.slice(0,4).map(_fbMini).join('') : '<p style="color:var(--ink3);font-size:.85rem">No feedback yet.</p>';
+  ov+='<button class="btn btnG sm" onclick="_adminTab(\'feedback\')" style="align-self:flex-start">View all feedback &rarr;</button></div></div>';
+  ov+='<div class="card"><div class="ch"><h3>&#128994; Recent submissions</h3></div><div style="padding:8px 14px">';
+  ov+= subsSorted.length? '<table class="dt" style="width:100%"><tbody>'+subsSorted.slice(0,6).map(s=>'<tr><td>'+esc(s.name||'—')+'</td><td style="color:var(--ink3)">'+(exByTok[s.examToken]?esc(exByTok[s.examToken].course||s.examToken):esc(s.examToken||'—'))+'</td><td>'+(s.score!=null?s.score+'/'+(s.totalMarks!=null?s.totalMarks:'—'):'—')+'</td></tr>').join('')+'</tbody></table>' : '<p style="color:var(--ink3);font-size:.85rem;padding:6px 0">No submissions yet.</p>';
+  ov+='</div></div></div>';
+  ov+='<div class="card" style="margin-top:16px"><div class="ch"><h3>&#128221; Recently created exams</h3></div><div style="padding:8px 14px;overflow-x:auto">';
+  ov+= exSorted.length? '<table class="dt" style="width:100%"><thead><tr><th>Course</th><th>Teacher</th><th>Type</th><th>Submissions</th><th>Created</th></tr></thead><tbody>'+exSorted.slice(0,6).map(e=>'<tr><td>'+esc(e.course||'—')+'</td><td>'+tname(e.teacherUid)+'</td><td>'+esc(e.type||'mcq')+'</td><td>'+((sessByTok[e.id]||[]).filter(s=>s.submitted).length)+'</td><td style="color:var(--ink3);font-size:.8rem">'+ts(e.createdAt||e.startTime)+'</td></tr>').join('')+'</tbody></table>' : '<p style="color:var(--ink3);font-size:.85rem;padding:6px 0">No exams yet.</p>';
+  ov+='</div></div>';
+  document.getElementById('adm-overview').innerHTML=ov;
+  // TEACHERS
+  const trows=[...A.teachers].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).map(t=>{
+    const exs=A.exams.filter(e=>e.teacherUid===t.id&&!e._trashed);
+    const studentCount=exs.reduce((n,e)=>n+((sessByTok[e.id]||[]).length),0);
+    const init=(t.name||t.email||'?').split(' ').map(x=>x[0]||'').join('').toUpperCase().slice(0,2);
+    return '<tr><td><div style="display:flex;align-items:center;gap:8px"><div style="width:26px;height:26px;border-radius:50%;background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700">'+esc(init)+'</div>'+esc(t.name||'—')+(ADMIN_EMAILS.includes((t.email||'').toLowerCase())?' <span class="bx" style="background:#1f1712;color:#fff;font-size:.6rem">YOU</span>':'')+'</div></td><td style="color:var(--ink3)">'+esc(t.email||'—')+'</td><td>'+esc(t.institution||'—')+'</td><td>'+esc(t.provider||'email')+'</td><td>'+exs.length+'</td><td>'+studentCount+'</td><td style="color:var(--ink3);font-size:.8rem">'+ts(t.createdAt)+'</td></tr>';
+  });
+  document.getElementById('adm-teachers').innerHTML= trows.length? _admTable(['Teacher','Email','Institution','Via','Exams','Students','Joined'],trows) : _admEmpty('No teachers yet.');
+  // EXAMS
+  const exrows=[...A.exams].sort((a,b)=>(b.createdAt||b.startTime||0)-(a.createdAt||a.startTime||0)).map(e=>{
+    const ss=sessByTok[e.id]||[];const submitted=ss.filter(s=>s.submitted).length;
+    let status='Active',col='var(--ok)';
+    if(e._trashed){status='Trashed';col='var(--err)';}
+    else if(e._draft){status='Draft';col='var(--ink3)';}
+    else if(e.endTime&&Date.now()>e.endTime&&!e.reopened){status='Ended';col='var(--ink3)';}
+    return '<tr><td>'+esc(e.course||'—')+'</td><td>'+tname(e.teacherUid)+'</td><td>'+esc(e.type||'mcq')+'</td><td><span style="color:'+col+';font-weight:600">'+status+'</span></td><td>'+ss.length+' / '+submitted+'</td><td style="color:var(--ink3);font-size:.8rem">'+ts(e.createdAt||e.startTime)+'</td><td><div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn btnG sm" onclick="admViewSessions(\''+e.id+'\')">Sessions</button><button class="btn btnD sm" onclick="admDeleteExam(\''+e.id+'\')">Delete</button></div></td></tr>';
+  });
+  document.getElementById('adm-exams').innerHTML= exrows.length? _admTable(['Course','Teacher','Type','Status','Reg / Sub','Created','Actions'],exrows) : _admEmpty('No exams yet.');
+  // LIVE & SESSIONS
+  _renderAdmSessions();
+  // FEEDBACK
+  document.getElementById('adm-feedback').innerHTML= fbSorted.length? '<div style="display:flex;flex-direction:column;gap:12px">'+fbSorted.map(_fbCard).join('')+'</div>' : _admEmpty('No feedback received yet.');
+}
+function admViewSessions(token){_admSessFilter=token;_adminTab('live');_renderAdmSessions();}
+function _renderAdmSessions(){
+  const A=S.admin;if(!A)return;
+  const exByTok={};A.exams.forEach(e=>exByTok[e.id]=e);
+  const tByUid={};A.teachers.forEach(t=>tByUid[t.id]=t);
+  const qEl=document.getElementById('adm-sess-q');const q=(qEl?qEl.value:'').trim().toLowerCase();
+  let rows=[...A.sessions];
+  if(_admSessFilter)rows=rows.filter(s=>s.examToken===_admSessFilter);
+  if(q)rows=rows.filter(s=>(((s.name||'')+' '+(s.studentId||'')+' '+(exByTok[s.examToken]?exByTok[s.examToken].course:'')).toLowerCase().includes(q)));
+  rows.sort((a,b)=>(b.startedAt||0)-(a.startedAt||0));
+  const body=rows.slice(0,400).map(s=>{
+    const e=exByTok[s.examToken];const teacher=e?tByUid[e.teacherUid]:null;
+    const vio=(s.violations&&s.violations.length)||0;
+    const status=s.submitted?'<span style="color:var(--ok);font-weight:600">Submitted</span>':'<span style="color:var(--info);font-weight:600">In&nbsp;progress</span>';
+    return '<tr><td>'+esc(s.name||'—')+(s.studentId?'<div style="font-size:.72rem;color:var(--ink3)">'+esc(s.studentId)+'</div>':'')+'</td><td>'+(e?esc(e.course||s.examToken):esc(s.examToken||'—'))+'</td><td style="color:var(--ink3)">'+(teacher?esc(teacher.name||teacher.email):'—')+'</td><td>'+status+'</td><td>'+(s.score!=null?s.score+'/'+(s.totalMarks!=null?s.totalMarks:'—'):'—')+'</td><td>'+(vio?'<span style="color:var(--err);font-weight:600">'+vio+'</span>':'0')+'</td><td style="color:var(--ink3);font-size:.78rem">'+(s.startedAt?fmt(s.startedAt):'—')+'</td></tr>';
+  });
+  const chip=document.getElementById('adm-sess-chip');
+  if(chip)chip.innerHTML=_admSessFilter?'<span class="bx" style="background:var(--paper2)">Exam: '+esc((exByTok[_admSessFilter]&&exByTok[_admSessFilter].course)||_admSessFilter)+' <a href="#" onclick="_admSessFilter=\'\';_renderAdmSessions();return false" style="color:var(--ac);font-weight:700;text-decoration:none">&times;</a></span>':'';
+  const cnt=document.getElementById('adm-sess-count');if(cnt)cnt.textContent=rows.length+' session'+(rows.length===1?'':'s');
+  const tbl=document.getElementById('adm-sess-table');if(tbl)tbl.innerHTML= body.length? _admTable(['Student','Exam','Teacher','Status','Score','Flags','Started'],body) : _admEmpty('No sessions match.');
+}
+function admDeleteExam(token){
+  if(!isAdmin())return;
+  openConfirm('Delete this exam?','This permanently removes the exam document for everyone. Student sessions are kept. This cannot be undone.',()=>{
+    db.collection('exams').doc(token).delete().then(()=>{toast('Exam deleted','ok');openAdmin();}).catch(e=>toast(e.message,'err'));
+  });
+}
+function admDeleteFeedback(id){
+  if(!isAdmin())return;
+  openConfirm('Delete this feedback?','This permanently removes the feedback entry.',()=>{
+    db.collection('feedback').doc(id).delete().then(()=>{toast('Feedback deleted','ok');openAdmin();}).catch(e=>toast(e.message,'err'));
+  });
 }
 let _editExIdx=null;
 // #2: edit an existing exam's questions without creating a new one
