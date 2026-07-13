@@ -1724,11 +1724,39 @@ Here is my file:</textarea>
 
 <!-- ══ EDIT EXAM QUESTIONS MODAL ══ -->
 <div class="mbd" id="m-editex">
-  <div class="mbx" style="max-width:680px">
+  <div class="mbx" style="max-width:860px;width:min(94vw,860px)">
     <div class="mh"><h3>&#9998; Edit Exam</h3><p style="color:var(--ink3);font-size:.85rem;margin-top:4px" id="editex-sub"></p></div>
-    <div class="mb">
+    <div class="mb" style="max-height:70vh;overflow-y:auto">
+      <div style="font-size:.78rem;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px">Exam settings</div>
       <div class="fg" style="margin-bottom:12px"><label class="fl">Course / Title</label><input class="fi" id="editex-course"></div>
-      <div id="editex-qs" style="max-height:46vh;overflow-y:auto"></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:12px">
+        <div class="fg"><label class="fl">Section</label><input class="fi" id="editex-section" placeholder="e.g. Section A"></div>
+        <div class="fg"><label class="fl">Teacher email</label><input class="fi" id="editex-email" type="email"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:12px">
+        <div class="fg"><label class="fl" id="editex-durlbl">Duration (min)</label><input class="fi" id="editex-dur" type="number" min="0"><span style="font-size:.7rem;color:var(--ink3)">0 = no timer</span></div>
+        <div class="fg" id="editex-wdur-wrap" style="display:none"><label class="fl">Written duration (min)</label><input class="fi" id="editex-wdur" type="number" min="0"></div>
+        <div class="fg" id="editex-marks-wrap"><label class="fl">Marks per MCQ</label><input class="fi" id="editex-marks" type="number" min="1" step="0.5"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:12px">
+        <div class="fg"><label class="fl">Opens</label><input class="fi" id="editex-start" type="datetime-local"></div>
+        <div class="fg"><label class="fl">Closes</label><input class="fi" id="editex-end" type="datetime-local"></div>
+      </div>
+      <div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:6px">
+        <label style="display:flex;align-items:center;gap:7px;font-size:.85rem;cursor:pointer"><input type="checkbox" id="editex-shq"> Shuffle questions</label>
+        <label style="display:flex;align-items:center;gap:7px;font-size:.85rem;cursor:pointer" id="editex-sho-wrap"><input type="checkbox" id="editex-sho"> Shuffle options</label>
+        <label style="display:flex;align-items:center;gap:7px;font-size:.85rem;cursor:pointer;display:none" id="editex-shw-wrap"><input type="checkbox" id="editex-shw"> Shuffle written</label>
+      </div>
+      <p id="editex-err" class="fe" style="margin-bottom:10px"></p>
+      <div style="border-top:1px solid var(--paper2);margin:12px 0"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:0 0 10px">
+        <div style="font-size:.78rem;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em">Questions</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btnS sm" id="editex-add-mcq" onclick="addEditQ('mcq')">+ Add MCQ question</button>
+          <button class="btn btnS sm" id="editex-add-wrt" onclick="addEditQ('wrt')">+ Add written question</button>
+        </div>
+      </div>
+      <div id="editex-qs"></div>
     </div>
     <div class="mf"><button class="btn btnG" onclick="closeM('m-editex')">Cancel</button><button class="btn btnP" onclick="saveEditExam()">Save changes</button></div>
   </div>
@@ -3244,21 +3272,68 @@ function admDeleteFeedback(id){
     db.collection('feedback').doc(id).delete().then(()=>{toast('Feedback deleted','ok');openAdmin();}).catch(e=>toast(e.message,'err'));
   });
 }
-let _editExIdx=null;
+let _editExIdx=null,_editNMcq=0,_editNWrt=0;
+// Append a blank question block to the edit dialog (saved on "Save changes")
+function addEditQ(kind){
+  const root=document.getElementById('editex-qs');
+  if(root.querySelector('[data-empty]'))root.innerHTML='';
+  const wrap=document.createElement('div');
+  if(kind==='mcq'){
+    const i=_editNMcq++;
+    wrap.innerHTML=`<div class="card" style="padding:14px;margin-bottom:12px;border-color:var(--ac)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><label class="fl" style="margin:0">Q${i+1} text</label><span class="bx" style="background:var(--ac);color:#fff;font-size:.62rem">NEW</span></div>
+      <textarea class="wta" style="min-height:54px" data-eq="mcq" data-i="${i}" data-f="text" placeholder="Type the question…"></textarea>
+      ${[0,1,2,3].map(oi=>`<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><input type="radio" name="eq-ans-${i}" ${oi===0?'checked':''} data-eq="mcq" data-i="${i}" data-f="answer" data-oi="${oi}"><input class="fi" data-eq="mcq" data-i="${i}" data-f="opt" data-oi="${oi}" placeholder="Option ${'ABCD'[oi]}${oi>1?' (optional)':''}"></div>`).join('')}
+      <p style="font-size:.72rem;color:var(--ink3);margin:8px 0 0">Tick the radio next to the correct option.</p>
+    </div>`;
+  }else{
+    const i=_editNWrt++;
+    wrap.innerHTML=`<div class="card" style="padding:14px;margin-bottom:12px;border-color:var(--ac)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><label class="fl" style="margin:0">Q${i+1} text</label><span class="bx" style="background:var(--ac);color:#fff;font-size:.62rem">NEW</span></div>
+      <textarea class="wta" style="min-height:54px" data-eq="wrt" data-i="${i}" data-f="text" placeholder="Type the written question…"></textarea>
+      <label class="fl" style="margin-top:8px">Marks</label>
+      <input class="fi" type="number" min="0" data-eq="wrt" data-i="${i}" data-f="marks" value="10">
+    </div>`;
+  }
+  const el=wrap.firstElementChild;root.appendChild(el);
+  el.scrollIntoView({behavior:'smooth',block:'center'});
+  el.querySelector('textarea').focus();
+}
 // #2: edit an existing exam's questions without creating a new one
 function editExam(idx){
   const exam=S.exams[idx];if(!exam)return;_editExIdx=idx;
-  document.getElementById('editex-sub').textContent=exam.token+' · '+(exam.type||'mcq');
+  document.getElementById('editex-sub').textContent=exam.token+' · '+(exam.type||'mcq')+' · created '+fmt(exam.createdAt||exam.startTime);
+  // ── prefill ALL previous settings from when the exam was first created ──
   document.getElementById('editex-course').value=exam.course||'';
-  const isWritten=exam.type==='written';
+  document.getElementById('editex-section').value=exam.section||'';
+  document.getElementById('editex-email').value=exam.email||'';
+  document.getElementById('editex-dur').value=exam.noTimer?0:(exam.duration||0);
+  document.getElementById('editex-marks').value=exam.marks||1;
+  document.getElementById('editex-start').value=_toLocalInput(exam.startTime);
+  document.getElementById('editex-end').value=_toLocalInput(exam.endTime);
+  document.getElementById('editex-shq').checked=!!exam.shuffleQ;
+  document.getElementById('editex-sho').checked=!!exam.shuffleO;
+  document.getElementById('editex-shw').checked=!!exam.shuffleWritten;
+  const isWritten=exam.type==='written',isComb=exam.type==='combined';
+  document.getElementById('editex-wdur-wrap').style.display=isComb?'block':'none';
+  if(isComb)document.getElementById('editex-wdur').value=exam.writtenDuration||0;
+  document.getElementById('editex-durlbl').textContent=isComb?'MCQ duration (min)':'Duration (min)';
+  document.getElementById('editex-marks-wrap').style.display=isWritten?'none':'block';
+  document.getElementById('editex-sho-wrap').style.display=isWritten?'none':'flex';
+  document.getElementById('editex-shw-wrap').style.display=isComb?'flex':'none';
+  const errEl=document.getElementById('editex-err');errEl.classList.remove('on');errEl.textContent='';
   const mcqQs=exam.questions||[];
   const wrtQs=exam.writtenQuestions||(isWritten?exam.questions:[])||[];
+  _editNMcq=(!isWritten&&mcqQs.length)?mcqQs.length:0;
+  _editNWrt=wrtQs.length;
+  document.getElementById('editex-add-mcq').style.display=isWritten?'none':'inline-flex';
+  document.getElementById('editex-add-wrt').style.display=(isWritten||isComb)?'inline-flex':'none';
   let html='';
   if(mcqQs.length&&!isWritten){
     html+='<div style="font-size:.78rem;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;margin:6px 0 10px">MCQ Questions</div>';
     html+=mcqQs.map((q,i)=>{
       const opts=q.options||[q.A,q.B,q.C,q.D].filter(x=>x!=null);
-      const ans=typeof q.answer==='number'?q.answer:(typeof q.correct==='number'?q.correct:0);
+      const ans=typeof q.correct_answer==='number'?q.correct_answer:(typeof q.answer==='number'?q.answer:(typeof q.correct==='number'?q.correct:0));
       return `<div class="card" style="padding:14px;margin-bottom:12px">
         <label class="fl">Q${i+1} text</label>
         <textarea class="wta" style="min-height:54px" data-eq="mcq" data-i="${i}" data-f="text">${esc(q.text||q.question_text||q.question||'')}</textarea>
@@ -3275,25 +3350,67 @@ function editExam(idx){
       <input class="fi" type="number" min="0" data-eq="wrt" data-i="${i}" data-f="marks" value="${q.marks||10}">
     </div>`).join('');
   }
-  if(!html)html='<p style="color:var(--ink3);font-size:.85rem">No editable questions found.</p>';
+  if(!html)html='<p data-empty style="color:var(--ink3);font-size:.85rem">No questions yet — use the “+ Add” buttons above to create some.</p>';
   document.getElementById('editex-qs').innerHTML=html;
   openM('m-editex');
 }
 function saveEditExam(){
   const exam=S.exams[_editExIdx];if(!exam)return;
+  const errEl=document.getElementById('editex-err');
+  const fail=m=>{errEl.textContent=m;errEl.classList.add('on');};
+  errEl.classList.remove('on');
+  // ── settings ──
+  const sv=document.getElementById('editex-start').value,ev=document.getElementById('editex-end').value;
+  const st=sv?new Date(sv).getTime():exam.startTime,en=ev?new Date(ev).getTime():exam.endTime;
+  if(isNaN(st)||isNaN(en)){fail('Those opening/closing times don\'t look valid.');return;}
+  if(en<=st){fail('The closing time must be after the opening time.');return;}
+  const dur=Math.max(0,+document.getElementById('editex-dur').value||0);
   exam.course=document.getElementById('editex-course').value.trim()||exam.course;
+  exam.section=document.getElementById('editex-section').value.trim();
+  const em=document.getElementById('editex-email').value.trim();if(em)exam.email=em;
+  exam.duration=dur;exam.noTimer=dur===0;
+  if(exam.type==='combined')exam.writtenDuration=Math.max(0,+document.getElementById('editex-wdur').value||0);
+  if(exam.type!=='written')exam.marks=Math.max(0.5,+document.getElementById('editex-marks').value||1);
+  exam.startTime=st;exam.endTime=en;
+  exam.shuffleQ=document.getElementById('editex-shq').checked;
+  if(exam.type!=='written')exam.shuffleO=document.getElementById('editex-sho').checked;
+  if(exam.type==='combined')exam.shuffleWritten=document.getElementById('editex-shw').checked;
+  // ── questions ──
   const root=document.getElementById('editex-qs');
   const isWritten=exam.type==='written';
   const mcqQs=exam.questions||[];
   const wrtQs=exam.writtenQuestions||(isWritten?exam.questions:[])||[];
   root.querySelectorAll('[data-eq]').forEach(el=>{
     const eq=el.dataset.eq,i=+el.dataset.i,f=el.dataset.f;
-    const arr=eq==='mcq'?mcqQs:wrtQs;if(!arr[i])return;
-    if(f==='text'){if(arr[i].text!==undefined||true){arr[i].text=el.value;arr[i].question_text=el.value;}}
+    const arr=eq==='mcq'?mcqQs:wrtQs;
+    if(!arr[i]){ // NEW question added in the editor
+      arr[i]=eq==='mcq'
+        ?{question_text:'',text:'',options:['','','',''],correct_answer:0,answer:0,correct:0,difficulty:'medium',topic_tag:''}
+        :{question_text:'',text:'',marks:10};
+    }
+    if(f==='text'){arr[i].text=el.value;arr[i].question_text=el.value;}
     else if(f==='opt'){const oi=+el.dataset.oi;if(arr[i].options)arr[i].options[oi]=el.value;else{['A','B','C','D'][oi]&&(arr[i][['A','B','C','D'][oi]]=el.value);}}
-    else if(f==='answer'){if(el.checked){arr[i].answer=+el.dataset.oi;arr[i].correct=+el.dataset.oi;}}
+    else if(f==='answer'){if(el.checked){arr[i].answer=+el.dataset.oi;arr[i].correct=+el.dataset.oi;arr[i].correct_answer=+el.dataset.oi;}}
     else if(f==='marks'){arr[i].marks=+el.value||10;}
   });
+  // Clean up: drop blank options (remapping the correct answer) and blank questions
+  if(!isWritten){
+    for(let i=mcqQs.length-1;i>=0;i--){
+      const q=mcqQs[i];if(!q)continue;
+      if(Array.isArray(q.options)){
+        const kept=[];let newAns=0;
+        q.options.forEach((o,oi)=>{if(String(o||'').trim()!==''){if(oi===q.correct_answer)newAns=kept.length;kept.push(o);}});
+        q.options=kept;q.correct_answer=newAns;q.answer=newAns;q.correct=newAns;
+      }
+      if(!String(q.question_text||q.text||'').trim()||(Array.isArray(q.options)&&q.options.length<2))mcqQs.splice(i,1);
+    }
+  }
+  for(let i=wrtQs.length-1;i>=0;i--){const q=wrtQs[i];if(!q||!String(q.question_text||q.text||'').trim())wrtQs.splice(i,1);}
+  if(exam.type!=='written'&&exam.type!=='combined'&&!mcqQs.length){fail('An MCQ exam needs at least one question.');return;}
+  if(exam.type==='written'&&!wrtQs.length){fail('A written exam needs at least one question.');return;}
+  // Reattach arrays (covers exams whose array didn't exist before this edit)
+  if(isWritten)exam.questions=wrtQs;
+  else{exam.questions=mcqQs;if(exam.type==='combined')exam.writtenQuestions=wrtQs;}
   saveExams();
   // persist to Firebase
   try{const{sessions:_,...d}=exam;db.collection('exams').doc(exam.token).set({...d,teacherUid:S.teacher?.uid||''},{merge:true});}catch(e){}
@@ -3523,7 +3640,7 @@ function showExamLink(idx,opts){
 }
 function openLinkModal(idx){showExamLink(idx,{created:false});}
 function previewAsStudent(){closeM('m-link');previewExam(_linkModalIdx!=null?_linkModalIdx:S.exams.length-1);}
-function previewExam(idx){const exam=S.exams[idx];if(!exam)return;S.examIdx=idx;showACWarn(exam);}
+function previewExam(idx){const exam=S.exams[idx];if(!exam)return;S.examIdx=idx;S._preview=true;showACWarn(exam);}
 
 // ═══ STUDENT FLOW ═══
 function showACWarn(exam){document.getElementById('acw-badge').textContent=exam.course||'Exam';document.getElementById('pg-acwarn').dataset.idx=S.examIdx;showPage('pg-acwarn');}
@@ -3562,6 +3679,10 @@ async function loadSInfoPage(exam){
 }
 async function startExam(){
   const exam=S.exams[S.examIdx];const sl=exam.studentList||[];
+  // One submission per browser: this browser already submitted this exam.
+  // (Teacher previews are exempt and never write the lock.)
+  const _lockMark=S._preview?null:examLocked(exam);
+  if(_lockMark){showAlreadySubmitted(exam,_lockMark);return;}
   // JOIN CUT-OFF: a NEW student cannot start after the exam window has closed.
   // (Students already in progress resume via the device-switch flow, not startExam.)
   const _now=Date.now();const _skew=5*60*1000;
@@ -3981,8 +4102,10 @@ function doSubmit(){
   const final={submitted:true,score,totalMarks,pct,timeTaken,submittedAt:Date.now(),violations:S.violations,answers:S.answers,writtenAnswers:S.wAnswers};
   if(sess)Object.assign(sess,final);saveExams();
   fbSaveSess(exam.token,{id:S.sessId,...S.stuInfo,...final});
-  // Clear stored session (exam complete)
+  // Clear stored session (exam complete) and lock this browser: one submission only
   try{localStorage.removeItem('ef_sess_'+exam.token);}catch(e){}
+  if(!S._preview)LS('ef_done_'+exam.token,{sessId:S.sessId,name:S.stuInfo.name||'',studentId:S.stuInfo.studentId||'',score,totalMarks,pct,timeTaken,submittedAt:Date.now(),isW,viol:(S.violations||[]).length});
+  S._preview=false;
   showResults(score,totalMarks,pct,timeTaken,isW);
 }
 function showResults(score,total,pct,time,isWritten){
@@ -4011,7 +4134,31 @@ function showResults(score,total,pct,time,isWritten){
   }
   showPage('pg-result');
 }
-
+// ═══ ONE SUBMISSION PER BROWSER ═══
+// A permanent marker (ef_done_<token>) is written at submit; if this browser
+// already submitted the exam, we show the submission page instead of a new attempt.
+function examLocked(exam){if(!exam)return null;const m=LS('ef_done_'+exam.token);return(m&&m.submittedAt)?m:null;}
+function showAlreadySubmitted(exam,m){
+  document.getElementById('res-title').textContent=exam?.course||'Results';
+  document.getElementById('res-student').textContent=(m.name||'Student')+(m.studentId?' · '+m.studentId:'')+'  ·  ✓ already submitted on this device';
+  document.getElementById('res-big').textContent=m.isW?'?':(m.score!=null?m.score:'—');
+  document.getElementById('res-tot').textContent='/ '+(m.totalMarks!=null?m.totalMarks:'—');
+  document.getElementById('res-pct').textContent=m.isW?'Pending grading':(m.pct!=null?m.pct+'%':'—');
+  const pct=m.pct||0,grade=m.isW?'—':(pct>=90?'A+':pct>=80?'A':pct>=70?'B':pct>=60?'C':pct>=50?'D':'F');
+  const gc={A:'bK','A+':'bK',B:'bI',C:'bW',D:'bW',F:'bE'}[grade]||'bN';
+  document.getElementById('res-grade').textContent='Grade: '+grade;
+  document.getElementById('res-grade').className='bx '+gc;
+  const t=m.timeTaken||0;
+  document.getElementById('res-time').textContent='⏱ '+Math.floor(t/60)+'m '+(t%60)+'s';
+  document.getElementById('res-viol').textContent='⚑ '+(m.viol||0)+' violation'+((m.viol||0)!==1?'s':'');
+  const circ=2*Math.PI*54;
+  setTimeout(()=>{const ring=document.getElementById('res-ring');if(ring){ring.style.strokeDashoffset=circ*(1-pct/100);ring.style.stroke=pct>=60?'var(--ok)':pct>=40?'var(--warn)':'var(--err)';}},200);
+  // answer review isn't stored in the lock marker — hide both panels
+  document.getElementById('res-review').style.display='none';
+  document.getElementById('res-written').style.display='none';
+  toast('This exam was already submitted from this browser — one attempt per student.','info',6000);
+  showPage('pg-result');
+}
 // ═══ MONITORING ═══
 let _gradSess=null,_gradQIdx=0;
 function openMonitor(idx){
@@ -4385,6 +4532,10 @@ async function checkURL(){
     else{const ex=S.exams[idx];S.exams[idx]={...ex,...examData,sessions:ex.sessions||[]};saveExams();}
     S.examIdx=idx;
     done();
+    S._preview=false; // arriving via exam link = a real student attempt
+    // One submission per browser: if this browser already submitted, show the submission page.
+    const _doneMark=examLocked(S.exams[idx]);
+    if(_doneMark){showAlreadySubmitted(S.exams[idx],_doneMark);return;}
     // Check if student already started this exam (returning after refresh)
     const _prevSess=LS('ef_sess_'+examData.token);
     if(_prevSess&&_prevSess.sessId&&_prevSess.answers&&Object.keys(_prevSess.answers).length>0){
