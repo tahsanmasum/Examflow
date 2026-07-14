@@ -203,6 +203,9 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
 .dt tr:hover td{background:var(--paper2)}
 /* Live dot */
 .ldot{width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;animation:lp 1.5s infinite}
+.gline{display:flex;gap:8px;align-items:flex-start;background:var(--paper2);border:1px dashed var(--paper3);border-radius:10px;padding:9px 12px;font-size:.78rem;color:var(--ink2);line-height:1.55;margin:10px 0;text-align:left}
+.gline b{color:var(--ink)}
+.gline>span:first-child{flex-shrink:0}
 @keyframes lp{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.4)}50%{box-shadow:0 0 0 5px rgba(34,197,94,0)}}
 /* Link chip */
 .lchip{display:flex;align-items:center;gap:8px;background:var(--paper2);border:1px solid var(--paper3);border-radius:var(--r);padding:10px 14px;font-family:var(--fm);font-size:.825rem;overflow:hidden}
@@ -979,7 +982,7 @@ body{background:#faf9f6}
   <section class="ef-hero" id="ef-hero">
     <div class="ef-hero-grid">
       <div class="ef-hero-text">
-        <div class="ef-badge ef-enter d1">● Live · v3.0 · Built by TahCreations</div>
+        <div class="ef-badge ef-enter d1">Live · v3.0 · Built by TahCreations</div>
         <h1 class="ef-hero-h ef-enter d2">Run secure <em>exams</em>, effortlessly.</h1>
         <p class="ef-hero-sub ef-enter d3">A universal examination platform for teachers and students. MCQ, written, and combined exams — with live monitoring, anti-cheat, and zero setup. Browser-based, infinite students, ready in seconds.</p>
         <div class="ef-hero-cta ef-enter d4">
@@ -1124,9 +1127,9 @@ body{background:#faf9f6}
       <div class="ef-brand">
         <span class="ef-brand-mark"><svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;">
   <rect x="2" y="2" width="28" height="28" rx="7" fill="#c8401a"/>
-  <rect x="2" y="2" width="28" height="28" rx="7" fill="url(#exGloss)"/>
+  <rect x="2" y="2" width="28" height="28" rx="7" fill="url(#exGloss2)"/>
   <defs>
-    <linearGradient id="exGloss" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="exGloss2" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#fff" stop-opacity="0.15"/>
       <stop offset="100%" stop-color="#000" stop-opacity="0.15"/>
     </linearGradient>
@@ -1172,6 +1175,7 @@ body{background:#faf9f6}
           <button class="tb on" id="atab-in" onclick="authTab('in')">Sign in</button>
           <button class="tb" id="atab-up" onclick="authTab('up')">Create account</button>
         </div>
+        <div class="gline"><span>💡</span><span><b>Teachers only.</b> Students never need an account — they simply open the exam link you share.</span></div>
       </div>
       <div class="cb">
         <div id="aform-in" style="display:flex;flex-direction:column;gap:14px;">
@@ -1235,7 +1239,7 @@ body{background:#faf9f6}
   </nav>
   <main style="flex:1;padding:28px 32px;max-width:1200px;width:100%;margin:0 auto;">
     <div class="wbanner">
-      <div><h2 style="font-size:1.5rem;margin-bottom:6px">Welcome back, <span id="wname">Teacher</span> &#128075;</h2><p style="color:var(--ink3);font-size:.9rem">Here&rsquo;s what&rsquo;s happening with your exams today.</p></div>
+      <div><h2 style="font-size:1.5rem;margin-bottom:6px">Welcome back, <span id="wname">Teacher</span> &#128075;</h2><p style="color:var(--ink3);font-size:.9rem">Here&rsquo;s what&rsquo;s happening with your exams today.</p><div class="gline"><span>💡</span><span><b>How it works:</b> ① Create an exam → ② share the 🔗 link → ③ watch students live in 📡 Monitor → ④ grade &amp; export. ✏️ Edit anytime — changes reach students instantly.</span></div></div>
       <div class="dash-illus" style="flex-shrink:0;width:200px;height:130px;position:relative;overflow:visible;" aria-hidden="true">
       <svg viewBox="0 0 200 130" width="200" height="130" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">
         <defs>
@@ -1431,7 +1435,7 @@ Here is my file:</textarea>
 <!-- ══ MCQ CREATE MODAL ══ -->
 <div class="mbd" id="m-mcq">
   <div class="mbx" style="max-width:640px;">
-    <div class="mh"><h3 id="mcq-modal-title">Create MCQ Exam</h3><p style="color:var(--ink3);font-size:.85rem;margin-top:4px">Configure settings and upload your question bank.</p></div>
+    <div class="mh"><h3 id="mcq-modal-title">Create MCQ Exam</h3><p style="color:var(--ink3);font-size:.85rem;margin-top:4px">Configure settings and upload your question bank.</p><div class="gline"><span>💡</span><span><b>Steps:</b> ⚙ Settings → 📄 Questions (upload CSV/JSON, paste, AI-convert, or add manually) → 👥 Students (optional) → 👁 Preview → Create. MCQs are auto-graded.</span></div></div>
     <div class="mb" style="max-height:70vh;overflow-y:auto;">
       <div class="tnav" id="mcq-tnav">
         <button class="tb on" onclick="mcqTab('t-cfg',this)">&#9881; Settings</button>
@@ -1512,7 +1516,7 @@ Here is my file:</textarea>
 <!-- ══ WRITTEN CREATE MODAL ══ -->
 <div class="mbd" id="m-wrt">
   <div class="mbx" style="max-width:640px;">
-    <div class="mh"><h3 id="wrt-title">Create Written Exam</h3><p style="color:var(--ink3);font-size:.85rem;margin-top:4px">Students write manually or upload photos. You grade manually.</p></div>
+    <div class="mh"><h3 id="wrt-title">Create Written Exam</h3><p style="color:var(--ink3);font-size:.85rem;margin-top:4px">Students write manually or upload photos. You grade manually.</p><div class="gline"><span>💡</span><span><b>Steps:</b> set duration &amp; schedule → add questions with marks → students type or 📷 upload photo answers → you grade them later in 📡 Monitor.</span></div></div>
     <div class="mb" style="max-height:70vh;overflow-y:auto;">
       <div class="tnav" id="wrt-tnav">
         <button class="tb on" onclick="wrtTab('wt-cfg',this)">&#9881; Settings</button>
@@ -1628,7 +1632,7 @@ Here is my file:</textarea>
         <div id="link-qr" style="display:inline-flex;justify-content:center;padding:10px;background:#fff;border:1px solid var(--paper3);border-radius:10px"></div>
         <p style="font-size:.75rem;color:var(--ink3);margin-top:8px">📱 Students can scan this QR code to open the exam</p>
       </div>
-      <p style="font-size:.8rem;color:var(--ink3);margin-top:10px;text-align:center">Questions are shuffled per student session.</p>
+      <p style="font-size:.8rem;color:var(--ink3);margin-top:10px;text-align:center">Questions are shuffled per student session.</p><div class="gline"><span>💡</span><span><b>Next:</b> post this link in WhatsApp / Google Classroom / email. You can reopen it anytime from the dashboard 🔗 Link button — then open 📡 Monitor once students join.</span></div>
     </div>
     <div class="mf"><button class="btn btnG" onclick="closeM('m-link')">Close</button><button class="btn btnP" onclick="previewAsStudent()">Preview as student &rarr;</button></div>
   </div>
@@ -1725,7 +1729,7 @@ Here is my file:</textarea>
 <!-- ══ EDIT EXAM QUESTIONS MODAL ══ -->
 <div class="mbd" id="m-editex">
   <div class="mbx" style="max-width:860px;width:min(94vw,860px)">
-    <div class="mh"><h3>&#9998; Edit Exam</h3><p style="color:var(--ink3);font-size:.85rem;margin-top:4px" id="editex-sub"></p></div>
+    <div class="mh"><h3>&#9998; Edit Exam</h3><p style="color:var(--ink3);font-size:.85rem;margin-top:4px" id="editex-sub"></p><div class="gline"><span>💡</span><span>Everything is pre-filled from when you created the exam. Blank a question’s text to remove it, use <b>+ Add</b> to append new ones. Saving syncs instantly to students.</span></div></div>
     <div class="mb" style="max-height:70vh;overflow-y:auto">
       <div style="font-size:.78rem;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px">Exam settings</div>
       <div class="fg" style="margin-bottom:12px"><label class="fl">Course / Title</label><input class="fi" id="editex-course"></div>
@@ -1834,6 +1838,7 @@ Here is my file:</textarea>
         </div>
       </div>
       <div class="cb">
+        <div class="gline"><span>💡</span><span><b>Before you start:</b> close other tabs &amp; apps, check your internet, and keep this window in focus — switching away is flagged automatically.</span></div>
         <div class="acRule" style="background:var(--errbg)"><span style="font-size:1.2rem;flex-shrink:0">&#128260;</span><div><div style="font-weight:600;font-size:.875rem;margin-bottom:2px">Tab switching causes an auto-refresh</div><div style="font-size:.82rem;color:var(--ink3)">Switching apps or tabs instantly refreshes the exam and flags you. Works on mobile too.</div></div></div>
         <div class="acRule" style="background:var(--warnbg)"><span style="font-size:1.2rem;flex-shrink:0">&#128203;</span><div><div style="font-weight:600;font-size:.875rem;margin-bottom:2px">Copy &amp; paste is fully disabled</div><div style="font-size:.82rem;color:var(--ink3)">You cannot copy from or paste into the exam. Write manually or upload a photo.</div></div></div>
         <div class="acRule" style="background:var(--infobg)"><span style="font-size:1.2rem;flex-shrink:0">&#9201;</span><div><div style="font-weight:600;font-size:.875rem;margin-bottom:2px">Timer cannot be paused</div><div style="font-size:.82rem;color:var(--ink3)">The countdown continues once started. Exam auto-submits when time expires.</div></div></div>
@@ -1853,7 +1858,7 @@ Here is my file:</textarea>
     <div class="card" style="width:100%;max-width:580px;">
       <div class="ch">
         <h2 id="si-title">Student details</h2>
-        <p style="color:var(--ink3);font-size:.875rem;margin-top:4px" id="si-sub">Fill in your details accurately.</p>
+        <p style="color:var(--ink3);font-size:.875rem;margin-top:4px" id="si-sub">Fill in your details accurately.</p><div class="gline"><span>💡</span><span>Use your <b>real name &amp; student ID</b> — they appear on your result and your teacher’s report. You get <b>one attempt</b> on this browser.</span></div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
           <span class="bx bW" id="si-dur">&#8987; — min</span>
           <span class="bx bN" id="si-qcnt">— questions</span>
@@ -1918,6 +1923,7 @@ Here is my file:</textarea>
         <div style="display:flex;align-items:center;gap:6px"><div style="width:14px;height:14px;border-radius:4px;background:var(--okbg);border:1.5px solid var(--ok)"></div>Answered</div>
         <div style="display:flex;align-items:center;gap:6px"><div style="width:14px;height:14px;border-radius:4px;background:var(--warnbg);border:1.5px solid var(--warn)"></div>Flagged</div>
         <div style="display:flex;align-items:center;gap:6px"><div style="width:14px;height:14px;border-radius:4px;background:var(--paper2);border:1.5px solid var(--paper3)"></div>Unanswered</div>
+      <div class="gline"><span>💡</span><span>Answers <b>save automatically</b>. Don’t switch tabs or minimize — it’s flagged. 📲 lets you continue on another device.</span></div>
       </div>
       <div class="div"></div>
       <div style="font-size:.825rem;color:var(--ink3)">
@@ -1960,6 +1966,7 @@ Here is my file:</textarea>
   </nav>
   <div style="height:4px;background:var(--paper3)"><div class="pfill" id="wx-prog" style="height:4px;width:0"></div></div>
   <main style="flex:1;overflow-y:auto;padding:28px 32px">
+    <div style="max-width:780px;margin:0 auto 14px"><div class="gline"><span>💡</span><span>Type your answers or 📷 <b>upload photos</b> of your written pages under each question. Everything saves as you go — submit once at the end.</span></div></div>
     <div style="max-width:780px;margin:0 auto" id="wx-qs"></div>
     <div style="max-width:780px;margin:20px auto 0;display:flex;justify-content:flex-end">
       <button class="btn btnP lg btn3d" onclick="confirmWSub()">Submit written exam &rarr;</button>
@@ -1975,7 +1982,7 @@ Here is my file:</textarea>
       <div class="cb" style="text-align:center">
         <div class="bx bK" style="margin-bottom:16px">&#10003; Exam submitted</div>
         <h2 id="res-title" style="margin-bottom:6px">Results</h2>
-        <p style="color:var(--ink3);font-size:.875rem" id="res-student"></p>
+        <p style="color:var(--ink3);font-size:.875rem" id="res-student"></p><div class="gline" style="max-width:520px;margin:14px auto 0"><span>💡</span><span>📸 Screenshot this page for your records. Your submission has already reached your teacher — you can safely close this window.</span></div>
         <div style="display:flex;align-items:center;justify-content:center;margin:20px 0">
           <div class="sring">
             <svg width="130" height="130" viewBox="0 0 130 130"><circle cx="65" cy="65" r="54" fill="none" stroke="#e4dfd5" stroke-width="10"/><circle id="res-ring" cx="65" cy="65" r="54" fill="none" stroke="#c8401a" stroke-width="10" stroke-linecap="round" stroke-dasharray="339.3" stroke-dashoffset="339.3" style="transition:stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)"/></svg>
@@ -2025,7 +2032,7 @@ Here is my file:</textarea>
           <span class="ldot"></span>
           <span class="bx bK">LIVE</span>
         </div>
-        <p style="color:var(--ink3);font-size:.875rem" id="mon-sub"></p>
+        <p style="color:var(--ink3);font-size:.875rem" id="mon-sub"></p><div class="gline"><span>💡</span><span>Rows update live — red ⚑ means tab-switch flags. Grade written answers in the <b>Written</b> tab; <b>Export</b> gives CSV + PDF answer scripts.</span></div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <div id="mon-tabs" style="display:flex;gap:6px">
@@ -2146,6 +2153,7 @@ Here is my file:</textarea>
     <div class="mh">
       <h3>Create MCQ + Written Exam</h3>
       <p style="color:var(--ink3);font-size:.85rem;margin-top:4px">One exam with both MCQ and written questions. Email, course, and section are shared.</p>
+      <div class="gline"><span>💡</span><span><b>Student flow:</b> MCQ phase first (auto-graded) → then the written phase (you grade). Set a separate duration for each part below.</span></div>
     </div>
     <div class="mb" style="max-height:75vh;overflow-y:auto;">
 
@@ -3047,6 +3055,7 @@ function openSwitchDevice(){
 }
 // resume an exam on THIS device using a code from another device
 async function resumeByCode(){
+  S._preview=false; // resuming with a code = a real student attempt
   const code=(document.getElementById('switch-input').value||'').trim().toUpperCase();
   if(!code){toast('Enter the 6-character code','err');return;}
   try{
@@ -3594,7 +3603,10 @@ function buildLinkLong(exam){return`${location.origin}${location.pathname}?ed=${
 async function fbLoadExamByToken(token){
   try{
     const doc=await db.collection('exams').doc(token).get();
-    if(doc.exists)return doc.data();
+    // BUGFIX: sessions live in their own collection, so the exam doc never has one —
+    // resume paths (device-switch / mid-exam refresh) skip startExam's normalization
+    // and would crash on exam.sessions.find(...). Normalize here for all consumers.
+    if(doc.exists){const d=doc.data();if(!Array.isArray(d.sessions))d.sessions=[];return d;}
   }catch(e){console.warn('fbLoadExamByToken',e.message);}
   return null;
 }
@@ -3613,9 +3625,10 @@ function encodeExam(exam){
 }
 function decodeExam(s){
   if(!s)return null;
-  try{return JSON.parse(decodeURIComponent(atob(s)));}catch(e){}
-  try{return JSON.parse(decodeURIComponent(escape(atob(s))));}catch(e){}
-  try{return JSON.parse(atob(s));}catch(e){}
+  const norm=e=>{if(e&&!Array.isArray(e.sessions))e.sessions=[];return e;};
+  try{return norm(JSON.parse(decodeURIComponent(atob(s))));}catch(e){}
+  try{return norm(JSON.parse(decodeURIComponent(escape(atob(s)))));}catch(e){}
+  try{return norm(JSON.parse(atob(s)));}catch(e){}
   return null;
 }
 function copyLink(){navigator.clipboard.writeText(document.getElementById('link-txt').textContent).then(()=>toast('Link copied!','ok'));}
@@ -4093,6 +4106,13 @@ function doSubmit(){
   if(isW){
     S.questions.forEach((_,i)=>{const ta=document.getElementById('wa-'+i);if(ta)S.wAnswers[i]=ta.value;});
     totalMarks=S.questions.reduce((a,q)=>a+(q.marks||10),0);score=0;
+    if(exam.type==='combined'){
+      // BUGFIX: fold the auto-graded MCQ phase back into the final result —
+      // previously score/answers from the MCQ half were computed then dropped.
+      score=(S._mcqScore||0)*(exam.marks||1);
+      totalMarks+=(exam.questions||[]).length*(exam.marks||1);
+      S.answers=S._mcqAnswers||{};
+    }
   }else{
     S.questions.forEach((q,i)=>{if(S.answers[i]===q.correct_answer)score++;});
     totalMarks=S.questions.length*(exam.marks||1);
