@@ -2244,7 +2244,7 @@ Here is my file:</textarea>
       <div class="fg" style="margin-bottom:12px"><label class="fl">Type</label><select class="fs" id="fb-type"><option value="bug">🐞 Bug report</option><option value="feature">💡 Feature request</option><option value="other">💬 Other feedback</option></select></div>
       <div class="fg"><label class="fl">Message <span>*</span></label><textarea class="wta" id="fb-msg" placeholder="Describe the bug or your suggestion…"></textarea></div>
     </div>
-    <div class="mf"><button class="btn btnG" onclick="closeM('m-feedback')">Cancel</button><button class="btn btnP" onclick="sendFeedback()">Send feedback</button></div>
+    <div class="mf"><button class="btn btnG" onclick="closeM('m-feedback')">Cancel</button><button class="btn btnP" id="fb-send" onclick="sendFeedback()">Send feedback</button></div>
   </div>
 </div>
 
@@ -2622,6 +2622,18 @@ Here is my file:</textarea>
 
 
 <!-- ══ ADMIN MONITOR (owner only) ══ -->
+<style>
+  .adm-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px;margin-bottom:20px}
+  .adm-2col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .adm-toolbar{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+  .adm-search{font-family:var(--fm);font-size:.82rem;padding:7px 11px;border:1px solid var(--paper3);border-radius:8px;min-width:220px;flex:1;max-width:340px;background:#fff;color:var(--ink)}
+  .adm-search:focus{outline:none;border-color:var(--ac)}
+  @media(max-width:820px){
+    .adm-2col{grid-template-columns:1fr}
+    #pg-admin main{padding:16px!important}
+    .adm-search{max-width:none}
+  }
+</style>
 <div class="page" id="pg-admin">
   <nav class="nav">
     <a class="brand" href="#" onclick="showPage('pg-dash');return false"><div class="logomark"><svg viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h8" stroke-linecap="round"/></svg></div>ExamFlow</a>
@@ -2639,13 +2651,15 @@ Here is my file:</textarea>
       </div>
       <span id="adm-status" style="font-size:.78rem;color:var(--ink3)"></span>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px">
+    <div class="adm-stats">
       <div class="scard"><div class="sv" id="as-teachers">0</div><div class="sl">Teachers</div></div>
-      <div class="scard"><div class="sv" id="as-exams">0</div><div class="sl">Exams</div></div>
+      <div class="scard"><div class="sv" id="as-exams">0</div><div class="sl">Live exams</div></div>
       <div class="scard"><div class="sv" id="as-live" style="color:var(--info)">0</div><div class="sl">In progress</div></div>
+      <div class="scard"><div class="sv" id="as-stale" style="color:var(--ink3)">0</div><div class="sl">Abandoned</div></div>
       <div class="scard"><div class="sv" id="as-subs" style="color:var(--ok)">0</div><div class="sl">Submissions</div></div>
       <div class="scard"><div class="sv" id="as-flags" style="color:var(--err)">0</div><div class="sl">Flags</div></div>
       <div class="scard"><div class="sv" id="as-fb" style="color:var(--ac)">0</div><div class="sl">Feedback</div></div>
+      <div class="scard"><div class="sv" id="as-gv" style="color:var(--ac)">0</div><div class="sl">AI graded</div></div>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px" id="adm-tabs">
       <button class="btn btnS sm" data-tab="overview" onclick="_adminTab('overview')">&#128202; Overview</button>
@@ -2653,19 +2667,44 @@ Here is my file:</textarea>
       <button class="btn btnS sm" data-tab="exams" onclick="_adminTab('exams')">&#128221; Exams</button>
       <button class="btn btnS sm" data-tab="live" onclick="_adminTab('live')">&#128994; Live &amp; sessions</button>
       <button class="btn btnS sm" data-tab="feedback" onclick="_adminTab('feedback')">&#128172; Feedback</button>
+      <button class="btn btnS sm" data-tab="gv" onclick="_adminTab('gv')">&#127909; Grade Vision</button>
     </div>
     <div id="adm-overview" class="adm-sec"></div>
-    <div id="adm-teachers" class="adm-sec" style="display:none"></div>
-    <div id="adm-exams" class="adm-sec" style="display:none"></div>
+    <div id="adm-teachers" class="adm-sec" style="display:none">
+      <div class="adm-toolbar">
+        <input id="adm-teacher-q" oninput="_renderAdmin()" placeholder="&#128269; name / email / institution" class="adm-search">
+      </div>
+      <div id="adm-teachers-table"></div>
+    </div>
+    <div id="adm-exams" class="adm-sec" style="display:none">
+      <div class="adm-toolbar">
+        <input id="adm-exam-q" oninput="_renderAdmin()" placeholder="&#128269; course / token / teacher" class="adm-search">
+      </div>
+      <div id="adm-exams-table"></div>
+    </div>
     <div id="adm-live" class="adm-sec" style="display:none">
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
-        <input id="adm-sess-q" oninput="_renderAdmSessions()" placeholder="&#128269; student / id / course" style="font-family:var(--fm);font-size:.82rem;padding:7px 11px;border:1px solid var(--paper3);border-radius:8px;min-width:220px">
+      <div class="adm-toolbar">
+        <input id="adm-sess-q" oninput="_renderAdmSessions()" placeholder="&#128269; student / id / course" class="adm-search">
         <span id="adm-sess-chip"></span>
+        <button class="btn btnG sm" onclick="admExportSessions()">&#11015; CSV</button>
         <span id="adm-sess-count" style="color:var(--ink3);font-size:.8rem;margin-left:auto"></span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="adm-sess-status">
+        <button class="btn btnS sm" style="background:var(--ac);color:#fff;border-color:var(--ac)" onclick="admSessStatus('all',this)">All</button>
+        <button class="btn btnS sm" onclick="admSessStatus('live',this)">&#128994; In progress</button>
+        <button class="btn btnS sm" onclick="admSessStatus('submitted',this)">&#9989; Submitted</button>
+        <button class="btn btnS sm" onclick="admSessStatus('flagged',this)">&#9873; Flagged</button>
+        <button class="btn btnS sm" onclick="admSessStatus('stale',this)">&#128564; Abandoned</button>
       </div>
       <div id="adm-sess-table"></div>
     </div>
-    <div id="adm-feedback" class="adm-sec" style="display:none"></div>
+    <div id="adm-feedback" class="adm-sec" style="display:none">
+      <div class="adm-toolbar">
+        <button class="btn btnG sm" onclick="admExportFeedback()">&#11015; Export feedback CSV</button>
+      </div>
+      <div id="adm-feedback-list"></div>
+    </div>
+    <div id="adm-gv" class="adm-sec" style="display:none"></div>
   </main>
 </div>
 
@@ -3147,6 +3186,7 @@ Here is my file:</textarea>
 <!-- EmailJS — client-side email delivery for graded student scripts (no backend) -->
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
+/* ExamFlow v37 · Grade Vision AI — admin monitor rebuild + bug-fix pass */
 // ═══ FIREBASE ═══
 firebase.initializeApp({apiKey:"AIzaSyAIlselZbtltdX9nDWIUF53SJbJFdlL0f4",authDomain:"examflow-195df.firebaseapp.com",databaseURL:"https://examflow-195df-default-rtdb.firebaseio.com",projectId:"examflow-195df",storageBucket:"examflow-195df.firebasestorage.app",messagingSenderId:"21247533181",appId:"1:21247533181:web:233357cb482709b272d114"});
 const auth=firebase.auth(), db=firebase.firestore();
@@ -3420,6 +3460,9 @@ function showPage(id){
   if(id==='pg-landing')setTimeout(initGSAP,80);
   if(id==='pg-dash'){updateDashUI();renderDash();}
   if(id!=='pg-monitor'){clearInterval(S.monIntvl);stopFBlisten();}
+  // v37 FIX: the admin poller used to keep running (and keep billing reads)
+  // after navigating away from the admin page.
+  if(id!=='pg-admin'&&typeof stopAdminRefresh==='function')stopAdminRefresh();
 }
 
 // ═══ TOAST ═══
@@ -3575,7 +3618,19 @@ auth.onAuthStateChanged(user=>{
 });
 // Owner/admin allow-list (client-side gate ONLY — real protection lives in Firestore rules)
 const ADMIN_EMAILS=['hellotahcreations@gmail.com'];
-function isAdmin(){return ADMIN_EMAILS.includes(((S.teacher&&S.teacher.email)||'').toLowerCase());}
+// v37 FIX: resolve the signed-in email from BOTH app state and the live Firebase
+// user. After a hard refresh S.teacher is restored from localStorage a beat before
+// onAuthStateChanged fires; checking only one source made the Admin entry point
+// disappear and openAdmin() reject the real owner.
+function _authEmail(){
+  const a=(auth.currentUser&&auth.currentUser.email)||'';
+  const b=(S.teacher&&S.teacher.email)||'';
+  return String(a||b).trim().toLowerCase();
+}
+function isAdmin(){return ADMIN_EMAILS.includes(_authEmail());}
+// Keep the sidebar entry in sync whenever auth settles.
+function _refreshAdminEntry(){const am=document.getElementById('um-admin');if(am)am.style.display=isAdmin()?'flex':'none';}
+auth.onAuthStateChanged(()=>{try{_refreshAdminEntry();}catch(e){}});
 function updateDashUI(){
   if(!S.teacher)return;
   const n=S.teacher.name||'';
@@ -3590,7 +3645,16 @@ function updateDashUI(){
 
 // ═══ FIREBASE HELPERS ═══
 async function fbSave(exam){try{const{sessions:_,...d}=exam;await db.collection('exams').doc(exam.token).set({...d,teacherUid:S.teacher?.uid||''},{ merge:true});}catch(e){console.warn('fbSave',e.message);}}
-async function fbSaveSess(token,sess){try{const a={};Object.keys(sess.answers||{}).forEach(k=>{a['q'+k]=sess.answers[k];});await db.collection('sessions').doc(sess.id).set({...sess,answers:a,examToken:token,savedAt:Date.now()},{merge:true});}catch(e){console.warn('fbSaveSess',e.message);}}
+async function fbSaveSess(token,sess){try{
+  const a={};Object.keys(sess.answers||{}).forEach(k=>{a['q'+k]=sess.answers[k];});
+  // v37: stamp the owning teacher so security rules, the admin monitor and
+  // cascade-delete can attribute a session without a second lookup.
+  const _ex=(S.exams||[]).find(e=>e.token===token)||{};
+  const _tuid=_ex.teacherUid||sess.teacherUid||'';
+  const doc={...sess,answers:a,examToken:token,savedAt:Date.now()};
+  if(_tuid)doc.teacherUid=_tuid;
+  await db.collection('sessions').doc(sess.id).set(doc,{merge:true});
+}catch(e){console.warn('fbSaveSess',e.message);}}
 async function fbLoadSess(token){try{const s=await db.collection('sessions').where('examToken','==',token).get();return s.docs.map(d=>d.data());}catch(e){console.warn('fbLoadSess',e.message);return[];}}
 let _unsub=null;
 function startFBlisten(token,cb){stopFBlisten();try{_unsub=db.collection('sessions').where('examToken','==',token).onSnapshot(s=>{cb(s.docs.map(d=>d.data()));},e=>console.warn('listen',e.message));}catch(e){}}
@@ -4004,39 +4068,91 @@ function sendFeedback(){
   const msg=document.getElementById('fb-msg').value.trim();
   if(!name||!inst||!msg){toast('Please fill in name, institute, and message','err');return;}
   const fb={name,institute:inst,type,message:msg,teacherEmail:S.teacher?.email||'',createdAt:Date.now(),at:new Date().toISOString()};
-  try{
-    db.collection('feedback').add(fb);
-    toast('Thank you! Your feedback was sent ✓','ok',4000);
-    document.getElementById('fb-msg').value='';
-    closeM('m-feedback');
-  }catch(e){toast('Could not send — please try again','err');}
+  // v37 FIX: .add() is async, so the old try/catch could never catch a rejected
+  // write. A rules-blocked submission still showed "Thank you!" and silently
+  // vanished — which is why the admin Feedback tab looked permanently empty.
+  const btn=document.getElementById('fb-send');
+  const label=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='Sending…';}
+  db.collection('feedback').add(fb)
+    .then(()=>{
+      toast('Thank you! Your feedback was sent ✓','ok',4000);
+      document.getElementById('fb-msg').value='';
+      closeM('m-feedback');
+    })
+    .catch(e=>{toast('Could not send: '+(e.code||e.message),'err',6000);})
+    .finally(()=>{if(btn){btn.disabled=false;btn.textContent=label;}});
 }
 
-// ═══ ADMIN MONITOR ═══
-let _admTab='overview',_admSessFilter='';
+// ═══ ADMIN MONITOR (v37 — rebuilt) ═══
+// What changed vs v36:
+//  · Promise.all → per-collection Promise.all of guarded fetches, so ONE denied
+//    collection no longer wipes out the whole page (this was the main failure:
+//    a single permission-denied on /sessions left every panel blank).
+//  · Real diagnostics — the page now names the collection that failed and the
+//    Firestore error code instead of a single toast that vanishes in 9s.
+//  · "In progress" now means actually live (checked in < 2h ago). Abandoned
+//    attempts get their own counter instead of inflating the live number.
+//  · Auto-refresh every 15s while the page is open; interval torn down on exit.
+//  · Grade Vision tab (gv_sessions + gv_results) so the admin view covers the
+//    whole platform, not just the exam half.
+//  · CSV export for sessions and feedback; search on teachers and exams.
+//  · Deleting an exam can now cascade its sessions (they used to be orphaned).
+let _admTab='overview',_admSessFilter='',_admSessStatus='all',_admSessLimit=300,
+    _admIntvl=null,_admLoading=false;
+const ADM_LIVE_WINDOW=2*60*60*1000; // a non-submitted session is "live" if seen within 2h
+
+const _admLastSeen=s=>s.lastSeen||s.savedAt||s.submittedAt||s.startedAt||0;
+const _admIsLive=s=>s.submitted!==true&&(Date.now()-_admLastSeen(s))<ADM_LIVE_WINDOW;
+const _admIsStale=s=>s.submitted!==true&&!_admIsLive(s);
+const _admFlags=s=>(s.violations&&s.violations.length)||s.flagCount||0;
+function _admSet(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
+function _admHTML(id,v){const el=document.getElementById(id);if(el)el.innerHTML=v;}
+
 async function openAdmin(){
   if(!isAdmin()){toast('Admins only','err');return;}
-  showPage('pg-admin');_adminTab(_admTab);
-  const st=document.getElementById('adm-status');if(st)st.textContent='Loading…';
-  try{
-    const [tS,eS,sS,fS]=await Promise.all([
-      db.collection('teachers').get(),
-      db.collection('exams').get(),
-      db.collection('sessions').get(),
-      db.collection('feedback').get()
-    ]);
-    S.admin={
-      teachers:tS.docs.map(d=>({id:d.id,...d.data()})),
-      exams:eS.docs.map(d=>({id:d.id,...d.data()})),
-      sessions:sS.docs.map(d=>({id:d.id,...d.data()})),
-      feedback:fS.docs.map(d=>({id:d.id,...d.data()}))
-    };
-    if(st)st.textContent='Updated '+new Date().toLocaleTimeString();
-    _renderAdmin();
-  }catch(e){
-    if(st)st.textContent='Load error';
-    toast('Admin load failed: '+e.message+'. Check Firestore rules (admin needs read access).','err',9000);
+  showPage('pg-admin');
+  _adminTab(_admTab);
+  await _admLoad(false);
+  clearInterval(_admIntvl);
+  _admIntvl=setInterval(()=>{
+    const pg=document.getElementById('pg-admin');
+    if(pg&&pg.classList.contains('active'))_admLoad(true);
+    else{clearInterval(_admIntvl);_admIntvl=null;}
+  },15000);
+}
+function stopAdminRefresh(){if(_admIntvl){clearInterval(_admIntvl);_admIntvl=null;}}
+
+// Fetch every collection independently so one failure can't blank the page.
+async function _admLoad(silent){
+  if(_admLoading)return;
+  _admLoading=true;
+  const st=document.getElementById('adm-status');
+  if(st&&!silent)st.textContent='Loading…';
+  const grab=async(name)=>{
+    try{
+      const snap=await db.collection(name).get();
+      return{name,ok:true,docs:snap.docs.map(d=>({id:d.id,...d.data()}))};
+    }catch(e){
+      return{name,ok:false,err:(e&&e.code)||(e&&e.message)||'unknown error',docs:[]};
+    }
+  };
+  const res=await Promise.all(
+    ['teachers','exams','sessions','feedback','gv_sessions','gv_results'].map(grab)
+  );
+  const m={};res.forEach(r=>m[r.name]=r);
+  const errors=res.filter(r=>!r.ok);
+  S.admin={
+    teachers:m.teachers.docs,exams:m.exams.docs,sessions:m.sessions.docs,
+    feedback:m.feedback.docs,gvSessions:m.gv_sessions.docs,gvResults:m.gv_results.docs,
+    errors,loadedAt:Date.now()
+  };
+  if(st)st.textContent=(errors.length?'⚠ Partial · ':'Updated ')+new Date().toLocaleTimeString();
+  _renderAdmin();
+  if(errors.length&&!silent){
+    toast('Could not read: '+errors.map(e=>e.name).join(', ')+' — see the red banner on Overview.','err',7000);
   }
+  _admLoading=false;
 }
 function _adminTab(name){
   _admTab=name;
@@ -4049,92 +4165,243 @@ function _adminTab(name){
 }
 function _admTable(h,rows){return '<div class="card" style="padding:0;overflow-x:auto"><table class="dt" style="width:100%"><thead><tr>'+h.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody>'+rows.join('')+'</tbody></table></div>';}
 function _admEmpty(m){return '<div class="card" style="padding:30px;text-align:center;color:var(--ink3)">'+esc(m)+'</div>';}
+function _admErrBanner(errors){
+  if(!errors||!errors.length)return '';
+  const perm=errors.some(e=>String(e.err).toLowerCase().indexOf('permission')>=0);
+  return '<div class="card" style="padding:14px 16px;margin-bottom:16px;border-color:var(--err);background:var(--errbg)">'
+    +'<strong style="color:var(--err)">&#9888; '+errors.length+' collection'+(errors.length===1?'':'s')+' could not be read</strong>'
+    +'<div style="font-size:.82rem;color:var(--ink2);margin-top:6px;font-family:var(--fm)">'
+      +errors.map(e=>esc(e.name)+' &rarr; '+esc(String(e.err))).join('<br>')+'</div>'
+    +(perm?'<div style="font-size:.8rem;color:var(--ink2);margin-top:10px;line-height:1.5">Firestore security rules are blocking these reads. Deploy the <b>firestore.rules</b> file that ships with this build (Firebase Console &rarr; Firestore Database &rarr; Rules &rarr; Publish). The admin allow-list inside the rules must contain <b>'+esc(ADMIN_EMAILS.join(', '))+'</b> — it has to match the email you are signed in with, which right now is <b>'+esc(_authEmail()||'(not signed in)')+'</b>.</div>':'')
+    +'</div>';
+}
 function _fbType(t){const m={bug:['#b01c1c','#fde8e8'],feature:['#1a4a8a','#e8f0fb'],praise:['#1a6b3a','#e8f7ee'],question:['#7a5b1a','#fbf3e0'],other:['#5a524c','#f0ece6']};const c=m[(t||'other').toLowerCase()]||m.other;return '<span style="background:'+c[1]+';color:'+c[0]+';font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;border-radius:999px;white-space:nowrap">'+esc(t||'other')+'</span>';}
 function _fbMini(f){const msg=f.message||'';return '<div style="border-left:3px solid var(--paper3);padding:1px 0 1px 10px"><div style="display:flex;gap:8px;align-items:center;margin-bottom:2px">'+_fbType(f.type)+'<span style="font-size:.8rem;font-weight:600">'+esc(f.name||'—')+'</span></div><div style="font-size:.82rem;color:var(--ink2);line-height:1.4">'+esc(msg.slice(0,110))+(msg.length>110?'…':'')+'</div></div>';}
-function _fbCard(f){return '<div class="card" style="padding:14px 16px"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+_fbType(f.type)+'<strong>'+esc(f.name||'—')+'</strong>'+(f.institute?'<span style="color:var(--ink3);font-size:.82rem">'+esc(f.institute)+'</span>':'')+'</div><div style="display:flex;gap:10px;align-items:center"><span style="color:var(--ink3);font-size:.78rem">'+(f.createdAt?fmt(f.createdAt):'')+'</span><button class="btn btnD sm" onclick="admDeleteFeedback(\''+f.id+'\')">Delete</button></div></div><p style="font-size:.9rem;line-height:1.55;color:var(--ink);white-space:pre-wrap;margin:0">'+esc(f.message||'')+'</p>'+(f.teacherEmail?'<p style="margin:8px 0 0;font-size:.78rem;color:var(--ink3)">From account: '+esc(f.teacherEmail)+'</p>':'')+'</div>';}
+function _fbCard(f){return '<div class="card" style="padding:14px 16px"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+_fbType(f.type)+'<strong>'+esc(f.name||'—')+'</strong>'+(f.institute?'<span style="color:var(--ink3);font-size:.82rem">'+esc(f.institute)+'</span>':'')+'</div><div style="display:flex;gap:10px;align-items:center"><span style="color:var(--ink3);font-size:.78rem">'+(f.createdAt?fmt(f.createdAt):'')+'</span><button class="btn btnD sm" onclick="admDeleteFeedback(\''+esc(f.id)+'\')">Delete</button></div></div><p style="font-size:.9rem;line-height:1.55;color:var(--ink);white-space:pre-wrap;margin:0">'+esc(f.message||'')+'</p>'+(f.teacherEmail?'<p style="margin:8px 0 0;font-size:.78rem;color:var(--ink3)">From account: '+esc(f.teacherEmail)+'</p>':'')+'</div>';}
+
 function _renderAdmin(){
   const A=S.admin;if(!A)return;
   const exams=A.exams.filter(e=>!e._trashed);
   const subs=A.sessions.filter(s=>s.submitted===true);
-  const live=A.sessions.filter(s=>s.submitted!==true);
-  const flags=A.sessions.reduce((n,s)=>n+((s.violations&&s.violations.length)||0),0);
-  const setT=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
-  setT('as-teachers',A.teachers.length);setT('as-exams',exams.length);setT('as-live',live.length);
-  setT('as-subs',subs.length);setT('as-flags',flags);setT('as-fb',A.feedback.length);
+  const live=A.sessions.filter(_admIsLive);
+  const stale=A.sessions.filter(_admIsStale);
+  const flags=A.sessions.reduce((n,s)=>n+_admFlags(s),0);
+  _admSet('as-teachers',A.teachers.length);
+  _admSet('as-exams',exams.length);
+  _admSet('as-live',live.length);
+  _admSet('as-stale',stale.length);
+  _admSet('as-subs',subs.length);
+  _admSet('as-flags',flags);
+  _admSet('as-fb',A.feedback.length);
+  _admSet('as-gv',A.gvResults.length);
+
   const tByUid={};A.teachers.forEach(t=>tByUid[t.id]=t);
   const exByTok={};A.exams.forEach(e=>exByTok[e.id]=e);
   const sessByTok={};A.sessions.forEach(s=>{(sessByTok[s.examToken]=sessByTok[s.examToken]||[]).push(s);});
   const tname=uid=>{const t=tByUid[uid];return t?esc(t.name||t.email||uid):'<span style="color:var(--ink3)">unknown</span>';};
   const ts=v=>v?fmt(v):'—';
   const fbSorted=[...A.feedback].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
-  // OVERVIEW
+
+  // ── OVERVIEW ──
   const subsSorted=[...subs].sort((a,b)=>(b.submittedAt||0)-(a.submittedAt||0));
   const exSorted=[...exams].sort((a,b)=>(b.createdAt||b.startTime||0)-(a.createdAt||a.startTime||0));
-  let ov='<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
+  let ov=_admErrBanner(A.errors);
+  ov+='<div class="adm-2col">';
   ov+='<div class="card"><div class="ch"><h3>&#128172; Latest feedback</h3></div><div style="padding:14px;display:flex;flex-direction:column;gap:10px">';
   ov+= fbSorted.length? fbSorted.slice(0,4).map(_fbMini).join('') : '<p style="color:var(--ink3);font-size:.85rem">No feedback yet.</p>';
   ov+='<button class="btn btnG sm" onclick="_adminTab(\'feedback\')" style="align-self:flex-start">View all feedback &rarr;</button></div></div>';
-  ov+='<div class="card"><div class="ch"><h3>&#128994; Recent submissions</h3></div><div style="padding:8px 14px">';
+  ov+='<div class="card"><div class="ch"><h3>&#128994; Recent submissions</h3></div><div style="padding:8px 14px;overflow-x:auto">';
   ov+= subsSorted.length? '<table class="dt" style="width:100%"><tbody>'+subsSorted.slice(0,6).map(s=>'<tr><td>'+esc(s.name||'—')+'</td><td style="color:var(--ink3)">'+(exByTok[s.examToken]?esc(exByTok[s.examToken].course||s.examToken):esc(s.examToken||'—'))+'</td><td>'+(s.score!=null?s.score+'/'+(s.totalMarks!=null?s.totalMarks:'—'):'—')+'</td></tr>').join('')+'</tbody></table>' : '<p style="color:var(--ink3);font-size:.85rem;padding:6px 0">No submissions yet.</p>';
   ov+='</div></div></div>';
   ov+='<div class="card" style="margin-top:16px"><div class="ch"><h3>&#128221; Recently created exams</h3></div><div style="padding:8px 14px;overflow-x:auto">';
   ov+= exSorted.length? '<table class="dt" style="width:100%"><thead><tr><th>Course</th><th>Teacher</th><th>Type</th><th>Submissions</th><th>Created</th></tr></thead><tbody>'+exSorted.slice(0,6).map(e=>'<tr><td>'+esc(e.course||'—')+'</td><td>'+tname(e.teacherUid)+'</td><td>'+esc(e.type||'mcq')+'</td><td>'+((sessByTok[e.id]||[]).filter(s=>s.submitted).length)+'</td><td style="color:var(--ink3);font-size:.8rem">'+ts(e.createdAt||e.startTime)+'</td></tr>').join('')+'</tbody></table>' : '<p style="color:var(--ink3);font-size:.85rem;padding:6px 0">No exams yet.</p>';
   ov+='</div></div>';
-  document.getElementById('adm-overview').innerHTML=ov;
-  // TEACHERS
-  const trows=[...A.teachers].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).map(t=>{
+  _admHTML('adm-overview',ov);
+
+  // ── TEACHERS ──
+  const tq=(document.getElementById('adm-teacher-q')||{}).value||'';
+  const tqs=tq.trim().toLowerCase();
+  let tlist=[...A.teachers];
+  if(tqs)tlist=tlist.filter(t=>((t.name||'')+' '+(t.email||'')+' '+(t.institution||'')).toLowerCase().includes(tqs));
+  const trows=tlist.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).map(t=>{
     const exs=A.exams.filter(e=>e.teacherUid===t.id&&!e._trashed);
     const studentCount=exs.reduce((n,e)=>n+((sessByTok[e.id]||[]).length),0);
     const init=(t.name||t.email||'?').split(' ').map(x=>x[0]||'').join('').toUpperCase().slice(0,2);
-    return '<tr><td><div style="display:flex;align-items:center;gap:8px"><div style="width:26px;height:26px;border-radius:50%;background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700">'+esc(init)+'</div>'+esc(t.name||'—')+(ADMIN_EMAILS.includes((t.email||'').toLowerCase())?' <span class="bx" style="background:#1f1712;color:#fff;font-size:.6rem">YOU</span>':'')+'</div></td><td style="color:var(--ink3)">'+esc(t.email||'—')+'</td><td>'+esc(t.institution||'—')+'</td><td>'+esc(t.provider||'email')+'</td><td>'+exs.length+'</td><td>'+studentCount+'</td><td style="color:var(--ink3);font-size:.8rem">'+ts(t.createdAt)+'</td></tr>';
+    return '<tr><td><div style="display:flex;align-items:center;gap:8px"><div style="width:26px;height:26px;border-radius:50%;background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0">'+esc(init)+'</div>'+esc(t.name||'—')+(ADMIN_EMAILS.includes((t.email||'').toLowerCase())?' <span class="bx" style="background:#1f1712;color:#fff;font-size:.6rem">YOU</span>':'')+'</div></td><td style="color:var(--ink3)">'+esc(t.email||'—')+'</td><td>'+esc(t.institution||'—')+'</td><td>'+esc(t.provider||'email')+'</td><td>'+exs.length+'</td><td>'+studentCount+'</td><td style="color:var(--ink3);font-size:.8rem">'+ts(t.createdAt)+'</td></tr>';
   });
-  document.getElementById('adm-teachers').innerHTML= trows.length? _admTable(['Teacher','Email','Institution','Via','Exams','Students','Joined'],trows) : _admEmpty('No teachers yet.');
-  // EXAMS
-  const exrows=[...A.exams].sort((a,b)=>(b.createdAt||b.startTime||0)-(a.createdAt||a.startTime||0)).map(e=>{
+  _admHTML('adm-teachers-table', trows.length? _admTable(['Teacher','Email','Institution','Via','Exams','Students','Joined'],trows) : _admEmpty(tqs?'No teachers match that search.':'No teachers yet.'));
+
+  // ── EXAMS ──
+  const eq=(document.getElementById('adm-exam-q')||{}).value||'';
+  const eqs=eq.trim().toLowerCase();
+  let elist=[...A.exams];
+  if(eqs)elist=elist.filter(e=>{
+    const t=tByUid[e.teacherUid]||{};
+    return ((e.course||'')+' '+(e.section||'')+' '+(e.id||'')+' '+(t.name||'')+' '+(t.email||'')).toLowerCase().includes(eqs);
+  });
+  const exrows=elist.sort((a,b)=>(b.createdAt||b.startTime||0)-(a.createdAt||a.startTime||0)).map(e=>{
     const ss=sessByTok[e.id]||[];const submitted=ss.filter(s=>s.submitted).length;
     let status='Active',col='var(--ok)';
     if(e._trashed){status='Trashed';col='var(--err)';}
     else if(e._draft){status='Draft';col='var(--ink3)';}
     else if(e.endTime&&Date.now()>e.endTime&&!e.reopened){status='Ended';col='var(--ink3)';}
-    return '<tr><td>'+esc(e.course||'—')+'</td><td>'+tname(e.teacherUid)+'</td><td>'+esc(e.type||'mcq')+'</td><td><span style="color:'+col+';font-weight:600">'+status+'</span></td><td>'+ss.length+' / '+submitted+'</td><td style="color:var(--ink3);font-size:.8rem">'+ts(e.createdAt||e.startTime)+'</td><td><div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn btnG sm" onclick="admViewSessions(\''+e.id+'\')">Sessions</button><button class="btn btnD sm" onclick="admDeleteExam(\''+e.id+'\')">Delete</button></div></td></tr>';
+    return '<tr><td>'+esc(e.course||'—')+'<div style="font-size:.7rem;color:var(--ink3);font-family:var(--fm)">'+esc(e.id||'')+'</div></td><td>'+tname(e.teacherUid)+'</td><td>'+esc(e.type||'mcq')+'</td><td><span style="color:'+col+';font-weight:600">'+status+'</span></td><td>'+ss.length+' / '+submitted+'</td><td style="color:var(--ink3);font-size:.8rem">'+ts(e.createdAt||e.startTime)+'</td><td><div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn btnG sm" onclick="admViewSessions(\''+esc(e.id)+'\')">Sessions</button><button class="btn btnD sm" onclick="admDeleteExam(\''+esc(e.id)+'\')">Delete</button></div></td></tr>';
   });
-  document.getElementById('adm-exams').innerHTML= exrows.length? _admTable(['Course','Teacher','Type','Status','Reg / Sub','Created','Actions'],exrows) : _admEmpty('No exams yet.');
-  // LIVE & SESSIONS
+  _admHTML('adm-exams-table', exrows.length? _admTable(['Course','Teacher','Type','Status','Reg / Sub','Created','Actions'],exrows) : _admEmpty(eqs?'No exams match that search.':'No exams yet.'));
+
+  // ── LIVE & SESSIONS ──
   _renderAdmSessions();
-  // FEEDBACK
-  document.getElementById('adm-feedback').innerHTML= fbSorted.length? '<div style="display:flex;flex-direction:column;gap:12px">'+fbSorted.map(_fbCard).join('')+'</div>' : _admEmpty('No feedback received yet.');
+
+  // ── FEEDBACK ──
+  _admHTML('adm-feedback-list', fbSorted.length? '<div style="display:flex;flex-direction:column;gap:12px">'+fbSorted.map(_fbCard).join('')+'</div>' : _admEmpty('No feedback received yet.'));
+
+  // ── GRADE VISION ──
+  _renderAdmGV(tByUid);
 }
-function admViewSessions(token){_admSessFilter=token;_adminTab('live');_renderAdmSessions();}
+
+function _renderAdmGV(tByUid){
+  const A=S.admin;if(!A)return;
+  const results=[...A.gvResults].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const sessions=[...A.gvSessions].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const countByTeacher={};
+  results.forEach(r=>{const k=r.teacherUid||'—';countByTeacher[k]=(countByTeacher[k]||0)+1;});
+  const pct=r=>r.max_marks?Math.round((r.total_marks||0)/r.max_marks*100):null;
+  const avg=results.length?Math.round(results.reduce((a,r)=>a+(pct(r)||0),0)/results.length):null;
+  let html='<div class="adm-2col" style="margin-bottom:16px">';
+  html+='<div class="card" style="padding:16px 18px"><div class="sl" style="margin-bottom:4px">Scripts graded by AI</div><div class="sv">'+results.length+'</div></div>';
+  html+='<div class="card" style="padding:16px 18px"><div class="sl" style="margin-bottom:4px">Average score</div><div class="sv">'+(avg!=null?avg+'%':'—')+'</div></div>';
+  html+='</div>';
+  const srows=sessions.map(s=>{
+    const t=tByUid[s.teacherUid]||{};
+    return '<tr><td style="font-family:var(--fm);font-size:.78rem">'+esc(s.id||'—')+'</td><td>'+esc(t.name||s.teacherName||'—')+'</td><td>'+esc(s.subject||'—')+'</td><td>'+((s.questions&&s.questions.length)||0)+'</td><td>'+(countByTeacher[s.teacherUid]!=null?(results.filter(r=>r.sessionId===s.id).length):0)+'</td><td style="color:var(--ink3);font-size:.8rem">'+(s.createdAt?fmt(s.createdAt):'—')+'</td></tr>';
+  });
+  html+='<h3 style="font-size:.95rem;margin:4px 0 8px">Grading sessions</h3>';
+  html+= srows.length? _admTable(['Session','Teacher','Subject','Questions','Results','Created'],srows) : _admEmpty('No Grade Vision sessions yet.');
+  const rrows=results.slice(0,200).map(r=>{
+    const t=tByUid[r.teacherUid]||{};
+    const p=pct(r);
+    return '<tr><td>'+esc(r.student_id||'—')+'</td><td>'+esc(r.student_name||'—')+'</td><td>'+esc(t.name||'—')+'</td><td><strong>'+(r.total_marks!=null?r.total_marks:'—')+'</strong>/'+(r.max_marks!=null?r.max_marks:'—')+(p!=null?' <span style="color:var(--ink3)">('+p+'%)</span>':'')+'</td><td style="color:var(--ink3);font-size:.8rem">'+(r.createdAt?fmt(r.createdAt):'—')+'</td></tr>';
+  });
+  html+='<h3 style="font-size:.95rem;margin:18px 0 8px">Graded scripts'+(results.length>200?' <span style="font-weight:400;color:var(--ink3);font-size:.8rem">(newest 200 of '+results.length+')</span>':'')+'</h3>';
+  html+= rrows.length? _admTable(['Roll','Student','Teacher','Marks','Graded'],rrows) : _admEmpty('No graded scripts yet.');
+  _admHTML('adm-gv',html);
+}
+
+function admViewSessions(token){_admSessFilter=token;_admSessStatus='all';_adminTab('live');_renderAdmSessions();}
+function admSessStatus(v,btn){
+  _admSessStatus=v;
+  document.querySelectorAll('#adm-sess-status .btn').forEach(b=>{b.style.background='';b.style.color='';b.style.borderColor='';});
+  if(btn){btn.style.background='var(--ac)';btn.style.color='#fff';btn.style.borderColor='var(--ac)';}
+  _renderAdmSessions();
+}
+function admClearSessFilter(){_admSessFilter='';_renderAdmSessions();return false;}
+function admMoreSessions(){_admSessLimit+=300;_renderAdmSessions();}
+
+function _admFilteredSessions(){
+  const A=S.admin;if(!A)return[];
+  const exByTok={};A.exams.forEach(e=>exByTok[e.id]=e);
+  const qEl=document.getElementById('adm-sess-q');
+  const q=(qEl?qEl.value:'').trim().toLowerCase();
+  let rows=[...A.sessions];
+  if(_admSessFilter)rows=rows.filter(s=>s.examToken===_admSessFilter);
+  if(_admSessStatus==='live')rows=rows.filter(_admIsLive);
+  else if(_admSessStatus==='submitted')rows=rows.filter(s=>s.submitted===true);
+  else if(_admSessStatus==='flagged')rows=rows.filter(s=>_admFlags(s)>0);
+  else if(_admSessStatus==='stale')rows=rows.filter(_admIsStale);
+  if(q)rows=rows.filter(s=>{
+    const e=exByTok[s.examToken];
+    return (((s.name||'')+' '+(s.studentId||'')+' '+(s.examToken||'')+' '+((e&&e.course)||'')).toLowerCase().includes(q));
+  });
+  rows.sort((a,b)=>_admLastSeen(b)-_admLastSeen(a));
+  return rows;
+}
 function _renderAdmSessions(){
   const A=S.admin;if(!A)return;
   const exByTok={};A.exams.forEach(e=>exByTok[e.id]=e);
   const tByUid={};A.teachers.forEach(t=>tByUid[t.id]=t);
-  const qEl=document.getElementById('adm-sess-q');const q=(qEl?qEl.value:'').trim().toLowerCase();
-  let rows=[...A.sessions];
-  if(_admSessFilter)rows=rows.filter(s=>s.examToken===_admSessFilter);
-  if(q)rows=rows.filter(s=>(((s.name||'')+' '+(s.studentId||'')+' '+(exByTok[s.examToken]?exByTok[s.examToken].course:'')).toLowerCase().includes(q)));
-  rows.sort((a,b)=>(b.startedAt||0)-(a.startedAt||0));
-  const body=rows.slice(0,400).map(s=>{
+  const rows=_admFilteredSessions();
+  const shown=rows.slice(0,_admSessLimit);
+  const body=shown.map(s=>{
     const e=exByTok[s.examToken];const teacher=e?tByUid[e.teacherUid]:null;
-    const vio=(s.violations&&s.violations.length)||0;
-    const status=s.submitted?'<span style="color:var(--ok);font-weight:600">Submitted</span>':'<span style="color:var(--info);font-weight:600">In&nbsp;progress</span>';
-    return '<tr><td>'+esc(s.name||'—')+(s.studentId?'<div style="font-size:.72rem;color:var(--ink3)">'+esc(s.studentId)+'</div>':'')+'</td><td>'+(e?esc(e.course||s.examToken):esc(s.examToken||'—'))+'</td><td style="color:var(--ink3)">'+(teacher?esc(teacher.name||teacher.email):'—')+'</td><td>'+status+'</td><td>'+(s.score!=null?s.score+'/'+(s.totalMarks!=null?s.totalMarks:'—'):'—')+'</td><td>'+(vio?'<span style="color:var(--err);font-weight:600">'+vio+'</span>':'0')+'</td><td style="color:var(--ink3);font-size:.78rem">'+(s.startedAt?fmt(s.startedAt):'—')+'</td></tr>';
+    const vio=_admFlags(s);
+    const status=s.submitted?'<span style="color:var(--ok);font-weight:600">Submitted</span>'
+      :_admIsLive(s)?'<span style="color:var(--info);font-weight:600">In&nbsp;progress</span>'
+      :'<span style="color:var(--ink3);font-weight:600">Abandoned</span>';
+    const seen=_admLastSeen(s);
+    return '<tr'+(vio?' style="background:rgba(176,26,26,.04)"':'')+'><td>'+esc(s.name||'—')+(s.studentId?'<div style="font-size:.72rem;color:var(--ink3)">'+esc(s.studentId)+'</div>':'')+'</td><td>'+(e?esc(e.course||s.examToken):esc(s.examToken||'—'))+'</td><td style="color:var(--ink3)">'+(teacher?esc(teacher.name||teacher.email):'—')+'</td><td>'+status+'</td><td>'+(s.score!=null?s.score+'/'+(s.totalMarks!=null?s.totalMarks:'—'):'—')+'</td><td>'+(vio?'<span style="color:var(--err);font-weight:600">'+vio+'</span>':'0')+'</td><td style="color:var(--ink3);font-size:.78rem">'+(s.startedAt?fmt(s.startedAt):'—')+'</td><td style="color:var(--ink3);font-size:.78rem">'+(seen?fmt(seen):'—')+'</td></tr>';
   });
   const chip=document.getElementById('adm-sess-chip');
-  if(chip)chip.innerHTML=_admSessFilter?'<span class="bx" style="background:var(--paper2)">Exam: '+esc((exByTok[_admSessFilter]&&exByTok[_admSessFilter].course)||_admSessFilter)+' <a href="#" onclick="_admSessFilter=\'\';_renderAdmSessions();return false" style="color:var(--ac);font-weight:700;text-decoration:none">&times;</a></span>':'';
-  const cnt=document.getElementById('adm-sess-count');if(cnt)cnt.textContent=rows.length+' session'+(rows.length===1?'':'s');
-  const tbl=document.getElementById('adm-sess-table');if(tbl)tbl.innerHTML= body.length? _admTable(['Student','Exam','Teacher','Status','Score','Flags','Started'],body) : _admEmpty('No sessions match.');
+  if(chip)chip.innerHTML=_admSessFilter?'<span class="bx" style="background:var(--paper2)">Exam: '+esc((exByTok[_admSessFilter]&&exByTok[_admSessFilter].course)||_admSessFilter)+' <a href="#" onclick="return admClearSessFilter()" style="color:var(--ac);font-weight:700;text-decoration:none">&times;</a></span>':'';
+  const cnt=document.getElementById('adm-sess-count');
+  if(cnt)cnt.textContent=rows.length+' session'+(rows.length===1?'':'s')+(rows.length>shown.length?' · showing '+shown.length:'');
+  const tbl=document.getElementById('adm-sess-table');
+  if(tbl)tbl.innerHTML=(body.length? _admTable(['Student','Exam','Teacher','Status','Score','Flags','Started','Last seen'],body) : _admEmpty('No sessions match.'))
+    +(rows.length>shown.length?'<div style="text-align:center;margin-top:12px"><button class="btn btnG sm" onclick="admMoreSessions()">Load 300 more</button></div>':'');
 }
+
+// ── CSV export ──
+function _csvCell(v){const s=v==null?'':String(v);return '"'+s.replace(/"/g,'""')+'"';}
+function _csvDownload(name,head,rows){
+  const csv=[head.map(_csvCell).join(',')].concat(rows.map(r=>r.map(_csvCell).join(','))).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));
+  a.download=name+'_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  toast('CSV downloaded','ok');
+}
+function admExportSessions(){
+  const A=S.admin;if(!A)return;
+  const exByTok={};A.exams.forEach(e=>exByTok[e.id]=e);
+  const tByUid={};A.teachers.forEach(t=>tByUid[t.id]=t);
+  const rows=_admFilteredSessions().map(s=>{
+    const e=exByTok[s.examToken]||{};const t=tByUid[e.teacherUid]||{};
+    return [s.name||'',s.studentId||'',e.course||s.examToken||'',t.name||t.email||'',
+      s.submitted?'submitted':(_admIsLive(s)?'in progress':'abandoned'),
+      s.score!=null?s.score:'',s.totalMarks!=null?s.totalMarks:'',s.pct!=null?s.pct:'',
+      _admFlags(s),s.startedAt?new Date(s.startedAt).toISOString():'',
+      s.submittedAt?new Date(s.submittedAt).toISOString():''];
+  });
+  if(!rows.length){toast('Nothing to export','warn');return;}
+  _csvDownload('examflow_sessions',['Student','Roll','Exam','Teacher','Status','Score','Total','Percent','Flags','Started','Submitted'],rows);
+}
+function admExportFeedback(){
+  const A=S.admin;if(!A)return;
+  const rows=[...A.feedback].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))
+    .map(f=>[f.name||'',f.institute||'',f.type||'',f.message||'',f.teacherEmail||'',f.createdAt?new Date(f.createdAt).toISOString():'']);
+  if(!rows.length){toast('Nothing to export','warn');return;}
+  _csvDownload('examflow_feedback',['Name','Institute','Type','Message','Account','Received'],rows);
+}
+
+// ── destructive actions ──
 function admDeleteExam(token){
   if(!isAdmin())return;
-  openConfirm('Delete this exam?','This permanently removes the exam document for everyone. Student sessions are kept. This cannot be undone.',()=>{
-    db.collection('exams').doc(token).delete().then(()=>{toast('Exam deleted','ok');openAdmin();}).catch(e=>toast(e.message,'err'));
-  });
+  const A=S.admin||{sessions:[]};
+  const n=(A.sessions||[]).filter(s=>s.examToken===token).length;
+  openConfirm('Delete this exam?',
+    'This permanently removes the exam document for everyone.'+(n?' Its '+n+' student session'+(n===1?'':'s')+' will be deleted too.':'')+' This cannot be undone.',
+    async()=>{
+      try{
+        await db.collection('exams').doc(token).delete();
+        // v37: cascade — orphaned sessions used to linger forever and keep
+        // inflating the counters on this page.
+        const kids=(A.sessions||[]).filter(s=>s.examToken===token);
+        for(let i=0;i<kids.length;i+=400){
+          const batch=db.batch();
+          kids.slice(i,i+400).forEach(s=>batch.delete(db.collection('sessions').doc(s.id)));
+          await batch.commit();
+        }
+        toast('Exam deleted','ok');
+        _admLoad(true);
+      }catch(e){toast('Delete failed: '+(e.code||e.message),'err',6000);}
+    });
 }
 function admDeleteFeedback(id){
   if(!isAdmin())return;
   openConfirm('Delete this feedback?','This permanently removes the feedback entry.',()=>{
-    db.collection('feedback').doc(id).delete().then(()=>{toast('Feedback deleted','ok');openAdmin();}).catch(e=>toast(e.message,'err'));
+    db.collection('feedback').doc(id).delete()
+      .then(()=>{toast('Feedback deleted','ok');_admLoad(true);})
+      .catch(e=>toast('Delete failed: '+(e.code||e.message),'err',6000));
   });
 }
 let _editExIdx=null,_editNMcq=0,_editNWrt=0;
@@ -4591,17 +4858,26 @@ async function startExam(){
   S.stuInfo={name,studentId:id,section:exam.section||'',dept:document.getElementById('si-dept')?.value.trim()||'',session:document.getElementById('si-sess')?.value.trim()||'',date:document.getElementById('si-date').value,course:exam.course,otp:_otp,switchCode:_switchCode,email:stuEmail};
   // Save stuInfo so refresh can restore it
   const _existSess=LS('ef_sess_'+exam.token)||{};
-  LS('ef_sess_'+exam.token,{..._existSess,stuInfo:S.stuInfo,t0:Date.now()});
+  // v37 FIX: this line used to stamp t0=now on EVERY entry, wiping the original
+  // start time a beat before the resume path could read it — which is why a
+  // refresh silently handed the student a fresh full-length timer.
+  LS('ef_sess_'+exam.token,{..._existSess,stuInfo:S.stuInfo,
+    t0:(_existSess.sessId&&_existSess.t0)?_existSess.t0:Date.now()});
   S.answers={};S.wAnswers={};S.flagged=new Set();S.curQ=0;
   // Restore or create session ID (persists across tab refreshes)
   const _storedSessKey='ef_sess_'+exam.token;
   const _storedSess=LS(_storedSessKey);
+  let _resumedT0=null;
   if(_storedSess&&_storedSess.sessId){
     // Restore previous session state
     S.sessId=_storedSess.sessId;
     S.violations=_storedSess.violations||[];
     S.answers=_storedSess.answers||{};
     S.curQ=_storedSess.curQ||0;
+    // v37 FIX: t0 was written on every save but never read back, so refreshing
+    // the page (or tripping the anti-cheat auto-refresh) handed the student a
+    // brand-new full-length timer. Carry the original start time forward.
+    if(_storedSess.t0&&_storedSess.t0<=Date.now())_resumedT0=_storedSess.t0;
   } else {
     S.sessId='SS-'+Date.now();
     S.violations=[];
@@ -4611,10 +4887,28 @@ async function startExam(){
   let qs=[...exam.questions];
   if(exam.shuffleQ)qs=shuffle(qs);
   if(exam.shuffleO&&exam.type!=='written')qs=qs.map(q=>shuffleOpts(q));
-  S.questions=qs;S.secsLeft=exam.duration*60;S.t0=Date.now();
-  const sessObj={id:S.sessId,...S.stuInfo,startedAt:S.t0,submitted:false,score:0,totalMarks:qs.length*(exam.marks||1),violations:[],answers:{},writtenAnswers:{},qSnapshot:qs,curQ:0,duration:exam.duration,inProgress:true,otp:S.stuInfo.otp,switchCode:S.stuInfo.switchCode};
-  exam.sessions=exam.sessions||[];exam.sessions.push(sessObj);saveExams();
-  fbSaveSess(exam.token,sessObj);
+  S.questions=qs;
+  S.t0=_resumedT0||Date.now();
+  // Remaining time = full duration minus what has already elapsed (never below 0).
+  const _elapsedSec=Math.max(0,Math.floor((Date.now()-S.t0)/1000));
+  S.secsLeft=exam.noTimer===true?0:Math.max(0,(exam.duration||0)*60-_elapsedSec);
+  // v37 FIX: written questions carry their own per-question marks; the old
+  // formula (count x exam.marks, undefined for written) showed "x/6" for a
+  // 60-mark paper until grading finished.
+  const _initialTotal=(exam.type==='written')
+    ? qs.reduce((a,q)=>a+(+q.marks||10),0)
+    : qs.length*(exam.marks||1);
+  const sessObj={id:S.sessId,...S.stuInfo,startedAt:S.t0,submitted:false,score:0,totalMarks:_initialTotal,violations:[],answers:{},writtenAnswers:{},qSnapshot:qs,curQ:0,duration:exam.duration,inProgress:true,otp:S.stuInfo.otp,switchCode:S.stuInfo.switchCode};
+  // v37 FIX: a resumed attempt reuses its session id, so the unconditional push
+  // added a duplicate row to the monitor on every refresh. Replace in place, and
+  // never clobber answers/violations already recorded for that id.
+  exam.sessions=exam.sessions||[];
+  const _sIdx=exam.sessions.findIndex(x=>x&&x.id===S.sessId);
+  if(_sIdx>=0)exam.sessions[_sIdx]={...exam.sessions[_sIdx],...sessObj,
+    answers:exam.sessions[_sIdx].answers||{},violations:S.violations||[]};
+  else exam.sessions.push(sessObj);
+  saveExams();
+  fbSaveSess(exam.token,_sIdx>=0?exam.sessions[_sIdx]:sessObj);
   if(exam.type==='written'){startWExam(exam);}
   else if(exam.type==='combined'){startCombinedExam(exam);}
   else{startMCQExam(exam);}
@@ -4948,14 +5242,23 @@ function logViol(type){
 // ═══ SUBMIT ═══
 function doSubmit(){
   clearInterval(S.timer);teardownAC();closeM('m-csub');
+  // v37 FIX (race): _syncProgressToCloud throttles writes up to 4s. A pending
+  // push could land AFTER the submit write and flip submitted:false back on the
+  // session — the score vanished from the monitor and the attempt showed as
+  // "in progress" forever. Cancel any queued progress push before submitting.
+  try{clearTimeout(_cloudSyncTimer);_cloudSyncTimer=null;_cloudSyncAt=Date.now();}catch(e){}
   const exam=S.exams[S.examIdx];const timeTaken=Math.round((Date.now()-S.t0)/1000);
   // Combined exam: after MCQ phase, start written phase
   if(exam.type==='combined'&&S._combinedPhase==='mcq'){
     S._combinedPhase='written';
-    // Save MCQ answers first
+    // v37 FIX: score against S.questions — the exact (possibly shuffled) set the
+    // student actually answered. Scoring against exam.questions meant every
+    // combined exam with shuffleQ/shuffleO on was graded against the wrong keys.
+    const mcqSet=(S.questions&&S.questions.length)?S.questions:(exam.questions||[]);
     let mcqScore=0;
-    (exam.questions||[]).forEach((q,i)=>{if(S.answers[i]===q.correct_answer)mcqScore++;});
-    S._mcqScore=mcqScore;S._mcqAnswers={...S.answers};S.answers={};
+    mcqSet.forEach((q,i)=>{if(S.answers[i]===q.correct_answer)mcqScore++;});
+    S._mcqScore=mcqScore;S._mcqCount=mcqSet.length;
+    S._mcqAnswers={...S.answers};S._mcqSnapshot=mcqSet;S.answers={};
     startCombinedWrittenPhase();return;
   }
   const isW=exam.type==='written'||(exam.type==='combined'&&S._combinedPhase==='written');
@@ -4967,7 +5270,7 @@ function doSubmit(){
       // BUGFIX: fold the auto-graded MCQ phase back into the final result —
       // previously score/answers from the MCQ half were computed then dropped.
       score=(S._mcqScore||0)*(exam.marks||1);
-      totalMarks+=(exam.questions||[]).length*(exam.marks||1);
+      totalMarks+=(S._mcqCount||(exam.questions||[]).length)*(exam.marks||1);
       S.answers=S._mcqAnswers||{};
     }
   }else{
@@ -5041,7 +5344,13 @@ let _gradSess=null,_gradQIdx=0;
 function openMonitor(idx){
   S.monIdx=idx;S.monFilter='all';const exam=S.exams[idx];
   document.getElementById('mon-title').textContent=exam.course;
-  document.getElementById('mon-sub').textContent=exam.section+' · '+exam.duration+' min · '+(exam.questions||[]).length+' questions';
+  // v37 FIX: written exams often have no section and combined exams keep their
+  // written duration in a separate field — this printed "undefined · undefined min".
+  const _mqs=((exam.questions||[]).length)+((exam.writtenQuestions||[]).length);
+  const _mdur=(exam.duration||0)+(exam.type==='combined'?(exam.writtenDuration||0):0);
+  document.getElementById('mon-sub').textContent=[exam.section||exam.token,
+    (exam.noTimer||!_mdur)?'No time limit':_mdur+' min',
+    _mqs+' question'+(_mqs===1?'':'s')].join(' · ');
   S.liveSess=exam.sessions||[];
   // Show correct tabs
   const showW=exam.type==='written'||exam.type==='combined';
