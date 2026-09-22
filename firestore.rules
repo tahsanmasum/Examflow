@@ -1,0 +1,175 @@
+rules_version = '2';
+
+// ═══════════════════════════════════════════════════════════════════════
+//  ExamFlow: Cloud Firestore security rules
+//  Project: examflow-195df
+//
+//  Publish:  Firebase Console → Firestore Database → Rules → paste → Publish
+//     or:    firebase deploy --only firestore:rules
+//
+//  Who talks to Firestore:
+//    · Teachers, signed in (email/password or Google) on the ExamFlow site.
+//    · The admin, signed in with the admin email. The Admin Monitor inside
+//      the app reads every collection and can open any teacher's dashboard.
+//      That teacher view is read-only, and the lock lives in the app itself
+//      (write guards + an SDK-level safety net). These rules still give the
+//      admin the delete powers the Admin Monitor needs.
+//    · Students, who are NEVER signed in. They open a link, take the exam,
+//      and their browser writes to /sessions with request.auth == null.
+//      So /sessions and single-exam reads must stay open; every rule that
+//      could be tightened has been, and the ones that can't say why.
+//
+//  ⚠️ The admin list below must match const ADMIN_EMAILS in index.html.
+//     Adding a second admin = edit both, publish these rules, redeploy the site.
+// ═══════════════════════════════════════════════════════════════════════
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── helpers ────────────────────────────────────────────────────────
+    function adminEmails() {
+      return ['hellotahcreations@gmail.com'];
+    }
+    function signedIn() {
+      return request.auth != null;
+    }
+    function authEmail() {
+      return signedIn() && request.auth.token.email != null
+        ? request.auth.token.email.lower()
+        : '';
+    }
+    function isAdmin() {
+      return authEmail() in adminEmails();
+    }
+    function isUser(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function shortStr(v, max) {
+      return v is string && v.size() <= max;
+    }
+    // True when the signed-in caller owns the exam with this token.
+    function examOwner(tok) {
+      return signedIn()
+        && tok is string && tok.size() > 0
+        && exists(/databases/$(database)/documents/exams/$(tok))
+        && get(/databases/$(database)/documents/exams/$(tok)).data.get('teacherUid', '') == request.auth.uid;
+    }
+
+
+    // ── /teachers/{uid}: one profile document per teacher ──────────────
+    // Owner or admin can read. The Admin Monitor's collection('teachers').get()
+    // passes because isAdmin() is true for every document.
+    match /teachers/{uid} {
+      allow get, list: if isUser(uid) || isAdmin();
+      allow create:    if isUser(uid)
+                       && shortStr(incoming().get('name', ''), 120)
+                       && shortStr(incoming().get('email', ''), 254);
+      allow update:    if isUser(uid) || isAdmin();
+      allow delete:    if isAdmin();
+    }
+
+
+    // ── /exams/{token}: the exam definition, keyed by its share token ──
+    // get: OPEN. A student opening ?e=TOKEN has no account, so the document
+    //      must be readable by anyone holding the token. The answer key
+    //      therefore reaches the student's browser; that is inherent to a
+    //      design with no server of its own.
+    // list: NOT open, so nobody can enumerate every exam on the platform.
+    //      Teachers query where('teacherUid','==',uid). The rule reads the
+    //      field directly (resource.data.teacherUid) because that is the form
+    //      Firestore can prove against the query's filter.
+    // Every exam carries teacherUid (backfill: 87 already set, 3 fixed,
+    // 0 orphans), so the old "legacy exam with empty teacherUid" exception is
+    // gone, and a teacher cannot hand an exam over to another account.
+    match /exams/{token} {
+      allow get:  if true;
+      allow list: if isAdmin()
+                  || (signedIn() && resource.data.teacherUid == request.auth.uid);
+
+      allow create: if signedIn()
+                    && incoming().get('teacherUid', '') == request.auth.uid;
+
+      allow update: if isAdmin()
+                    || (signedIn()
+                        && existing().get('teacherUid', '') == request.auth.uid
+                        && incoming().get('teacherUid', '') == request.auth.uid);
+
+      allow delete: if isAdmin()
+                    || (signedIn() && existing().get('teacherUid', '') == request.auth.uid);
+    }
+
+
+    // ── /sessions/{sessionId}: one student attempt ─────────────────────
+    // read: OPEN. Three unauthenticated flows need it:
+    //   · resume on another device   where('switchCode','==',CODE)
+    //   · review portal              where('examToken','==',TOKEN)
+    //   · used-roll check            where('examToken','==',TOKEN)
+    // The one-time password is checked in the browser after the read, so the
+    // read itself cannot be gated. This is the widest permission, by design.
+    match /sessions/{sessionId} {
+      allow get, list: if true;
+
+      allow create: if shortStr(incoming().get('examToken', ''), 64)
+                    && incoming().get('examToken', '').size() > 0
+                    && incoming().get('submitted', false) != true;
+
+      // A student's browser (signed out) updates its own attempt until it is
+      // submitted. After that only the teacher who owns the exam (grading) or
+      // the admin may change it. Before, ANY signed-in account could, and
+      // anyone can create an account, so a student could have edited their
+      // own graded score. Also stops a late or replayed write from
+      // un-submitting a finished paper.
+      allow update: if incoming().get('examToken', '') == existing().get('examToken', '')
+                    && (existing().get('submitted', false) != true
+                        || isAdmin()
+                        || examOwner(existing().get('examToken', '')));
+
+      // The admin can delete any attempt; a teacher only attempts stamped
+      // with their uid (student writes don't carry teacherUid today).
+      allow delete: if isAdmin()
+                    || (signedIn()
+                        && existing().get('teacherUid', '') != ''
+                        && existing().get('teacherUid', '') == request.auth.uid);
+    }
+
+
+    // ── /feedback/{id}: the in-app feedback form ───────────────────────
+    // Anyone may submit; only the admin can read the inbox.
+    match /feedback/{id} {
+      allow get, list: if isAdmin();
+      allow create: if shortStr(incoming().get('name', ''), 120)
+                    && shortStr(incoming().get('message', ''), 5000)
+                    && incoming().get('message', '').size() > 0
+                    && shortStr(incoming().get('type', 'other'), 40)
+                    && shortStr(incoming().get('institute', ''), 200);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+
+    // ── /meta/stats: the privacy-friendly visit counter ────────────────
+    // No personal data. Anyone may bump the counter, but only those two keys
+    // may exist, so the document can't be used as free storage.
+    match /meta/stats {
+      allow read: if true;
+      allow write: if incoming().keys().hasOnly(['visits', 'lastVisit']);
+    }
+    match /meta/{doc} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+
+    // Grade Vision AI was removed. Its old collections (gv_profiles,
+    // gv_sessions, gv_results) now fall under "everything else is denied";
+    // the data stays in the Firebase Console until you delete it.
+
+
+    // ── everything else is denied ──────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
