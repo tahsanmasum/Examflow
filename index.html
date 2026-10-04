@@ -2067,7 +2067,7 @@ Here is my file:</textarea>
           <span class="ldot"></span>
           <span class="bx bK">LIVE</span>
         </div>
-        <p style="color:var(--ink3);font-size:.875rem" id="mon-sub"></p><div class="gline"><span>💡</span><span>Rows update live — red ⚑ means tab-switch flags. Grade written answers in the <b>Written</b> tab; <b>Export</b> gives CSV + PDF answer scripts.</span></div>
+        <p style="color:var(--ink3);font-size:.875rem" id="mon-sub"></p><div class="gline"><span>💡</span><span>Rows update live — red ⚑ means flagged; tap a student’s <b>violations</b> to see each one (with camera snapshots). Grade written answers in the <b>Written</b> tab; <b>Export</b> gives CSV + PDF answer scripts.</span></div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <div id="mon-tabs" style="display:flex;gap:6px">
@@ -2119,7 +2119,7 @@ Here is my file:</textarea>
           <div class="clabs" id="mon-labs"></div>
         </div>
         <div class="card cp" style="flex:1">
-          <h4 style="margin-bottom:12px">Violation log</h4>
+          <h4 style="margin-bottom:12px">Flagged students</h4>
           <div style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto" id="viol-log"><p style="color:var(--ink3);font-size:.825rem">No violations.</p></div>
         </div>
         <div class="card cp">
@@ -4580,7 +4580,8 @@ function renderMon(){
     }
   });
   const tbody=document.getElementById('mon-tbody');
-  tbody.innerHTML=filtered.length?filtered.map(s=>{const vc=(s.violations||[]).length;const isFl=s.isFlagged||(vc>=1);const sb=s.submitted?'<span class="bx bK">Submitted</span>'+(isFl?'<span class="bx bE" style="margin-left:4px">Flagged</span>':''):isFl?'<span class="bx bE">⚑ Flagged</span>':'<span class="bx bI">Active</span>';const qTot=(exam.questions||[]).length;const done=s.submitted?qTot:Object.keys(s.answers||{}).length;const pct=Math.round(done/Math.max(qTot,1)*100);
+  S._monRows=filtered;S._monAll=sessions; // used by the per-student violations window
+  tbody.innerHTML=filtered.length?filtered.map((s,_ri)=>{const vc=(s.violations||[]).length;const isFl=s.isFlagged||(vc>=1);const sb=s.submitted?'<span class="bx bK">Submitted</span>'+(isFl?'<span class="bx bE" style="margin-left:4px">Flagged</span>':''):isFl?'<span class="bx bE">⚑ Flagged</span>':'<span class="bx bI">Active</span>';const qTot=(exam.questions||[]).length;const done=s.submitted?qTot:Object.keys(s.answers||{}).length;const pct=Math.round(done/Math.max(qTot,1)*100);
     const tFmt=ms=>ms?new Date(ms).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'—';
     const started=tFmt(s.startedAt);const submitted=s.submitted?tFmt(s.submittedAt):'—';
     const scoreCell=s.submitted?(s.graded||s.writtenMarks?`<strong>${_numTxt(s.score)}/${_numTxt(s.totalMarks)}</strong> (${_numTxt(s.pct)}%) <span class="bx bK" style="font-size:.65rem">graded</span>`:`<strong>${_numTxt(s.score)}/${_numTxt(s.totalMarks)}</strong> (${_numTxt(s.pct)}%)`):'<span style="color:var(--ink3)">—</span>';
@@ -4589,7 +4590,7 @@ function renderMon(){
     `<td><div style="display:flex;align-items:center;gap:6px"><div class="pbar" style="width:60px;height:5px"><div class="pfill" style="width:${pct}%"></div></div><span style="font-size:.75rem;color:var(--ink3)">${pct}%</span></div></td>`+
     `<td style="font-size:.78rem;color:var(--ink3);font-family:var(--fm)">${started}</td>`+
     `<td style="font-size:.78rem;color:var(--ink3);font-family:var(--fm)">${submitted}</td>`+
-    `<td><span class="bx ${vc>=3?'bE':vc>=1?'bW':'bN'}" title="${esc((Array.isArray(s.violations)?s.violations:[]).map(v=>v&&v.type).join(', '))}">${vc} ${vc===1?'violation':'violations'}</span></td>`+
+    `<td><button type="button" class="bx efv-btn ${vc>=3?'bE':vc>=1?'bW':'bN'}" onclick="window.efcamOpenStudent&&efcamOpenStudent(${_ri})" title="View ${esc(s.name||'this student')}'s violations">${vc} ${vc===1?'violation':'violations'} &rsaquo;</button></td>`+
     `<td>${sb}</td>`+
     `<td>${scoreCell}</td></tr>`;}).join(''):`<tr><td colspan="7" style="text-align:center;color:var(--ink3);padding:24px">No students.</td></tr>`;
   // Chart
@@ -4598,24 +4599,30 @@ function renderMon(){
   const maxC=Math.max(...counts,1);const cols=['var(--err)','var(--warn)','var(--info)','var(--ok)'];
   document.getElementById('mon-chart').innerHTML=counts.map((c,i)=>`<div class="cbar" style="height:${Math.max(c/maxC*60,c>0?8:3)}px;background:${cols[i]};opacity:.8"></div>`).join('');
   document.getElementById('mon-labs').innerHTML=buckets.map(b=>`<div class="clab">${b.l}</div>`).join('');
-  // Violations
-  const allV=sessions.flatMap(s=>(Array.isArray(s.violations)?s.violations:[]).map(v=>({n:s.name,...v}))).sort((a,b)=>new Date(b.time)-new Date(a.time)).slice(0,15);
-  document.getElementById('viol-log').innerHTML=allV.length?allV.map(v=>{
-    const t=String(v.type||'');
-    let label,color='var(--err)',icon='⚠';
-    if(t.startsWith('POSSIBLE_CALL')){label='Brief interruption ('+t.split(':')[1]+')';color='var(--warn)';icon='📲';}
-    else if(t.startsWith('TAB_SWITCH')){const s=t.split(':')[1]||'';label='Switched away from exam'+(s?(' ('+s+')'):'');icon='🔄';}
-    else if(t==='LEFT_FULLSCREEN'){label='Exited full-screen mode';color='var(--warn)';icon='⛶';}
-    else if(t.startsWith('BLOCKED_KEY')){label='Blocked shortcut: '+t.split(':')[1];icon='⌨';}
-    else{label=({'WIN_BLUR':'Left exam window','RIGHT_CLICK':'Right-click attempt','COPY_ATTEMPT':'Copy attempt','PASTE_ATTEMPT':'Paste attempt','CUT_ATTEMPT':'Cut attempt','SCREENSHOT_ATTEMPT':'Screenshot attempt','PAGE_UNLOAD':'Tried to close/leave page','RETURNED_AFTER_TAB_SWITCH':'Returned after refresh','RETURNED_AFTER_REFRESH':'Returned after refresh'}[t])||t.replace(/_/g,' ').toLowerCase();}
-    const when=v.time?new Date(v.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';
-    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--paper2);font-size:.82rem">
-      <span style="font-size:1rem">${icon}</span>
-      <span style="font-weight:600;min-width:90px">${esc((v.n||'').split(' ')[0]||'Student')}</span>
-      <span style="color:${color};flex:1">${esc(label)}</span>
-      <span style="color:var(--ink3);font-family:var(--fm);font-size:.72rem">${when}</span>
-    </div>`;
+  // Violations: one row per flagged student; details open in that student's window
+  const _flagRows=sessions.map((s,i)=>({s,i,v:Array.isArray(s.violations)?s.violations:[]})).filter(x=>x.v.length)
+    .sort((a,b)=>(Date.parse((b.v[b.v.length-1]||{}).time)||0)-(Date.parse((a.v[a.v.length-1]||{}).time)||0));
+  document.getElementById('viol-log').innerHTML=_flagRows.length?_flagRows.map(x=>{
+    const last=x.v[x.v.length-1]||{};const lb=_violLabel(String(last.type||''));
+    const when=last.time?new Date(last.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'';
+    return `<button type="button" class="efv-btn" onclick="window.efcamOpenStudentAll&&efcamOpenStudentAll(${x.i})" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;padding:8px 0;border-bottom:1px solid var(--paper2);font-size:.82rem;color:inherit">
+      <span class="bx ${x.v.length>=3?'bE':'bW'}" style="min-width:28px;justify-content:center">${x.v.length}</span>
+      <span style="flex:1;min-width:0"><span style="font-weight:600;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.s.name||'Student')}</span><span style="color:var(--ink3);font-size:.75rem">${lb.icon} ${esc(lb.label)} · ${when}</span></span>
+      <span style="color:var(--ac);font-weight:600">&rsaquo;</span>
+    </button>`;
   }).join(''):'<p style="color:var(--ink3);font-size:.825rem;padding:8px 0">✓ No violations recorded — clean session.</p>';
+}
+// Readable label for a violation type (shared by the monitor and the student violations window)
+function _violLabel(t){
+  t=String(t||'');
+  let label,color='var(--err)',icon='⚠';
+  if(t.startsWith('CAMERA_')){const c=window.efViolLabel?window.efViolLabel(t):null;label=c?c.label:t.slice(7).replace(/_/g,' ').toLowerCase();icon='📷';if(c&&c.sev!=='high')color='var(--warn)';}
+  else if(t.startsWith('POSSIBLE_CALL')){label='Brief interruption ('+t.split(':')[1]+')';color='var(--warn)';icon='📲';}
+  else if(t.startsWith('TAB_SWITCH')){const s=t.split(':')[1]||'';label='Switched away from exam'+(s?(' ('+s+')'):'');icon='🔄';}
+  else if(t==='LEFT_FULLSCREEN'){label='Exited full-screen mode';color='var(--warn)';icon='⛶';}
+  else if(t.startsWith('BLOCKED_KEY')){label='Blocked shortcut: '+t.split(':')[1];icon='⌨';}
+  else{label=({'WIN_BLUR':'Left exam window','RIGHT_CLICK':'Right-click attempt','COPY_ATTEMPT':'Copy attempt','PASTE_ATTEMPT':'Paste attempt','CUT_ATTEMPT':'Cut attempt','SCREENSHOT_ATTEMPT':'Screenshot attempt','PAGE_UNLOAD':'Tried to close/leave page','RETURNED_AFTER_TAB_SWITCH':'Returned after refresh','RETURNED_AFTER_REFRESH':'Returned after refresh'}[t])||t.replace(/_/g,' ').toLowerCase();}
+  return {label,color,icon};
 }
 function renderWrtSubs(){
   const exam=S.exams[S.monIdx];const el=document.getElementById('wrt-subs');if(!exam)return;
@@ -5077,7 +5084,7 @@ async function getVisitCount(){
 
 </script>
 <script>
-/* ExamFlow camera monitoring (added feature; does not modify existing functions) */
+/* ExamFlow camera monitoring + per-student violations window */
 (function () {
 'use strict';
 if (window.EFCam) return;
@@ -5601,63 +5608,95 @@ class OneEuro {
   }
 }
 
-/* ---------------- styles ---------------- */
+/* ---------------- styles (ExamFlow orange theme) ---------------- */
 function injectCss() {
   if ($id('efcam-css')) return;
   const st = document.createElement('style'); st.id = 'efcam-css';
   st.textContent = `
-.efcam-pip{position:fixed;right:16px;top:84px;z-index:7900;width:148px;border-radius:14px;overflow:hidden;background:#0f0e0d;box-shadow:0 8px 28px rgba(15,14,13,.28);cursor:pointer;transition:transform .2s cubic-bezier(.22,1,.36,1),width .2s cubic-bezier(.22,1,.36,1);-webkit-tap-highlight-color:transparent}
-.efcam-pip:active{transform:scale(.97)}
+.efcam-pip{position:fixed;right:20px;bottom:20px;z-index:7900;width:150px;border-radius:14px;overflow:hidden;background:#1a1512;box-shadow:0 0 0 2px var(--ac,#c8401a),0 10px 30px rgba(15,14,13,.3);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;transition:width .22s cubic-bezier(.22,1,.36,1),border-radius .22s,box-shadow .2s;-webkit-tap-highlight-color:transparent}
+.efcam-pip.drag{cursor:grabbing;transition:none}
 .efcam-pip[hidden]{display:none}
-.efcam-pip video{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;transform:scaleX(-1)}
-.efcam-pip .efcam-st{display:flex;align-items:center;gap:6px;padding:6px 9px;font:500 11px/1.3 var(--fb,system-ui);color:#f0ede6}
-.efcam-pip .efcam-st i{width:7px;height:7px;border-radius:50%;background:#3fbf7f;flex:none}
-.efcam-pip.warn .efcam-st i{background:#e8a33a}
-.efcam-pip.bad .efcam-st i{background:#e5534b}
-.efcam-pip .efcam-cal{position:absolute;left:0;right:0;top:0;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;text-align:center;padding:8px;background:rgba(15,14,13,.55);color:#fff;font:600 11px/1.3 var(--fb,system-ui)}
+.efcam-pip video{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;transform:scaleX(-1);pointer-events:none}
+.efcam-pip .efcam-st{display:flex;align-items:center;gap:6px;padding:6px 9px;font:600 11px/1.3 var(--fb,system-ui);color:#fdf0eb;background:linear-gradient(90deg,var(--ac,#c8401a),#e0602f)}
+.efcam-pip .efcam-st i{width:7px;height:7px;border-radius:50%;background:#fff;flex:none;animation:efcamPulse 1.6s ease-in-out infinite}
+@keyframes efcamPulse{50%{opacity:.35}}
+.efcam-pip.warn{box-shadow:0 0 0 2px var(--warn,#a05c10),0 10px 30px rgba(15,14,13,.3)}
+.efcam-pip.warn .efcam-st{background:var(--warn,#a05c10)}
+.efcam-pip.bad{box-shadow:0 0 0 3px var(--err,#b01a1a),0 10px 30px rgba(176,26,26,.35)}
+.efcam-pip.bad .efcam-st{background:var(--err,#b01a1a)}
+.efcam-pip .efcam-cal{position:absolute;left:0;right:0;top:0;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;text-align:center;padding:10px;background:rgba(26,21,18,.6);color:#fff;font:600 11px/1.35 var(--fb,system-ui)}
 .efcam-pip .efcam-cal[hidden]{display:none}
-.efcam-pip.min{width:46px;border-radius:50%;box-shadow:0 0 0 3px #3fbf7f,0 6px 20px rgba(15,14,13,.3)}
-.efcam-pip.min.warn{box-shadow:0 0 0 3px #e8a33a,0 6px 20px rgba(15,14,13,.3)}
-.efcam-pip.min.bad{box-shadow:0 0 0 3px #e5534b,0 6px 20px rgba(15,14,13,.3)}
+.efcam-pip.min{width:48px;border-radius:50%}
 .efcam-pip.min video{aspect-ratio:1}
 .efcam-pip.min .efcam-st,.efcam-pip.min .efcam-cal{display:none}
-@media (max-width:760px){.efcam-pip{top:auto;bottom:88px;right:12px;width:120px}}
-.efcam-lists{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+@media (max-width:760px){.efcam-pip{width:118px}}
+.efcam-lists{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
 @media (max-width:480px){.efcam-lists{grid-template-columns:1fr}}
-.efcam-lists b{display:block;font-size:.8rem;margin-bottom:4px}
-.efcam-lists ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px;font-size:.8rem}
-.efcam-lists ul.ok li::before{content:'\\2713  ';color:var(--ok);font-weight:700}
-.efcam-lists ul.no li::before{content:'\\2715  ';color:var(--err);font-weight:700}
+.efcam-lists b{display:block;font-size:.8rem;margin-bottom:4px;color:var(--ink)}
+.efcam-lists ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px;font-size:.8rem;color:var(--ink2)}
+.efcam-lists ul.ok li::before{content:'\\2713';display:inline-block;width:16px;color:var(--ac);font-weight:700}
+.efcam-lists ul.no li::before{content:'\\2715';display:inline-block;width:16px;color:var(--err);font-weight:700}
 .efcam-lists li.none{color:var(--ink3)} .efcam-lists li.none::before{content:''!important}
 .efcam-msg{margin:4px 0 12px;padding:10px 14px;border-radius:var(--r,10px);background:var(--errbg);color:var(--err);font-size:.84rem;line-height:1.5}
 .efcam-msg[hidden]{display:none}
 .efcam-msg button{margin-top:8px}
-.efcam-tp{margin-bottom:16px}
-.efcam-tp-h{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.efcam-tp-h p{font-size:.82rem;color:var(--ink3);margin-top:2px}
-.efcam-sw{position:relative;display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-size:.85rem;font-weight:500;user-select:none}
+.efcam-sw{position:relative;display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-size:.85rem;font-weight:600;user-select:none;color:var(--ink2)}
 .efcam-sw input{position:absolute;opacity:0;width:1px;height:1px}
-.efcam-sw .tr{width:44px;height:26px;border-radius:99px;background:var(--paper3);position:relative;transition:background .2s}
+.efcam-sw .tr{width:44px;height:26px;border-radius:99px;background:var(--paper3);position:relative;transition:background .2s;flex:none}
 .efcam-sw .tr::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .22s cubic-bezier(.22,1,.36,1)}
-.efcam-sw input:checked+.tr{background:var(--ok)}
+.efcam-sw input:checked+.tr{background:var(--ac)}
 .efcam-sw input:checked+.tr::after{transform:translateX(18px)}
 .efcam-sw input:focus-visible+.tr{outline:2px solid var(--ac);outline-offset:2px}
 .efcam-lbl{font-size:.8rem;font-weight:600;color:var(--ink2);margin:2px 0 8px}
-.efcam-perms{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
-.efcam-perm{display:flex;align-items:center;gap:8px;padding:7px 12px;border:1px solid var(--paper3);border-radius:99px;background:#fff;font-size:.82rem;cursor:pointer;transition:transform .12s cubic-bezier(.22,1,.36,1)}
+.efcam-perms{display:flex;flex-wrap:wrap;gap:8px}
+.efcam-perm{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border:1.5px solid var(--paper3);border-radius:99px;background:#fff;font-size:.82rem;cursor:pointer;color:var(--ink2);transition:transform .12s cubic-bezier(.22,1,.36,1),border-color .15s,background .15s}
 .efcam-perm:active{transform:scale(.97)}
-.efcam-perm input{accent-color:var(--ok);width:15px;height:15px}
-.efcam-perm:has(input:checked){border-color:var(--ok);background:var(--okbg)}
-.efcam-stat{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
-.efcam-alerts{display:flex;flex-direction:column;max-height:340px;overflow:auto}
-.efcam-al{display:grid;grid-template-columns:72px 1fr auto;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--paper2);font-size:.82rem}
-.efcam-al:last-child{border-bottom:0}
-.efcam-al img,.efcam-al .ph{width:72px;height:54px;border-radius:8px;object-fit:cover;background:var(--paper2);display:block}
-.efcam-al .n{font-weight:600}
-.efcam-al .l{color:var(--err)} .efcam-al .l.medium{color:var(--warn)} .efcam-al .l.low{color:var(--ink3)}
-.efcam-al time{font-family:var(--fm);font-size:.72rem;color:var(--ink3)}
-.efcam-empty{color:var(--ink3);font-size:.825rem;padding:6px 0}
-@media (prefers-reduced-motion:reduce){.efcam-pip,.efcam-sw .tr,.efcam-sw .tr::after,.efcam-perm{transition:none}}
+.efcam-perm input{accent-color:var(--ac);width:15px;height:15px;margin:0}
+.efcam-perm:has(input:checked){border-color:var(--ac);background:var(--acbg);color:var(--ac);font-weight:600}
+.efcam-cfg{border:1.5px solid var(--paper3);border-radius:var(--rl,16px);padding:14px 16px;background:#fff;margin-top:6px;transition:border-color .2s,background .2s}
+.efcam-cfg.on{border-color:rgba(200,64,26,.4);background:var(--acbg)}
+.efcam-cfg-h{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.efcam-cfg-t{font-weight:600;font-size:.9rem;color:var(--ink)}
+.efcam-cfg-d{font-size:.8rem;color:var(--ink3);line-height:1.5;margin-top:2px;max-width:56ch}
+.efcam-cfg-b{margin-top:12px;padding-top:12px;border-top:1px dashed rgba(200,64,26,.3)}
+.efcam-cfg-b[hidden]{display:none}
+.efcam-cfg-n{font-size:.76rem;color:var(--ink3);margin-top:10px}
+.efcam-tp{margin-bottom:16px;border-color:rgba(200,64,26,.25)}
+.efcam-tp-h{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.efcam-tp-h h3{display:flex;align-items:center;gap:8px}
+.efcam-tp-h p{font-size:.82rem;color:var(--ink3);margin-top:2px;max-width:70ch}
+.efcam-stat{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.efcam-hint{font-size:.78rem;color:var(--ink3);margin-top:10px}
+.efv-btn{border:0;cursor:pointer;font-family:inherit;transition:transform .12s cubic-bezier(.22,1,.36,1),filter .15s}
+.efv-btn:hover{filter:brightness(.96)}
+.efv-btn:active{transform:scale(.97)}
+.efv-btn:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+#m-efviol .mbx{max-width:640px}
+#m-efviol .mb{max-height:min(66vh,620px);overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain}
+.efv-head{display:flex;align-items:center;gap:14px}
+.efv-av{width:44px;height:44px;border-radius:12px;background:var(--acbg);color:var(--ac);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex:none}
+.efv-head h3{font-size:1.1rem;line-height:1.2}
+.efv-head p{font-size:.8rem;color:var(--ink3);margin-top:2px}
+.efv-x{margin-left:auto;border:0;background:var(--paper2);width:34px;height:34px;border-radius:10px;cursor:pointer;font-size:1rem;color:var(--ink2);flex:none}
+.efv-x:active{transform:scale(.95)}
+.efv-tabs{display:flex;gap:6px;margin-top:14px;flex-wrap:wrap}
+.efv-tab{border:1.5px solid var(--paper3);background:#fff;border-radius:99px;padding:5px 12px;font-size:.8rem;font-weight:600;color:var(--ink2);cursor:pointer;font-family:inherit}
+.efv-tab.on{background:var(--ac);border-color:var(--ac);color:#fff}
+.efv-tab:active{transform:scale(.97)}
+.efv-list{display:flex;flex-direction:column}
+.efv-it{display:grid;grid-template-columns:34px 1fr auto;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--paper2)}
+.efv-it:last-child{border-bottom:0}
+.efv-ic{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1rem;background:var(--errbg)}
+.efv-it.medium .efv-ic{background:var(--warnbg)} .efv-it.low .efv-ic{background:var(--paper2)}
+.efv-l{font-weight:600;font-size:.86rem;color:var(--err)}
+.efv-it.medium .efv-l{color:var(--warn)} .efv-it.low .efv-l{color:var(--ink2)}
+.efv-m{font-size:.75rem;color:var(--ink3);font-family:var(--fm);margin-top:2px}
+.efv-shot{width:96px;height:72px;border-radius:10px;object-fit:cover;cursor:zoom-in;border:1px solid var(--paper3);display:block;background:var(--paper2)}
+.efv-empty{color:var(--ink3);font-size:.86rem;text-align:center;padding:22px 0}
+.efv-zoom{position:fixed;inset:0;z-index:9500;background:rgba(15,14,13,.85);display:flex;align-items:center;justify-content:center;padding:24px;cursor:zoom-out}
+.efv-zoom img{max-width:min(92vw,640px);width:100%;border-radius:14px;image-rendering:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.efv-zoom p{position:absolute;bottom:24px;left:0;right:0;text-align:center;color:#fff;font-size:.85rem}
+@media (prefers-reduced-motion:reduce){.efcam-pip,.efcam-sw .tr,.efcam-sw .tr::after,.efcam-perm,.efcam-pip .efcam-st i{transition:none;animation:none}}
 `;
   document.head.appendChild(st);
 }
@@ -5758,19 +5797,48 @@ function releaseCamera() {
   if (video) video.srcObject = null;
 }
 
-/* ---------------- student picture-in-picture ---------------- */
+/* ---------------- student picture-in-picture (draggable, snaps to a corner) ---------------- */
 let pip = null, video = null;
+const CORNER_KEY = 'efcam_corner';
+function placePip(corner) {
+  const c = corner || 'br', m = window.innerWidth <= 760 ? 12 : 20;
+  pip.style.left = pip.style.right = pip.style.top = pip.style.bottom = '';
+  pip.style.transform = '';
+  if (c[0] === 't') pip.style.top = (m + 64) + 'px'; else pip.style.bottom = (m + (window.innerWidth <= 760 ? 64 : 0)) + 'px';
+  if (c[1] === 'l') pip.style.left = m + 'px'; else pip.style.right = m + 'px';
+}
 function ensurePip() {
   if (pip) return;
   injectCss();
   pip = document.createElement('div');
   pip.className = 'efcam-pip'; pip.hidden = true;
   pip.setAttribute('role', 'status'); pip.setAttribute('aria-label', 'Exam camera');
-  pip.title = 'Exam camera. Tap to shrink or expand.';
+  pip.title = 'Exam camera. Tap to shrink, drag to move.';
   pip.innerHTML = '<video playsinline muted autoplay></video><div class="efcam-cal" hidden>Look at the screen</div><div class="efcam-st"><i></i><span>Camera on</span></div>';
   video = pip.querySelector('video');
-  pip.addEventListener('click', () => pip.classList.toggle('min'));
+  let corner = 'br';
+  try { corner = localStorage.getItem(CORNER_KEY) || 'br'; } catch (e) { /* ignore */ }
+  placePip(corner);
   if (window.matchMedia && matchMedia('(max-width: 760px)').matches) pip.classList.add('min');
+  let sx = 0, sy = 0, moved = false, down = false, rect = null;
+  pip.addEventListener('pointerdown', e => { down = true; moved = false; sx = e.clientX; sy = e.clientY; rect = pip.getBoundingClientRect(); try { pip.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } });
+  pip.addEventListener('pointermove', e => {
+    if (!down) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (!moved && Math.hypot(dx, dy) < 6) return;
+    moved = true; pip.classList.add('drag');
+    pip.style.transform = `translate(${dx}px,${dy}px)`;
+  });
+  const end = e => {
+    if (!down) return; down = false; pip.classList.remove('drag');
+    if (!moved) { pip.classList.toggle('min'); return; }
+    const cx = rect.left + rect.width / 2 + (e.clientX - sx), cy = rect.top + rect.height / 2 + (e.clientY - sy);
+    const c = (cy < window.innerHeight / 2 ? 't' : 'b') + (cx < window.innerWidth / 2 ? 'l' : 'r');
+    placePip(c);
+    try { localStorage.setItem(CORNER_KEY, c); } catch (x) { /* ignore */ }
+  };
+  pip.addEventListener('pointerup', end);
+  pip.addEventListener('pointercancel', end);
   document.body.appendChild(pip);
 }
 function pipState(cls, text) {
@@ -5814,8 +5882,9 @@ class Rule {
 }
 const R = {
   noPerson: new Rule('noPerson', 'No one at the screen', 'high', 1500, 600),
-  noFace: new Rule('noFace', 'Face not visible', 'medium', 1200, 400),
-  multiPeople: new Rule('multiPeople', 'More than one person', 'high', 600, 1200),
+  // Writing on allowed rough paper or using a calculator means looking down more, so wait longer.
+  noFace: new Rule('noFace', 'Face not visible', 'medium', () => (allow.roughPaper || allow.calculator) ? 4000 : 1500, 400),
+  multiPeople: new Rule('multiPeople', 'More than one person', 'high', 500, 1200),
   phone: new Rule('phone', 'Phone visible', 'high', 0, 1200),
   calculator: new Rule('calculator', 'Calculator visible', 'high', 0, 1200),
   device: new Rule('device', 'Handheld device, could be a phone', 'medium', 0, 1200),
@@ -5857,9 +5926,9 @@ function snapshot() {
     return snapCv.toDataURL('image/jpeg', 0.55);
   } catch (e) { return ''; }
 }
-function report(rule) {
+function report(rule, sustained) {
   const t = Date.now();
-  if (t - (lastReport[rule.id] || 0) < 15000) return; // one report per alert type every 15 s
+  if (t - (lastReport[rule.id] || 0) < (sustained ? 45000 : 15000)) return; // throttle per alert type
   lastReport[rule.id] = t;
   if (rule.sev !== 'low') {
     banner('\u{1F4F7} ' + rule.label + ' \u2014 your teacher has been notified.');
@@ -5869,7 +5938,7 @@ function report(rule) {
   }
   const img = snapshot();
   shots.push({ t, l: rule.label, s: rule.sev, img });
-  if (shots.length > 6) shots.shift();
+  if (shots.length > 12) shots.shift();
   clearTimeout(shotTimer); shotTimer = setTimeout(uploadShots, 1200);
 }
 let pipResetTimer = 0;
@@ -5895,7 +5964,7 @@ const F = { t: 0, ms: 8, count: 0, boxes: [], yaw: 0, pitch: 0, roll: 0, gaze: 0
 const filt = { yaw: new OneEuro(1.2, 0.03), pitch: new OneEuro(1.2, 0.03), gaze: new OneEuro(1.5, 0.8) };
 const O = { t: 0, ms: 30, persons: 0, screens: 0 };
 let phoneHits = [], calcHits = [], deviceHits = [], bookHits = [], notesHits = [], heldHits = [];
-let blocked = false;
+let blocked = false, bgObjs = [], personsSince = null;
 let faceBusy = false, objBusy = false, lastFaceSent = 0, lastObjSent = 0, needBgReset = false;
 let away = false, awayCand = null, turnTimes = [];
 let glance = false, glanceCand = null, glanceTimes = [];
@@ -5906,7 +5975,7 @@ function resetState() {
   phoneHits = []; calcHits = []; deviceHits = []; bookHits = []; notesHits = []; heldHits = [];
   away = false; awayCand = null; turnTimes = []; glance = false; glanceCand = null; glanceTimes = [];
   marBuf = []; mouthOpen = false; closeTimes = []; mouthMoving = false; talkEpisodes = [];
-  gallery = []; idDists = []; forceIdCheck = false; blocked = false;
+  gallery = []; idDists = []; forceIdCheck = false; blocked = false; personsSince = null;
   filt.yaw.reset(); filt.pitch.reset(); filt.gaze.reset();
   Object.values(R).forEach(r => r.reset());
 }
@@ -5988,7 +6057,13 @@ async function pumpObjects(now) {
   } catch (e) { await objEng.fail(); }
   finally { objBusy = false; }
 }
+const iou = (a, b) => { const x1 = Math.max(a.x, b.x), y1 = Math.max(a.y, b.y), x2 = Math.min(a.x + a.w, b.x + b.w), y2 = Math.min(a.y + a.h, b.y + b.h); const i = Math.max(0, x2 - x1) * Math.max(0, y2 - y1); return i / (a.w * a.h + b.w * b.h - i + 1e-9); };
+// Books on a shelf or a TV behind the student were there at calibration: ignore them unless a hand touches them.
+const isBackground = (o, handsNow) => bgObjs.some(b => b.n === o.n && iou(b, o) > 0.4) && !handsNow.some(h => overlaps(grow(h, 0.3), o));
 function onObjects(r, now) {
+  if (phase === 'calibrating') {
+    for (const o of r.objects) if ((o.n === 'book' || o.n === 'laptop' || o.n === 'tv') && o.s >= 0.4 && !bgObjs.some(b => b.n === o.n && iou(b, o) > 0.5)) bgObjs.push({ n: o.n, x: o.x, y: o.y, w: o.w, h: o.h });
+  }
   let persons = 0, bookScore = 0, screens = 0, phoneSeen = false, calcSeen = false, unclearSeen = false;
   const heldTargets = [];
   for (const o of r.objects) {
@@ -5998,14 +6073,15 @@ function onObjects(r, now) {
       if (o.s >= 0.3 && !deviceAllowed(o.kind)) heldTargets.push(o);
       continue;
     }
-    if (o.n === 'book') { bookScore = Math.max(bookScore, o.s); if (o.s >= 0.3 && !allow.books) heldTargets.push(o); continue; }
-    if (o.n === 'laptop' || o.n === 'tv') { if (o.s >= 0.5) screens++; continue; }
+    if (o.n === 'book') { if (isBackground(o, r.hands)) continue; bookScore = Math.max(bookScore, o.s); if (o.s >= 0.3 && !allow.books) heldTargets.push(o); continue; }
+    if (o.n === 'laptop' || o.n === 'tv') { if (o.s >= 0.5 && !isBackground(o, r.hands)) screens++; continue; }
     if (o.n === 'cell phone' || o.n === 'remote') continue;
     if (o.s >= 0.3) heldTargets.push(o);
   }
   if (r.paper && !allow.roughPaper) heldTargets.push(r.paper);
   const held = r.hands.some(h => heldTargets.some(t => overlaps(grow(h, 0.5), t)));
   O.t = now; O.ms = r.ms; O.persons = persons; O.screens = screens;
+  personsSince = persons > 1 ? (personsSince || now) : null;
   pushHit(phoneHits, phoneSeen, 4); pushHit(calcHits, calcSeen, 4); pushHit(deviceHits, unclearSeen, 5);
   pushHit(bookHits, bookScore >= CFG.bookConfidence, 4); pushHit(notesHits, !!(r.paper && r.paper.s >= 0.5), 5); pushHit(heldHits, held, 4);
   blocked = r.luma.mean < 22 || r.luma.std < 5;
@@ -6051,7 +6127,7 @@ function evaluate(now) {
   const camOk = !cameraLost && !blocked;
   R.noPerson.update(camOk && faceFresh && faces === 0 && persons === 0, now);
   R.noFace.update(camOk && faceFresh && faces === 0 && !R.noPerson.active, now);
-  R.multiPeople.update(faces > 1 || persons > 1, now);
+  R.multiPeople.update(faces > 1 || (persons > 1 && personsSince !== null && now - personsSince >= 1000), now);
   R.phone.update(!allow.phone && objFresh && hits(phoneHits) >= 2, now);
   R.calculator.update(!allow.calculator && objFresh && hits(calcHits) >= 2, now);
   R.device.sev = !allow.phone && !allow.calculator ? 'high' : 'medium';
@@ -6065,6 +6141,8 @@ function evaluate(now) {
   const bad = idDists.filter(d => d > CFG.idThreshold).length;
   R.differentPerson.update(gallery.length >= 2 && idDists.length >= 2 && bad >= 2 && faces === 1, now);
   if (faceFresh && faces !== 1) idDists = [];
+  // An alert that stays on (a phone left in view) is reported again every 45 s with a new snapshot.
+  for (const r of Object.values(R)) if (r.active && r.since !== null && now - r.since > 45000) report(r, true);
 }
 
 /* ---------------- loop ---------------- */
@@ -6088,12 +6166,14 @@ function tick() {
   schedule();
 }
 
+document.addEventListener('visibilitychange', () => { if (!document.hidden && running && phase === 'monitoring') forceIdCheck = true; });
+
 /* ---------------- calibration ---------------- */
 function startCalibration() {
   phase = 'calibrating';
   calib = { t0: performance.now(), yaw: [], pitch: [], gaze: [], mar: [] };
   enrollUntil = performance.now() + 12000; needBgReset = true;
-  resetState();
+  resetState(); bgObjs = [];
   pipCal('Look at the screen');
 }
 function stepCalibration(now) {
@@ -6224,7 +6304,7 @@ function renderAcwBlock(exam) {
   if (!c.on) { if (blk) blk.remove(); if (msg) msg.remove(); return; }
   injectCss();
   if (!blk) {
-    blk = document.createElement('div'); blk.id = 'efcam-acw'; blk.className = 'acRule'; blk.style.background = 'var(--infobg)';
+    blk = document.createElement('div'); blk.id = 'efcam-acw'; blk.className = 'acRule'; blk.style.background = 'var(--acbg)'; blk.style.border = '1px solid rgba(200,64,26,.25)';
     msg = document.createElement('div'); msg.id = 'efcam-acw-msg'; msg.className = 'efcam-msg'; msg.hidden = true; msg.setAttribute('role', 'alert');
     const btn = [...cb.querySelectorAll('button')].pop();
     cb.insertBefore(blk, btn || null); cb.insertBefore(msg, btn || null);
@@ -6237,6 +6317,60 @@ function renderAcwBlock(exam) {
 }
 function acwMessage(html) { const m = $id('efcam-acw-msg'); if (!m) return; m.innerHTML = html; m.hidden = !html; }
 
+/* ---------------- camera settings in Create exam / Edit exam ---------------- */
+const FORMS = {
+  ce: { anchor: () => $id('ce-shq') && $id('ce-shq').closest('div[style*="display:flex"]') },
+  we: { anchor: () => $id('we-shuf') && $id('we-shuf').closest('label') },
+  cb: { anchor: () => $id('cb-end') && $id('cb-end').closest('.fr') },
+  editex: { anchor: () => $id('editex-shq') && $id('editex-shq').closest('div[style*="display:flex"]') }
+};
+function camFormHtml(p) {
+  return `<div class="efcam-cfg-h"><div><div class="efcam-cfg-t">\u{1F4F7} Camera monitoring</div>` +
+    `<div class="efcam-cfg-d">Uses each student\u2019s own camera to flag phones, books, notes, another person, talking and looking away. Video stays on the student\u2019s device; you get alerts with a snapshot.</div></div>` +
+    `<label class="efcam-sw" title="Camera monitoring"><input type="checkbox" id="${p}-cam-on" aria-label="Camera monitoring"><span class="tr"></span></label></div>` +
+    `<div class="efcam-cfg-b" id="${p}-cam-body" hidden><div class="efcam-lbl">Allowed on the student\u2019s desk</div><div class="efcam-perms">` +
+    PERMS.map(([k, l]) => `<label class="efcam-perm"><input type="checkbox" data-camk="${k}"><span>${escH(l)}</span></label>`).join('') +
+    `</div><div class="efcam-cfg-n">Everything not ticked is flagged. Another person, talking, leaving the seat and covering the camera are always flagged.</div></div>`;
+}
+function ensureCamForm(p) {
+  let box = $id(p + '-cam');
+  if (box) return box;
+  const anchor = FORMS[p] && FORMS[p].anchor();
+  if (!anchor || !anchor.parentElement) return null;
+  injectCss();
+  box = document.createElement('div'); box.id = p + '-cam'; box.className = 'efcam-cfg';
+  box.innerHTML = camFormHtml(p);
+  anchor.parentElement.insertBefore(box, anchor.nextSibling);
+  $id(p + '-cam-on').addEventListener('change', () => syncCamForm(p));
+  return box;
+}
+function syncCamForm(p) {
+  const box = $id(p + '-cam'); if (!box) return;
+  const on = $id(p + '-cam-on').checked;
+  box.classList.toggle('on', on);
+  $id(p + '-cam-body').hidden = !on;
+}
+function setCamForm(p, cfg) {
+  if (!ensureCamForm(p)) return;
+  $id(p + '-cam-on').checked = !!cfg.on;
+  $id(p + '-cam').querySelectorAll('[data-camk]').forEach(i => { i.checked = !!cfg.allow[i.dataset.camk]; });
+  syncCamForm(p);
+}
+function readCamForm(p) {
+  if (!$id(p + '-cam')) return null;
+  const allowOut = { ...DEFAULT_ALLOW };
+  $id(p + '-cam').querySelectorAll('[data-camk]').forEach(i => { allowOut[i.dataset.camk] = i.checked; });
+  return { on: $id(p + '-cam-on').checked, allow: allowOut };
+}
+function persistCam(exam) {
+  if (!exam || !exam.token) return;
+  try { if (typeof saveExams === 'function') saveExams(); } catch (e) { /* ignore */ }
+  if (typeof _viewAs !== 'undefined' && _viewAs) return;
+  if (!hasDb()) return;
+  try { db.collection('exams').doc(exam.token).set({ camMon: exam.camMon }, { merge: true }).catch(e => console.warn('camera setting save', e.message)); }
+  catch (e) { console.warn('camera setting save', e.message); }
+}
+
 /* ---------------- teacher panel on the Live Monitor ---------------- */
 function ensureTeacherPanel() {
   const page = $id('pg-monitor'); if (!page) return null;
@@ -6248,10 +6382,10 @@ function ensureTeacherPanel() {
   tp.innerHTML =
     '<div class="ch efcam-tp-h"><div><h3>\u{1F4F7} Camera monitoring</h3><p id="efcam-tp-sub"></p></div>' +
     '<label class="efcam-sw"><input type="checkbox" id="efcam-tp-on"><span class="tr"></span><span id="efcam-tp-onl">Off</span></label></div>' +
-    '<div class="cb">' +
+    '<div class="cb" id="efcam-tp-body">' +
     '<div class="efcam-lbl">Allowed on the student\u2019s desk</div><div class="efcam-perms" id="efcam-tp-perms"></div>' +
     '<div class="efcam-stat" id="efcam-tp-stat"></div>' +
-    '<div class="efcam-lbl">Camera alerts</div><div class="efcam-alerts" id="efcam-tp-alerts"></div></div>';
+    '<p class="efcam-hint">Each student\u2019s camera alerts and snapshots are in their <b>violations</b> button in the table below.</p></div>';
   if (stats && stats.parentElement) stats.parentElement.insertBefore(tp, stats.nextSibling);
   else { const main = page.querySelector('main'); if (!main) return null; main.insertBefore(tp, main.firstChild); }
   $id('efcam-tp-perms').innerHTML = PERMS.map(([k, l]) => `<label class="efcam-perm"><input type="checkbox" data-k="${k}"><span>${escH(l)}</span></label>`).join('');
@@ -6265,12 +6399,11 @@ function saveTeacher(ch) {
   if ('on' in ch) c.on = ch.on;
   if (ch.allowKey) c.allow[ch.allowKey] = ch.val;
   exam.camMon = { on: c.on, allow: c.allow };
-  try { if (typeof saveExams === 'function') saveExams(); } catch (e) { /* ignore */ }
-  try { if (typeof fbSave === 'function') fbSave(exam); } catch (e) { /* ignore */ }
+  persistCam(exam);
   syncTeacherControls();
   if (typeof toast === 'function') {
-    if ('on' in ch) toast(c.on ? 'Camera monitoring is on. Students see the rules before they start.' : 'Camera monitoring is off.', 'ok');
-    else toast('Rules updated. Students in the exam are notified.', 'ok');
+    if ('on' in ch) toast(c.on ? '\u{1F4F7} Camera monitoring on. Students see the rules before they start.' : 'Camera monitoring off.', 'ok');
+    else toast('Rules updated. Students in the exam are told right away.', 'ok');
   }
 }
 function syncTeacherControls() {
@@ -6278,55 +6411,197 @@ function syncTeacherControls() {
   const c = camCfg(exam);
   $id('efcam-tp-on').checked = c.on;
   $id('efcam-tp-onl').textContent = c.on ? 'On' : 'Off';
+  $id('efcam-tp-body').style.display = c.on ? '' : 'none';
   $id('efcam-tp-sub').textContent = c.on
-    ? 'Students\u2019 cameras check for phones, books, notes, other people, talking and looking away. Video stays on their devices.'
-    : 'Off. Turn on to check students through their own cameras. Set this before sharing the link; changes also reach students already in the exam.';
+    ? 'Students\u2019 cameras check for phones, books, notes, another person, talking and looking away. Video stays on their devices.'
+    : 'Off for this exam. Turn it on here or in Edit exam; students already in the exam are switched over live.';
   $id('efcam-tp-perms').querySelectorAll('input').forEach(inp => { inp.checked = !!c.allow[inp.dataset.k]; });
 }
-let lastAlertSig = '';
+function monSessions() {
+  const exam = hasS() ? S.exams[S.monIdx] : null; if (!exam) return [];
+  return (S.liveSess && S.liveSess.length) ? S.liveSess : (exam.sessions || []);
+}
 function renderTeacherPanel() {
   const exam = hasS() ? S.exams[S.monIdx] : null; if (!exam || !$id('efcam-tp')) return;
-  const sessions = (S.liveSess && S.liveSess.length) ? S.liveSess : (exam.sessions || []);
-  const active = sessions.filter(s => !s.submitted);
+  const active = monSessions().filter(s => !s.submitted);
   const st = { on: 0, denied: 0, unavailable: 0 };
   active.forEach(s => { const k = s.camStatus && s.camStatus.state; if (k in st) st[k]++; });
-  $id('efcam-tp-stat').innerHTML = camCfg(exam).on || st.on || st.denied || st.unavailable
-    ? `<span class="bx bK">${st.on} camera${st.on === 1 ? '' : 's'} on</span>` +
-      (st.denied ? `<span class="bx bE">${st.denied} blocked access</span>` : '') +
-      (st.unavailable ? `<span class="bx bW">${st.unavailable} without a camera</span>` : '')
-    : '';
-  const all = sessions.flatMap(s => (Array.isArray(s.camShots) ? s.camShots : []).map(x => ({ n: s.name || 'Student', r: s.studentId || '', ...x })))
-    .sort((a, b) => (b.t || 0) - (a.t || 0)).slice(0, 40);
-  const sig = all.map(a => a.t + a.n).join('|');
-  if (sig === lastAlertSig && $id('efcam-tp-alerts').childElementCount) return;
-  lastAlertSig = sig;
-  $id('efcam-tp-alerts').innerHTML = all.length ? all.map(a => {
-    const when = a.t ? new Date(a.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
-    const img = typeof a.img === 'string' && a.img.startsWith('data:image/') ? `<img src="${a.img}" alt="Snapshot of ${escH(a.n)}" loading="lazy">` : '<span class="ph"></span>';
-    const sev = a.s === 'high' || a.s === 'medium' || a.s === 'low' ? a.s : 'high';
-    return `<div class="efcam-al">${img}<div><div class="n">${escH(a.n)}${a.r ? ` <span style="color:var(--ink3);font-weight:400">${escH(a.r)}</span>` : ''}</div><div class="l ${sev}">${escH(a.l || '')}</div></div><time>${when}</time></div>`;
-  }).join('') : '<p class="efcam-empty">No camera alerts yet.</p>';
+  const camAlerts = monSessions().reduce((n, s) => n + (Array.isArray(s.violations) ? s.violations.filter(v => String(v && v.type).startsWith('CAMERA_')).length : 0), 0);
+  $id('efcam-tp-stat').innerHTML =
+    `<span class="bx bA">${st.on} camera${st.on === 1 ? '' : 's'} on</span>` +
+    `<span class="bx ${camAlerts ? 'bE' : 'bN'}">${camAlerts} camera alert${camAlerts === 1 ? '' : 's'}</span>` +
+    (st.denied ? `<span class="bx bE">${st.denied} blocked camera access</span>` : '') +
+    (st.unavailable ? `<span class="bx bW">${st.unavailable} without a camera</span>` : '');
+  if (violOpenKey) renderViolModal();
 }
+
+/* ---------------- per-student violations window ---------------- */
+const CAM_LABELS = {};
+Object.values(R).forEach(r => { CAM_LABELS[violType(r.label)] = { label: r.label, sev: r.sev }; });
+CAM_LABELS.CAMERA_ACCESS_DENIED = { label: 'Blocked camera access', sev: 'high' };
+CAM_LABELS.CAMERA_NOT_AVAILABLE = { label: 'No camera available', sev: 'medium' };
+function camLabel(type) {
+  const t = String(type || '');
+  if (!t.startsWith('CAMERA_')) return null;
+  return CAM_LABELS[t] || { label: t.slice(7).replace(/_/g, ' ').toLowerCase().replace(/^./, c => c.toUpperCase()), sev: 'medium' };
+}
+window.efViolLabel = camLabel;
+function browserLabel(t) {
+  if (typeof _violLabel === 'function') { try { const r = _violLabel(t); if (r && r.label) return r; } catch (e) { /* fall back */ } }
+  return { label: t.replace(/_/g, ' ').toLowerCase(), icon: '\u26A0', color: 'var(--err)' };
+}
+const sessKey = s => s ? (s.id || ((s.name || '') + '|' + (s.studentId || ''))) : '';
+let violOpenKey = null, violFilter = 'all';
+function ensureViolModal() {
+  let m = $id('m-efviol');
+  if (m) return m;
+  injectCss();
+  m = document.createElement('div'); m.className = 'mbd'; m.id = 'm-efviol';
+  m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true'); m.setAttribute('aria-labelledby', 'efv-name');
+  m.innerHTML = '<div class="mbx"><div class="mh" id="efv-h"></div><div class="mb" id="efv-b"></div>' +
+    '<div class="mf"><button class="btn btnP" type="button" id="efv-close">Close</button></div></div>';
+  document.body.appendChild(m);
+  const close = () => { violOpenKey = null; if (typeof closeM === 'function') closeM('m-efviol'); else m.classList.remove('open'); };
+  m.addEventListener('click', e => {
+    if (e.target === m || e.target.closest('#efv-close') || e.target.closest('.efv-x')) { close(); return; }
+    const tab = e.target.closest('.efv-tab'); if (tab) { violFilter = tab.dataset.f; renderViolModal(); return; }
+    const shot = e.target.closest('.efv-shot'); if (shot) zoomShot(shot.src, shot.dataset.cap || '');
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && m.classList.contains('open')) { const z = document.querySelector('.efv-zoom'); if (z) z.remove(); else close(); } });
+  return m;
+}
+function zoomShot(src, cap) {
+  const z = document.createElement('div'); z.className = 'efv-zoom';
+  z.innerHTML = `<img alt="Camera snapshot" src="${src}"><p>${escH(cap)}</p>`;
+  z.addEventListener('click', () => z.remove());
+  document.body.appendChild(z);
+}
+function buildItems(s) {
+  const viols = Array.isArray(s.violations) ? s.violations : [];
+  const shotsAll = (Array.isArray(s.camShots) ? s.camShots : []).filter(x => x && typeof x.img === 'string' && x.img.startsWith('data:image/'));
+  const used = new Set();
+  const items = viols.map(v => {
+    const t = String(v && v.type || ''), when = Date.parse(v && v.time) || 0;
+    const cam = camLabel(t);
+    let shot = null;
+    if (cam) {
+      let best = -1, bd = 10000;
+      shotsAll.forEach((x, i) => { if (used.has(i) || violType(x.l || '') !== t) return; const d = Math.abs((x.t || 0) - when); if (d < bd) { bd = d; best = i; } });
+      if (best >= 0) { used.add(best); shot = shotsAll[best]; }
+      return { cam: true, label: cam.label, sev: cam.sev, icon: '\u{1F4F7}', t: when, q: v.q, shot };
+    }
+    const b = browserLabel(t);
+    return { cam: false, label: b.label, sev: b.color === 'var(--warn)' ? 'medium' : 'high', icon: b.icon || '\u26A0', t: when, q: v.q, shot: null };
+  });
+  // Low-severity camera notes (talking once, a few side glances) are kept as snapshots only.
+  shotsAll.forEach((x, i) => { if (!used.has(i)) items.push({ cam: true, label: x.l || 'Camera note', sev: x.s === 'high' || x.s === 'medium' ? x.s : 'low', icon: '\u{1F4F7}', t: x.t || 0, q: null, shot: x, note: true }); });
+  return items.sort((a, b) => b.t - a.t);
+}
+function renderViolModal() {
+  const s = monSessions().find(x => sessKey(x) === violOpenKey) || (violSnapshot && sessKey(violSnapshot) === violOpenKey ? violSnapshot : null);
+  if (!s) return;
+  const items = buildItems(s);
+  const nCam = items.filter(i => i.cam && !i.note).length, nBr = items.filter(i => !i.cam).length, nNote = items.filter(i => i.note).length;
+  const initials = String(s.name || 'S').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+  const status = s.submitted ? 'Submitted' : 'In progress';
+  const camSt = s.camStatus && s.camStatus.state ? ({ on: 'camera on', off: 'camera off', denied: 'blocked camera access', unavailable: 'no camera' }[s.camStatus.state] || '') : '';
+  $id('efv-h').innerHTML = `<div class="efv-head"><div class="efv-av" aria-hidden="true">${escH(initials)}</div><div style="min-width:0">` +
+    `<h3 id="efv-name">${escH(s.name || 'Student')}</h3><p>${escH([s.studentId, status, camSt].filter(Boolean).join(' \u00B7 '))}</p></div>` +
+    `<button class="efv-x" type="button" aria-label="Close">\u2715</button></div>` +
+    `<div class="efv-tabs" role="tablist">` +
+    [['all', `All ${nCam + nBr}`], ['cam', `Camera ${nCam}`], ['br', `Browser ${nBr}`]].concat(nNote ? [['note', `Camera notes ${nNote}`]] : [])
+      .map(([f, l]) => `<button type="button" class="efv-tab${violFilter === f ? ' on' : ''}" data-f="${f}" role="tab" aria-selected="${violFilter === f}">${l}</button>`).join('') + `</div>`;
+  const shown = items.filter(i => violFilter === 'all' ? !i.note : violFilter === 'cam' ? (i.cam && !i.note) : violFilter === 'br' ? !i.cam : i.note);
+  const fmtT = t => t ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+  $id('efv-b').innerHTML = shown.length ? '<div class="efv-list">' + shown.map(i => {
+    const meta = [fmtT(i.t), (i.q != null && !isNaN(i.q)) ? 'Question ' + (Number(i.q) + 1) : '', i.note ? 'not counted as a violation' : ''].filter(Boolean).join(' \u00B7 ');
+    const img = i.shot ? `<img class="efv-shot" src="${i.shot.img}" alt="Snapshot: ${escH(i.label)}" data-cap="${escH(i.label + ' \u00B7 ' + fmtT(i.t))}" loading="lazy">` : '<span></span>';
+    return `<div class="efv-it ${i.sev}"><div class="efv-ic" aria-hidden="true">${i.icon}</div><div><div class="efv-l">${escH(i.label)}</div><div class="efv-m">${escH(meta)}</div></div>${img}</div>`;
+  }).join('') + '</div>'
+    : `<p class="efv-empty">${violFilter === 'all' ? '\u2713 No violations for this student.' : 'Nothing in this list.'}</p>`;
+}
+let violSnapshot = null;
+function openStudent(s) {
+  if (!s) return;
+  ensureViolModal();
+  violOpenKey = sessKey(s); violSnapshot = s; violFilter = 'all';
+  renderViolModal();
+  if (typeof openM === 'function') openM('m-efviol'); else $id('m-efviol').classList.add('open');
+  setTimeout(() => { const b = $id('efv-close'); if (b) b.focus(); }, 50);
+}
+window.efcamOpenStudent = i => { if (hasS() && Array.isArray(S._monRows)) openStudent(S._monRows[i]); };
+window.efcamOpenStudentAll = i => { if (hasS() && Array.isArray(S._monAll)) openStudent(S._monAll[i]); };
 
 /* ---------------- install wrappers ---------------- */
 function wrap(name, after, before) {
   const orig = window[name];
   if (typeof orig !== 'function' || orig.__efcam) return;
   const w = function () {
-    if (before) { const r = before.apply(this, arguments); if (r === false) return; }
+    let ctx;
+    if (before) { try { ctx = before.apply(this, arguments); } catch (e) { console.warn('camera hook ' + name, e); } }
     const out = orig.apply(this, arguments);
-    try { if (after) after.apply(this, arguments); } catch (e) { console.warn('camera hook ' + name, e); }
+    try { if (after) after.apply(this, [ctx].concat([].slice.call(arguments))); } catch (e) { console.warn('camera hook ' + name, e); }
     return out;
   };
   w.__efcam = true;
   window[name] = w;
 }
+// Refresh the camera setting from Firebase (covers old long links and teacher changes after the page loaded).
+function refreshExamCam(exam, ms) {
+  if (!exam || !exam.token || !hasDb()) return Promise.resolve(false);
+  return Promise.race([
+    db.collection('exams').doc(exam.token).get().then(doc => {
+      if (!doc || !doc.exists) return false;
+      const d = doc.data();
+      const before = JSON.stringify(camCfg(exam));
+      exam.camMon = d.camMon || null;
+      return JSON.stringify(camCfg(exam)) !== before;
+    }).catch(() => false),
+    new Promise(res => setTimeout(() => res(false), ms))
+  ]);
+}
+function createHook(fn, p) {
+  wrap(fn, (ctx) => {
+    if (!ctx || !hasS() || S.exams.length <= ctx.len) return; // validation failed, nothing created
+    const exam = S.exams[ctx.len];
+    if (!exam || !ctx.cam) return;
+    exam.camMon = ctx.cam;
+    persistCam(exam);
+  }, () => ({ len: hasS() ? S.exams.length : 0, cam: readCamForm(p) }));
+}
 function install() {
-  wrap('setupAC', bid => onExamStart(bid));
+  wrap('setupAC', (ctx, bid) => onExamStart(bid));
   wrap('teardownAC', () => onExamStop());
-  wrap('showACWarn', exam => { camUnavailable = false; denyCount = 0; renderAcwBlock(exam); const c = camCfg(exam); if (c.on) preload(); });
-  wrap('openMonitor', () => { ensureTeacherPanel(); syncTeacherControls(); lastAlertSig = ''; renderTeacherPanel(); });
+  wrap('showACWarn', (ctx, exam) => {
+    camUnavailable = false; denyCount = 0;
+    renderAcwBlock(exam);
+    if (camCfg(exam).on) preload();
+    refreshExamCam(exam, 4000).then(changed => {
+      const page = $id('pg-acwarn');
+      if (changed && page && page.classList.contains('active')) { renderAcwBlock(exam); if (camCfg(exam).on) preload(); }
+    });
+  });
+  wrap('openMonitor', () => { ensureTeacherPanel(); syncTeacherControls(); renderTeacherPanel(); });
   wrap('renderMon', () => renderTeacherPanel());
+  // Create exam: camera section in all three builders, reset to off each time a builder opens.
+  wrap('initMCQModal', () => setCamForm('ce', { on: false, allow: { ...DEFAULT_ALLOW } }));
+  wrap('initWrtModal', () => setCamForm('we', { on: false, allow: { ...DEFAULT_ALLOW } }));
+  wrap('initCombinedModal', () => setCamForm('cb', { on: false, allow: { ...DEFAULT_ALLOW } }));
+  createHook('createMCQ', 'ce');
+  createHook('createWRT', 'we');
+  createHook('createCombined', 'cb');
+  // Edit exam: show and save the current setting.
+  wrap('editExam', (ctx, idx) => { const exam = hasS() ? S.exams[idx] : null; if (exam) setCamForm('editex', camCfg(exam)); });
+  wrap('saveEditExam', (ctx) => {
+    if (!ctx || !ctx.exam || !ctx.cam) return;
+    const err = $id('editex-err');
+    if (err && err.classList.contains('on')) return; // validation failed, nothing saved
+    ctx.exam.camMon = ctx.cam;
+    persistCam(ctx.exam);
+  }, () => ({ exam: (hasS() && typeof _editExIdx !== 'undefined') ? S.exams[_editExIdx] : null, cam: readCamForm('editex') }));
+  ['ce', 'we', 'cb', 'editex'].forEach(p => ensureCamForm(p));
+  ['ce', 'we', 'cb'].forEach(p => syncCamForm(p));
+
   // goStudentForm needs the camera before continuing, so it is wrapped asynchronously.
   const gsf = window.goStudentForm;
   if (typeof gsf === 'function' && !gsf.__efcam) {
@@ -6335,8 +6610,10 @@ function install() {
       const page = $id('pg-acwarn');
       const idx = parseInt((page && page.dataset.idx) || '0');
       const exam = hasS() ? S.exams[idx] : null;
-      if (!camCfg(exam).on || camUnavailable) return gsf.apply(this, arguments);
-      if (busy) return; busy = true;
+      if (busy) return;
+      busy = true;
+      if (exam && !camCfg(exam).on) { if (await refreshExamCam(exam, 2500)) renderAcwBlock(exam); }
+      if (!camCfg(exam).on || camUnavailable) { busy = false; return gsf.apply(this, arguments); }
       acwMessage('');
       try {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { const er = new Error('Camera is not supported in this browser.'); er.name = 'NotSupported'; throw er; }
@@ -6362,7 +6639,7 @@ function install() {
   }
 }
 install();
-window.EFCam = { version: 1, start, stop, preload, get running() { return running; } };
+window.EFCam = { version: 2, start, stop, preload, openStudent, get running() { return running; } };
 
 })();
 </script>
