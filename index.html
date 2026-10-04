@@ -5139,6 +5139,16 @@ function engineFactory() {
 
   /* ---------------- Face ---------------- */
   const IDX = { nose: 1, forehead: 10, chin: 152, cheekR: 234, cheekL: 454, lipTop: 13, lipBot: 14, mouthL: 61, mouthR: 291, eyeR: 33, eyeL: 263 };
+  // True 3D head angles from MediaPipe's face transformation matrix. Works for either matrix
+  // layout: column-major matrices have a zero bottom row (indices 3, 7, 11).
+  function poseFromMatrix(m) {
+    const d = m && m.data;
+    if (!d || d.length < 16) return null;
+    const colMajor = Math.abs(d[3]) + Math.abs(d[7]) + Math.abs(d[11]) < 1e-4;
+    const fx = colMajor ? d[8] : d[2], fy = colMajor ? d[9] : d[6], fz = d[10];
+    if (!isFinite(fx) || !isFinite(fy) || !isFinite(fz) || (fx === 0 && fz === 0)) return null;
+    return { yaw: Math.atan2(fx, fz) * DEG, pitch: Math.atan2(-fy, Math.hypot(fx, fz)) * DEG };
+  }
   const DEG = 180 / Math.PI;
   function faceFrame(bitmap, t) {
     const [W, H] = dims(bitmap);
@@ -5162,8 +5172,13 @@ function engineFactory() {
       const cr = P(IDX.cheekR), cl = P(IDX.cheekL), fh = P(IDX.forehead), ch = P(IDX.chin);
       const er = P(IDX.eyeR), el = P(IDX.eyeL);
       const lt = P(IDX.lipTop), lb = P(IDX.lipBot), ml = P(IDX.mouthL), mr = P(IDX.mouthR);
-      const yaw = Math.atan2(cl[2] - cr[2], cl[0] - cr[0]) * DEG;
-      const pitch = Math.atan2(ch[2] - fh[2], ch[1] - fh[1]) * DEG;
+      const mat = res.facialTransformationMatrixes && res.facialTransformationMatrixes[b.i];
+      const mp3 = poseFromMatrix(mat);
+      const yaw = mp3 ? mp3.yaw : Math.atan2(cl[2] - cr[2], cl[0] - cr[0]) * DEG;
+      const pitch = mp3 ? mp3.pitch : Math.atan2(ch[2] - fh[2], ch[1] - fh[1]) * DEG;
+      // Looking down moves the nose tip toward the chin in the image (independent of axis conventions).
+      const eyeMidY = (er[1] + el[1]) / 2;
+      const down = (P(IDX.nose)[1] - eyeMidY) / Math.max(1, ch[1] - eyeMidY);
       const roll = Math.atan2(el[1] - er[1], el[0] - er[0]) * DEG;
       const mar = Math.hypot(lt[0] - lb[0], lt[1] - lb[1]) / Math.max(1, Math.hypot(ml[0] - mr[0], ml[1] - mr[1]));
       let gaze = 0, gazeDown = 0;
@@ -5177,7 +5192,7 @@ function engineFactory() {
       // Crop for identity: face without forehead, square, slightly padded.
       const top = b.y + b.h * 0.12, hh = b.h * 0.88;
       const side = Math.max(b.w * W, hh * H) * 1.1;
-      p = { yaw, pitch, roll, mar, gaze, gazeDown, nose: [lm[IDX.nose].x, lm[IDX.nose].y],
+      p = { yaw, pitch, roll, mar, gaze, gazeDown, down, pose3d: !!mp3, nose: [lm[IDX.nose].x, lm[IDX.nose].y],
         id: { cx: b.x + b.w / 2, cy: top + hh / 2, sw: side / W, sh: side / H } };
     }
     return { ms, delegate: faceDelegate, faces: boxes.map(({ x, y, w, h }) => ({ x, y, w, h })), p };
@@ -5488,6 +5503,14 @@ function engineFactory() {
     return { ms: clock() - t0, backend: idBackend, desc: Array.from(desc) };
   }
 
+  function warmUp(run) {
+    try {
+      const c = new OffscreenCanvas(320, 240), x = c.getContext('2d');
+      x.fillStyle = '#777'; x.fillRect(0, 0, 320, 240);
+      run(c); run(c);
+    } catch (e) { /* warm-up is best effort */ }
+  }
+
   /* ---------------- Message handling ---------------- */
   async function handle(msg) {
     if (msg.type === 'init') {
@@ -5496,11 +5519,12 @@ function engineFactory() {
         await loadVision();
         const r = await make(mp.FaceLandmarker, {
           baseOptions: { modelAssetPath: urls.face },
-          runningMode: 'VIDEO', numFaces: 4,
+          runningMode: 'VIDEO', numFaces: 2,
           minFaceDetectionConfidence: 0.5, minFacePresenceConfidence: 0.5, minTrackingConfidence: 0.5,
-          outputFaceBlendshapes: true
+          outputFaceBlendshapes: true, outputFacialTransformationMatrixes: true
         });
         face = r.t; faceDelegate = r.d;
+        warmUp(c => { tsFace = nextTs(tsFace, performance.now()); face.detectForVideo(c, tsFace); });
         return { reply: { delegate: faceDelegate } };
       }
       if (msg.kind === 'objects') {
@@ -5517,6 +5541,13 @@ function engineFactory() {
           });
           hands = h.t; handDelegate = h.d;
         } catch (e) { hands = null; }
+        warmUp(c => {
+          const t = performance.now();
+          if (det) { tsDet = nextTs(tsDet, t); det.detectForVideo(c, tsDet); }
+          if (hands) { tsHand = nextTs(tsHand, t); hands.detectForVideo(c, tsHand); }
+          if (detCrop) detCrop.detect(c);
+          if (cls) cls.classify(c);
+        });
         return { reply: { delegate: detDelegate, hands: !!hands, classifier: !!cls, zoom: !!detCrop } };
       }
       if (msg.kind === 'identity') {
@@ -5561,7 +5592,8 @@ const URLS = {
   faceapiModels: 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model'
 };
 const CFG = {
-  headTurnDeg: 22, gazeThreshold: 0.35, turnsForRepeat: 3, glancesForRepeat: 4, repeatWindowSec: 30, lookAwaySec: 2.5,
+  headTurnDeg: 20, turnHoldMs: 250, gazeThreshold: 0.35, turnsForRepeat: 3, glancesForRepeat: 4, repeatWindowSec: 30, lookAwaySec: 1.5,
+  lookDownDelta: 0.10, lookDownSec: 2,
   talkDelta: 0.055, talkEpisodesForRepeat: 3, talkWindowSec: 60,
   phoneConfidence: 0.40, bookConfidence: 0.35, paperMinBright: 135, notesEdge: 0.025,
   idThreshold: 0.55, idEverySec: 2, detector: 'lite0'
@@ -5859,7 +5891,10 @@ function banner(text) {
 
 /* ---------------- rules ---------------- */
 let allow = { ...DEFAULT_ALLOW };
-const deviceAllowed = kind => kind === 'phone' ? allow.phone : kind === 'calculator' ? allow.calculator : (allow.phone && allow.calculator);
+// Written questions are answered on paper (photo upload), so paper is always allowed in that phase.
+const writtenPhase = () => { const ex = curExam(); return !!ex && (ex.type === 'written' || (ex.type === 'combined' && hasS() && S._combinedPhase === 'written')); };
+const A = () => (writtenPhase() ? Object.assign({}, allow, { roughPaper: true }) : allow);
+const deviceAllowed = kind => { const a = A(); return kind === 'phone' ? a.phone : kind === 'calculator' ? a.calculator : (a.phone && a.calculator); };
 
 class Rule {
   constructor(id, label, sev, onMs, offMs) { Object.assign(this, { id, label, sev, onMs, offMs }); this.reset(); }
@@ -5883,7 +5918,7 @@ class Rule {
 const R = {
   noPerson: new Rule('noPerson', 'No one at the screen', 'high', 1500, 600),
   // Writing on allowed rough paper or using a calculator means looking down more, so wait longer.
-  noFace: new Rule('noFace', 'Face not visible', 'medium', () => (allow.roughPaper || allow.calculator) ? 4000 : 1500, 400),
+  noFace: new Rule('noFace', 'Face not visible', 'medium', () => (A().roughPaper || A().calculator) ? 4000 : 1500, 400),
   multiPeople: new Rule('multiPeople', 'More than one person', 'high', 500, 1200),
   phone: new Rule('phone', 'Phone visible', 'high', 0, 1200),
   calculator: new Rule('calculator', 'Calculator visible', 'high', 0, 1200),
@@ -5893,6 +5928,7 @@ const R = {
   handHeld: new Rule('handHeld', 'Holding something up to the camera', 'high', 0, 1200),
   secondScreen: new Rule('secondScreen', 'Another screen visible', 'medium', 600, 1200),
   lookingAway: new Rule('lookingAway', 'Looking away from the screen', 'medium', () => CFG.lookAwaySec * 1000, 400),
+  lookingDown: new Rule('lookingDown', 'Looking down, away from the screen', 'medium', () => CFG.lookDownSec * 1000, 500),
   repeatedTurns: new Rule('repeatedTurns', 'Repeated head turning', 'medium', 0, 0),
   repeatedGlances: new Rule('repeatedGlances', 'Repeated side glances', 'low', 0, 0),
   talking: new Rule('talking', 'Talking', 'low', 800, 1000),
@@ -5901,7 +5937,7 @@ const R = {
   cameraBlocked: new Rule('cameraBlocked', 'Camera covered or too dark', 'high', 1000, 800),
   cameraStopped: new Rule('cameraStopped', 'Camera stopped', 'high', 0, 500)
 };
-const AFFECTED = { calculator: ['calculator', 'device', 'handHeld'], roughPaper: ['notes', 'handHeld'], books: ['book', 'handHeld'], phone: ['phone', 'device', 'handHeld'], screens: ['secondScreen'] };
+const AFFECTED = { calculator: ['calculator', 'device', 'handHeld', 'lookingDown'], roughPaper: ['notes', 'handHeld', 'lookingDown'], books: ['book', 'handHeld'], phone: ['phone', 'device', 'handHeld'], screens: ['secondScreen'] };
 
 let talkEpisodes = [], forceIdCheck = false;
 const lastReport = {};
@@ -5933,7 +5969,7 @@ function report(rule, sustained) {
   if (rule.sev !== 'low') {
     banner('\u{1F4F7} ' + rule.label + ' \u2014 your teacher has been notified.');
     pipState(rule.sev === 'high' ? 'bad' : 'warn', rule.label);
-    clearTimeout(pipResetTimer); pipResetTimer = setTimeout(() => { if (running) pipState('', 'Camera on'); }, 4000);
+    clearTimeout(pipResetTimer); pipResetTimer = setTimeout(() => { if (running) pipState(away || down ? 'warn' : '', away || down ? 'Look at the screen' : 'Camera on'); }, 4000);
     try { if (typeof logViol === 'function') logViol(violType(rule.label)); } catch (e) { console.warn('camera logViol', e); }
   }
   const img = snapshot();
@@ -5960,23 +5996,23 @@ function writeStatus(state) {
 
 /* ---------------- per-frame state ---------------- */
 let running = false, phase = 'idle', calib = null, base = null;
-const F = { t: 0, ms: 8, count: 0, boxes: [], yaw: 0, pitch: 0, roll: 0, gaze: 0, mar: 0, id: null };
-const filt = { yaw: new OneEuro(1.2, 0.03), pitch: new OneEuro(1.2, 0.03), gaze: new OneEuro(1.5, 0.8) };
+const F = { t: 0, ms: 8, count: 0, boxes: [], yaw: 0, pitch: 0, roll: 0, gaze: 0, mar: 0, down: 0, id: null };
+const filt = { yaw: new OneEuro(1.0, 0.05), pitch: new OneEuro(1.0, 0.05), gaze: new OneEuro(1.5, 0.8), down: new OneEuro(1.0, 0.5) };
 const O = { t: 0, ms: 30, persons: 0, screens: 0 };
 let phoneHits = [], calcHits = [], deviceHits = [], bookHits = [], notesHits = [], heldHits = [];
 let blocked = false, bgObjs = [], personsSince = null;
 let faceBusy = false, objBusy = false, lastFaceSent = 0, lastObjSent = 0, needBgReset = false;
-let away = false, awayCand = null, turnTimes = [];
+let away = false, awayCand = null, turnTimes = [], down = false, downCand = null;
 let glance = false, glanceCand = null, glanceTimes = [];
 let marBuf = [], mouthOpen = false, closeTimes = [], mouthMoving = false;
 let gallery = [], idDists = [], idBusy = false, lastIdTs = 0, enrollUntil = 0;
 
 function resetState() {
   phoneHits = []; calcHits = []; deviceHits = []; bookHits = []; notesHits = []; heldHits = [];
-  away = false; awayCand = null; turnTimes = []; glance = false; glanceCand = null; glanceTimes = [];
+  away = false; awayCand = null; turnTimes = []; down = false; downCand = null; glance = false; glanceCand = null; glanceTimes = [];
   marBuf = []; mouthOpen = false; closeTimes = []; mouthMoving = false; talkEpisodes = [];
   gallery = []; idDists = []; forceIdCheck = false; blocked = false; personsSince = null;
-  filt.yaw.reset(); filt.pitch.reset(); filt.gaze.reset();
+  filt.yaw.reset(); filt.pitch.reset(); filt.gaze.reset(); filt.down.reset();
   Object.values(R).forEach(r => r.reset());
 }
 
@@ -5996,23 +6032,33 @@ async function pumpFace() {
 function onFace(r, now) {
   F.t = now; F.ms = r.ms; F.count = r.faces.length; F.boxes = r.faces;
   if (!r.p) {
-    filt.yaw.reset(); filt.pitch.reset(); filt.gaze.reset();
-    away = false; awayCand = null; glance = false; glanceCand = null; mouthMoving = false; F.id = null;
+    filt.yaw.reset(); filt.pitch.reset(); filt.gaze.reset(); filt.down.reset();
+    away = false; awayCand = null; down = false; downCand = null; glance = false; glanceCand = null; mouthMoving = false; F.id = null;
     return;
   }
   const p = r.p;
   F.yaw = filt.yaw.f(p.yaw, now); F.pitch = filt.pitch.f(p.pitch, now); F.gaze = filt.gaze.f(p.gaze, now);
+  F.down = filt.down.f(typeof p.down === 'number' && isFinite(p.down) ? p.down : 0.5, now);
   F.roll = p.roll; F.mar = p.mar; F.id = p.id;
-  if (phase === 'calibrating' && F.count === 1) { calib.yaw.push(F.yaw); calib.pitch.push(F.pitch); calib.gaze.push(F.gaze); calib.mar.push(F.mar); }
+  if (phase === 'calibrating' && F.count === 1) { calib.yaw.push(F.yaw); calib.pitch.push(F.pitch); calib.gaze.push(F.gaze); calib.mar.push(F.mar); calib.down.push(F.down); }
   if (phase === 'monitoring') analyseFaceMotion(now);
 }
 function analyseFaceMotion(now) {
-  const yawDev = F.yaw - base.yaw, gazeDev = F.gaze - base.gaze;
+  const yawDev = F.yaw - base.yaw, gazeDev = F.gaze - base.gaze, downDev = F.down - base.down;
   const T = CFG.headTurnDeg, v = Math.abs(yawDev);
+  // Follow slow posture changes while the student is settled, so the "straight ahead" angle stays right.
+  if (v < 8 && Math.abs(downDev) < 0.05) { base.yaw += (F.yaw - base.yaw) * 0.004; base.down += (F.down - base.down) * 0.004; }
+  const wasAway = away || down;
   if (!away) {
-    if (v > T) { if (awayCand === null) awayCand = now; if (now - awayCand >= 200) { away = true; turnTimes.push(now); } }
+    if (v > T) { if (awayCand === null) awayCand = now; if (now - awayCand >= CFG.turnHoldMs) { away = true; turnTimes.push(now); } }
     else awayCand = null;
   } else if (v < T * 0.6) { away = false; awayCand = null; }
+  const downOk = !A().roughPaper && !A().calculator; // looking down is expected when paper or a calculator is allowed
+  if (!down) {
+    if (downOk && downDev > CFG.lookDownDelta) { if (downCand === null) downCand = now; if (now - downCand >= 400) down = true; }
+    else downCand = null;
+  } else if (!downOk || downDev < CFG.lookDownDelta * 0.6) { down = false; downCand = null; }
+  if ((away || down) !== wasAway && !R.differentPerson.active) pipState(away || down ? 'warn' : '', away || down ? 'Look at the screen' : 'Camera on');
   turnTimes = turnTimes.filter(t => now - t <= CFG.repeatWindowSec * 1000);
   if (turnTimes.length >= CFG.turnsForRepeat) { turnTimes = []; R.repeatedTurns.pulse(now); }
 
@@ -6073,12 +6119,12 @@ function onObjects(r, now) {
       if (o.s >= 0.3 && !deviceAllowed(o.kind)) heldTargets.push(o);
       continue;
     }
-    if (o.n === 'book') { if (isBackground(o, r.hands)) continue; bookScore = Math.max(bookScore, o.s); if (o.s >= 0.3 && !allow.books) heldTargets.push(o); continue; }
+    if (o.n === 'book') { if (isBackground(o, r.hands)) continue; bookScore = Math.max(bookScore, o.s); if (o.s >= 0.3 && !A().books) heldTargets.push(o); continue; }
     if (o.n === 'laptop' || o.n === 'tv') { if (o.s >= 0.5 && !isBackground(o, r.hands)) screens++; continue; }
     if (o.n === 'cell phone' || o.n === 'remote') continue;
     if (o.s >= 0.3) heldTargets.push(o);
   }
-  if (r.paper && !allow.roughPaper) heldTargets.push(r.paper);
+  if (r.paper && !A().roughPaper) heldTargets.push(r.paper);
   const held = r.hands.some(h => heldTargets.some(t => overlaps(grow(h, 0.5), t)));
   O.t = now; O.ms = r.ms; O.persons = persons; O.screens = screens;
   personsSince = persons > 1 ? (personsSince || now) : null;
@@ -6120,6 +6166,7 @@ function maybeIdentity(now) {
 /* ---------------- evaluation ---------------- */
 function evaluate(now) {
   if (phase !== 'monitoring') return;
+  const allow = A(); // effective permissions (shadows the teacher setting inside this function)
   const faceFresh = now - F.t < 400, objFresh = now - O.t < 1200;
   const faces = faceFresh ? F.count : 0, persons = objFresh ? O.persons : 0;
   R.cameraStopped.update(cameraLost, now);
@@ -6137,6 +6184,7 @@ function evaluate(now) {
   R.handHeld.update(objFresh && hits(heldHits) >= 2, now);
   R.secondScreen.update(!allow.screens && objFresh && O.screens > 0, now);
   R.lookingAway.update(faces === 1 && away, now);
+  R.lookingDown.update(faces === 1 && down && !away, now);
   R.talking.update(faces >= 1 && mouthMoving, now);
   const bad = idDists.filter(d => d > CFG.idThreshold).length;
   R.differentPerson.update(gallery.length >= 2 && idDists.length >= 2 && bad >= 2 && faces === 1, now);
@@ -6171,7 +6219,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && ru
 /* ---------------- calibration ---------------- */
 function startCalibration() {
   phase = 'calibrating';
-  calib = { t0: performance.now(), yaw: [], pitch: [], gaze: [], mar: [] };
+  calib = { t0: performance.now(), yaw: [], pitch: [], gaze: [], mar: [], down: [] };
   enrollUntil = performance.now() + 12000; needBgReset = true;
   resetState(); bgObjs = [];
   pipCal('Look at the screen');
@@ -6181,7 +6229,7 @@ function stepCalibration(now) {
   if (now - F.t < 400 && F.count !== 1) pipCal(F.count === 0 ? 'Face the camera' : 'Only you should be visible');
   else pipCal('Look at the screen');
   if (n >= 25 && elapsed >= 2000) {
-    base = { yaw: median(calib.yaw), pitch: median(calib.pitch), gaze: median(calib.gaze), mar: pct(calib.mar, 0.3) };
+    base = { yaw: median(calib.yaw), pitch: median(calib.pitch), gaze: median(calib.gaze), mar: pct(calib.mar, 0.3), down: median(calib.down) };
     phase = 'monitoring';
     pipCal('');
     pipState('', 'Camera on');
@@ -6289,8 +6337,10 @@ function onExamStop() {
 }
 
 /* ---------------- student rules on the "Read before you begin" page ---------------- */
-function listsHtml(a) {
+function listsHtml(a, exam) {
   const allowed = PERMS.filter(([k]) => a[k]).map(([, l]) => l);
+  const t = exam && exam.type;
+  if (!a.roughPaper && (t === 'written' || t === 'combined')) allowed.push(t === 'written' ? 'Paper for your written answers' : 'Paper for the written part only');
   const banned = PERMS.filter(([k]) => !a[k]).map(([, l]) => l).concat(ALWAYS_BANNED);
   const li = (arr, empty) => arr.length ? arr.map(x => `<li>${escH(x)}</li>`).join('') : `<li class="none">${escH(empty)}</li>`;
   return `<div class="efcam-lists"><div><b>Allowed on your desk</b><ul class="ok">${li(allowed, 'Only the device you are taking the exam on')}</ul></div>` +
@@ -6313,7 +6363,7 @@ function renderAcwBlock(exam) {
   blk.innerHTML = '<span style="font-size:1.2rem;flex-shrink:0">\u{1F4F7}</span><div style="flex:1;min-width:0">' +
     '<div style="font-weight:600;font-size:.875rem;margin-bottom:2px">Camera monitoring is on</div>' +
     '<div style="font-size:.82rem;color:var(--ink3)">Your camera stays on during the exam. It is checked on your device and never recorded; your teacher only receives alerts with a small snapshot. You will be asked to allow the camera when you continue.</div>' +
-    listsHtml(c.allow) + '</div>';
+    listsHtml(c.allow, exam) + '</div>';
 }
 function acwMessage(html) { const m = $id('efcam-acw-msg'); if (!m) return; m.innerHTML = html; m.hidden = !html; }
 
@@ -6639,7 +6689,7 @@ function install() {
   }
 }
 install();
-window.EFCam = { version: 2, start, stop, preload, openStudent, get running() { return running; } };
+window.EFCam = { version: 3, start, stop, preload, openStudent, get running() { return running; } };
 
 })();
 </script>
