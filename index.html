@@ -5076,6 +5076,1296 @@ async function getVisitCount(){
 })();
 
 </script>
+<script>
+/* ExamFlow camera monitoring (added feature; does not modify existing functions) */
+(function () {
+'use strict';
+if (window.EFCam) return;
+/* ============================================================
+   Inference engine. This function is serialised into Web Workers
+   so all model work runs off the main thread. It must stay fully
+   self-contained (no references to outer variables). If workers
+   are unavailable it runs on the main thread as a fallback.
+   ============================================================ */
+function engineFactory() {
+  'use strict';
+  let urls = null, mp = null, vision = null;
+  let face = null, det = null, detCrop = null, hands = null, cls = null;
+  let faceDelegate = '', detDelegate = '', handDelegate = '';
+  let fa = null, net = null, idBackend = '';
+  let tsFace = 0, tsDet = 0, tsHand = 0;
+  const clock = () => performance.now();
+  const nextTs = (last, t) => Math.max(Math.round(t), last + 1);
+  const dims = s => s.videoWidth !== undefined ? [s.videoWidth, s.videoHeight] : s.displayWidth !== undefined ? [s.displayWidth, s.displayHeight] : [s.width, s.height];
+  const clamp01 = v => Math.min(1, Math.max(0, v));
+  const iou = (a, b) => { const x1 = Math.max(a.x, b.x), y1 = Math.max(a.y, b.y), x2 = Math.min(a.x + a.w, b.x + b.w), y2 = Math.min(a.y + a.h, b.y + b.h); const i = Math.max(0, x2 - x1) * Math.max(0, y2 - y1); return i / (a.w * a.h + b.w * b.h - i + 1e-9); };
+  const ALLOW = ['person', 'cell phone', 'remote', 'laptop', 'tv', 'book', 'keyboard', 'mouse', 'scissors'];
+
+  async function loadVision() {
+    if (vision) return;
+    mp = await import(urls.mp);
+    vision = await mp.FilesetResolver.forVisionTasks(urls.wasm);
+  }
+  async function make(Cls, opts) {
+    try {
+      return { t: await Cls.createFromOptions(vision, { ...opts, baseOptions: { ...opts.baseOptions, delegate: 'GPU' } }), d: 'GPU' };
+    } catch (e) {
+      return { t: await Cls.createFromOptions(vision, { ...opts, baseOptions: { ...opts.baseOptions, delegate: 'CPU' } }), d: 'CPU' };
+    }
+  }
+  async function loadDetector(which) {
+    if (det) { try { det.close(); } catch (e) { /* ignore */ } det = null; }
+    if (detCrop) { try { detCrop.close(); } catch (e) { /* ignore */ } detCrop = null; }
+    const r = await make(mp.ObjectDetector, {
+      baseOptions: { modelAssetPath: urls.obj[which] },
+      runningMode: 'VIDEO', maxResults: 10, scoreThreshold: 0.2, categoryAllowlist: ALLOW
+    });
+    det = r.t; detDelegate = r.d; tsDet = 0;
+    // Second instance used on a zoomed crop around the hands, where phones and calculators are small.
+    try {
+      detCrop = (await make(mp.ObjectDetector, {
+        baseOptions: { modelAssetPath: urls.obj[which] },
+        runningMode: 'IMAGE', maxResults: 6, scoreThreshold: 0.25, categoryAllowlist: ALLOW
+      })).t;
+    } catch (e) { detCrop = null; }
+  }
+
+  /* ---------------- Face ---------------- */
+  const IDX = { nose: 1, forehead: 10, chin: 152, cheekR: 234, cheekL: 454, lipTop: 13, lipBot: 14, mouthL: 61, mouthR: 291, eyeR: 33, eyeL: 263 };
+  const DEG = 180 / Math.PI;
+  function faceFrame(bitmap, t) {
+    const [W, H] = dims(bitmap);
+    tsFace = nextTs(tsFace, t);
+    const t0 = clock();
+    const res = face.detectForVideo(bitmap, tsFace);
+    const ms = clock() - t0;
+    const lms = res.faceLandmarks || [];
+    const boxes = [];
+    for (let i = 0; i < lms.length; i++) {
+      const lm = lms[i];
+      let x1 = 1, y1 = 1, x2 = 0, y2 = 0;
+      for (let k = 0; k < lm.length; k++) { const p = lm[k]; if (p.x < x1) x1 = p.x; if (p.y < y1) y1 = p.y; if (p.x > x2) x2 = p.x; if (p.y > y2) y2 = p.y; }
+      if (x2 - x1 >= 0.06) boxes.push({ i, x: x1, y: y1, w: x2 - x1, h: y2 - y1 });
+    }
+    boxes.sort((a, b) => b.w * b.h - a.w * a.h);
+    let p = null;
+    if (boxes.length) {
+      const b = boxes[0], lm = lms[b.i];
+      const P = k => [lm[k].x * W, lm[k].y * H, lm[k].z * W];
+      const cr = P(IDX.cheekR), cl = P(IDX.cheekL), fh = P(IDX.forehead), ch = P(IDX.chin);
+      const er = P(IDX.eyeR), el = P(IDX.eyeL);
+      const lt = P(IDX.lipTop), lb = P(IDX.lipBot), ml = P(IDX.mouthL), mr = P(IDX.mouthR);
+      const yaw = Math.atan2(cl[2] - cr[2], cl[0] - cr[0]) * DEG;
+      const pitch = Math.atan2(ch[2] - fh[2], ch[1] - fh[1]) * DEG;
+      const roll = Math.atan2(el[1] - er[1], el[0] - er[0]) * DEG;
+      const mar = Math.hypot(lt[0] - lb[0], lt[1] - lb[1]) / Math.max(1, Math.hypot(ml[0] - mr[0], ml[1] - mr[1]));
+      let gaze = 0, gazeDown = 0;
+      const bs = res.faceBlendshapes && res.faceBlendshapes[b.i];
+      if (bs) {
+        const m = {};
+        for (const c of bs.categories) m[c.categoryName] = c.score;
+        gaze = ((m.eyeLookOutLeft || 0) + (m.eyeLookInRight || 0) - (m.eyeLookOutRight || 0) - (m.eyeLookInLeft || 0)) / 2;
+        gazeDown = ((m.eyeLookDownLeft || 0) + (m.eyeLookDownRight || 0)) / 2;
+      }
+      // Crop for identity: face without forehead, square, slightly padded.
+      const top = b.y + b.h * 0.12, hh = b.h * 0.88;
+      const side = Math.max(b.w * W, hh * H) * 1.1;
+      p = { yaw, pitch, roll, mar, gaze, gazeDown, nose: [lm[IDX.nose].x, lm[IDX.nose].y],
+        id: { cx: b.x + b.w / 2, cy: top + hh / 2, sw: side / W, sh: side / H } };
+    }
+    return { ms, delegate: faceDelegate, faces: boxes.map(({ x, y, w, h }) => ({ x, y, w, h })), p };
+  }
+
+  /* ---------------- Scene: luminance, books/notes/paper ---------------- */
+  const SW = 128, SH = 96, SN = SW * SH;
+  const Y = new Float32Array(SN), S = new Float32Array(SN), mask = new Uint8Array(SN), lab = new Int32Array(SN), queue = new Int32Array(SN);
+  let sc = null, sctx = null, tc = null, tctx = null, bg = null;
+  function bgMeanOf() { let s = 0; for (let i = 0; i < SN; i++) s += bg[i]; return s / SN; }
+
+  function texture(bitmap, c, thr) {
+    const [W, H] = dims(bitmap);
+    const sx = c.x1 / SW * W, sy = c.y1 / SH * H, sw = (c.x2 - c.x1 + 1) / SW * W, sh = (c.y2 - c.y1 + 1) / SH * H;
+    const scale = Math.min(1, 220 / Math.max(sw, sh));
+    const tw = Math.max(12, Math.round(sw * scale)), th = Math.max(12, Math.round(sh * scale));
+    tctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, tw, th);
+    const d = tctx.getImageData(0, 0, tw, th).data;
+    const x0 = Math.floor(tw * 0.1), y0 = Math.floor(th * 0.1), x1 = Math.ceil(tw * 0.9), y1 = Math.ceil(th * 0.9);
+    const yy = new Float32Array(tw * th);
+    let ps = 0, pn = 0;
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+      const j = (y * tw + x) * 4, v = 0.299 * d[j] + 0.587 * d[j + 1] + 0.114 * d[j + 2];
+      yy[y * tw + x] = v;
+      if (v > thr * 0.9) { ps += v; pn++; }
+    }
+    if (pn < 20) return null;
+    const paperY = ps / pn;
+    let ink = 0, edge = 0, n = 0;
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+      const v = yy[y * tw + x];
+      if (v < paperY * 0.62) ink++;
+      if (x + 1 < x1 && Math.abs(v - yy[y * tw + x + 1]) > 28) edge++;
+      if (y + 1 < y1 && Math.abs(v - yy[(y + 1) * tw + x]) > 28) edge++;
+      n++;
+    }
+    return { ink: ink / n, edge: edge / (2 * n) };
+  }
+
+  function analyseScene(bitmap, prm) {
+    if (!sc) {
+      sc = new OffscreenCanvas(SW, SH); sctx = sc.getContext('2d', { willReadFrequently: true });
+      tc = new OffscreenCanvas(220, 220); tctx = tc.getContext('2d', { willReadFrequently: true });
+    }
+    sctx.drawImage(bitmap, 0, 0, SW, SH);
+    const d = sctx.getImageData(0, 0, SW, SH).data;
+    const hist = new Uint32Array(256);
+    let sum = 0, sum2 = 0;
+    for (let i = 0, j = 0; i < SN; i++, j += 4) {
+      const r = d[j], g = d[j + 1], b = d[j + 2];
+      const y = 0.299 * r + 0.587 * g + 0.114 * b;
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+      Y[i] = y; S[i] = mx ? (mx - mn) / mx : 0;
+      sum += y; sum2 += y * y; hist[y | 0]++;
+    }
+    const mean = sum / SN;
+    const luma = { mean, std: Math.sqrt(Math.max(0, sum2 / SN - mean * mean)) };
+    if (!prm.paper) return { paper: null, luma };
+
+    // Learn the empty scene during calibration so walls and posters are ignored later.
+    if (prm.learnBg || !bg) {
+      if (!bg || prm.resetBg) bg = Float32Array.from(Y);
+      else for (let i = 0; i < SN; i++) bg[i] = bg[i] * 0.7 + Y[i] * 0.3;
+      return { paper: null, luma };
+    }
+    const bgMean = bgMeanOf();
+    const gain = bgMean > 1 ? mean / bgMean : 1;
+
+    let acc = 0, p80 = 255;
+    for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= SN * 0.8) { p80 = v; break; } }
+    const thr = Math.max(prm.minBright, Math.min(p80 - 10, 200));
+
+    for (let i = 0; i < SN; i++) { mask[i] = (Y[i] > thr && S[i] < 0.24) ? 1 : 0; lab[i] = 0; }
+    for (const b of prm.exclude || []) {
+      const ex1 = Math.max(0, Math.floor(b.x * SW)), ey1 = Math.max(0, Math.floor(b.y * SH));
+      const ex2 = Math.min(SW, Math.ceil((b.x + b.w) * SW)), ey2 = Math.min(SH, Math.ceil((b.y + b.h) * SH));
+      for (let y = ey1; y < ey2; y++) for (let x = ex1; x < ex2; x++) mask[y * SW + x] = 0;
+    }
+
+    const comps = [];
+    let nl = 0;
+    for (let s0 = 0; s0 < SN; s0++) {
+      if (!mask[s0] || lab[s0]) continue;
+      nl++;
+      let qh = 0, qt = 0, area = 0, novel = 0, x1 = SW, y1 = SH, x2 = 0, y2 = 0;
+      queue[qt++] = s0; lab[s0] = nl;
+      while (qh < qt) {
+        const i = queue[qh++], x = i % SW, y = (i / SW) | 0;
+        area++;
+        if (x < x1) x1 = x; if (x > x2) x2 = x; if (y < y1) y1 = y; if (y > y2) y2 = y;
+        if (Math.abs(Y[i] - bg[i] * gain) > 25) novel++;
+        if (x > 0) { const k = i - 1; if (mask[k] && !lab[k]) { lab[k] = nl; queue[qt++] = k; } }
+        if (x < SW - 1) { const k = i + 1; if (mask[k] && !lab[k]) { lab[k] = nl; queue[qt++] = k; } }
+        if (y > 0) { const k = i - SW; if (mask[k] && !lab[k]) { lab[k] = nl; queue[qt++] = k; } }
+        if (y < SH - 1) { const k = i + SW; if (mask[k] && !lab[k]) { lab[k] = nl; queue[qt++] = k; } }
+      }
+      comps.push({ l: nl, area, novel, x1, y1, x2, y2 });
+    }
+
+    const keep = new Uint8Array(nl + 1);
+    let best = null;
+    comps.sort((a, b) => b.area - a.area);
+    let checked = 0;
+    for (const c of comps) {
+      const w = c.x2 - c.x1 + 1, h = c.y2 - c.y1 + 1;
+      if (c.area < SN * 0.008 || c.area > SN * 0.45) continue;
+      const fill = c.area / (w * h), ar = w / h;
+      if (fill < 0.5 || ar < 0.25 || ar > 4) continue;
+      keep[c.l] = 1;
+      const novelty = c.novel / c.area;
+      if (novelty < 0.45 || checked >= 3) continue;
+      checked++;
+      const tex = texture(bitmap, c, thr);
+      if (!tex || tex.ink < 0.006 || tex.ink > 0.35 || tex.edge < prm.minEdge) continue;
+      const score = Math.min(1, 0.3 + novelty * 0.3 + Math.min(tex.edge, 0.2) * 2);
+      if (!best || score > best.s) best = { x: c.x1 / SW, y: c.y1 / SH, w: w / SW, h: h / SH, s: score, ink: tex.ink, edge: tex.edge };
+    }
+
+    // Slowly absorb lasting scene changes (lighting, someone shifting their seat),
+    // but never absorb a paper-like region while it is still there.
+    const a = 0.04;
+    for (let i = 0; i < SN; i++) { if (lab[i] && keep[lab[i]]) continue; bg[i] = bg[i] * (1 - a) + (Y[i] / gain) * a; }
+    return { paper: best, luma };
+  }
+
+  /* ---------------- Phone vs calculator ---------------- */
+  const KC = 64;
+  let kc = null, kctx = null;
+  function devicePattern(img) {
+    if (!kc) { kc = new OffscreenCanvas(KC, KC); kctx = kc.getContext('2d', { willReadFrequently: true }); }
+    kctx.drawImage(img, 0, 0, KC, KC);
+    const d = kctx.getImageData(0, 0, KC, KC).data;
+    const g = new Float32Array(KC * KC);
+    for (let i = 0, j = 0; i < KC * KC; i++, j += 4) g[i] = 0.299 * d[j] + 0.587 * d[j + 1] + 0.114 * d[j + 2];
+    const cell = new Uint16Array(64);
+    for (let y = 0; y < KC - 1; y++) for (let x = 0; x < KC - 1; x++) {
+      const i = y * KC + x;
+      if (Math.abs(g[i + 1] - g[i]) + Math.abs(g[i + KC] - g[i]) > 30) cell[(y >> 3) * 8 + (x >> 3)]++;
+    }
+    // Largest connected run of smooth cells: a phone screen or phone back is one big smooth area.
+    const seen = new Uint8Array(64), q = [];
+    let largest = 0;
+    for (let c0 = 0; c0 < 64; c0++) {
+      if (seen[c0] || cell[c0] > 3) continue;
+      let n = 0; q.length = 0; q.push(c0); seen[c0] = 1;
+      while (q.length) {
+        const c = q.pop(); n++;
+        const cx = c & 7, cy = c >> 3;
+        for (const [nx, ny] of [[cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1]]) {
+          if (nx < 0 || ny < 0 || nx > 7 || ny > 7) continue;
+          const k = ny * 8 + nx;
+          if (!seen[k] && cell[k] <= 3) { seen[k] = 1; q.push(k); }
+        }
+      }
+      if (n > largest) largest = n;
+    }
+    // Keypad: many cells with moderate edge counts in the lower part of the object.
+    let keys = 0;
+    for (let cy = 3; cy < 8; cy++) for (let cx = 0; cx < 8; cx++) { const e = cell[cy * 8 + cx]; if (e >= 5 && e <= 34) keys++; }
+    // Key columns repeat regularly left to right; lines of text on a phone screen do not.
+    const prof = new Float32Array(KC);
+    for (let y = 24; y < KC; y++) for (let x = 0; x < KC - 1; x++) prof[x] += Math.abs(g[y * KC + x + 1] - g[y * KC + x]);
+    let m = 0; for (let x = 0; x < KC; x++) m += prof[x]; m /= KC;
+    let e0 = 0; for (let x = 0; x < KC; x++) { prof[x] -= m; e0 += prof[x] * prof[x]; }
+    let period = 0;
+    if (e0 > 1e-6) {
+      const ac = new Float32Array(26);
+      for (let l = 3; l < 26; l++) { let s2 = 0; for (let x = 0; x + l < KC; x++) s2 += prof[x] * prof[x + l]; ac[l] = s2 / e0; }
+      for (let l = 5; l < 25; l++) if (ac[l] > ac[l - 1] && ac[l] >= ac[l + 1] && ac[l] > period) period = ac[l];
+    }
+    return { smooth: largest / 64, keyFrac: keys / 40, period };
+  }
+  async function classifyDevice(src, o, W, H) {
+    const cx = (o.x + o.w / 2) * W, cy = (o.y + o.h / 2) * H, side = Math.max(o.w * W, o.h * H) * 1.15;
+    const sx = Math.max(0, Math.round(cx - side / 2)), sy = Math.max(0, Math.round(cy - side / 2));
+    const sw = Math.max(8, Math.min(W - sx, Math.round(side))), sh = Math.max(8, Math.min(H - sy, Math.round(side)));
+    const crop = await createImageBitmap(src, sx, sy, sw, sh);
+    // Tight crop (just the object) for the keypad pattern check.
+    const tx = Math.max(0, Math.round(o.x * W)), ty = Math.max(0, Math.round(o.y * H));
+    const tight = await createImageBitmap(src, tx, ty, Math.max(8, Math.min(W - tx, Math.round(o.w * W))), Math.max(8, Math.min(H - ty, Math.round(o.h * H))));
+    let cPhone = 0, cCalc = 0, hasCls = false, pat;
+    try {
+      if (cls) {
+        const r = cls.classify(crop);
+        const cats = (r.classifications && r.classifications[0] && r.classifications[0].categories) || [];
+        hasCls = true;
+        for (const c of cats) {
+          const n = String(c.categoryName || c.displayName || '').toLowerCase().replace(/_/g, ' ');
+          if (/cellular|cellphone|cell phone|mobile phone|smartphone|ipod/.test(n)) cPhone += c.score;
+          else if (/calculator|keypad|computer keyboard|space bar|abacus|slide rule/.test(n)) cCalc += c.score;
+          else if (/hand-held computer|handheld computer/.test(n)) { cCalc += c.score * 0.5; cPhone += c.score * 0.5; }
+        }
+      }
+      pat = devicePattern(tight);
+    } finally { crop.close(); tight.close(); }
+    const calcH = clamp01((pat.keyFrac - 0.35) / 0.4) * clamp01((0.55 - pat.smooth) / 0.35) * clamp01((pat.period - 0.12) / 0.3);
+    const phoneH = clamp01((pat.smooth - 0.3) / 0.35);
+    let p, c;
+    const tot = cPhone + cCalc;
+    if (hasCls && tot > 0.05) { p = 0.55 * (cPhone / tot) + 0.45 * phoneH; c = 0.55 * (cCalc / tot) + 0.45 * calcH; }
+    else { p = phoneH; c = calcH; }
+    if (o.n === 'cell phone') p += 0.08; else if (o.n === 'remote' || o.n === 'keyboard') c += 0.06;
+    const kind = c > p + 0.12 ? 'calculator' : p > c + 0.12 ? 'phone' : 'unclear';
+    return { kind, pScore: +p.toFixed(2), cScore: +c.toFixed(2) };
+  }
+
+  async function objFrame(src, t, prm) {
+    const [W, H] = dims(src);
+    let t0 = clock();
+    const handBoxes = [];
+    if (hands && prm.hands) {
+      tsHand = nextTs(tsHand, t);
+      const hr = hands.detectForVideo(src, tsHand);
+      for (const lm of hr.landmarks || []) {
+        let x1 = 1, y1 = 1, x2 = 0, y2 = 0;
+        for (const p of lm) { if (p.x < x1) x1 = p.x; if (p.y < y1) y1 = p.y; if (p.x > x2) x2 = p.x; if (p.y > y2) y2 = p.y; }
+        handBoxes.push({ x: x1, y: y1, w: x2 - x1, h: y2 - y1 });
+      }
+    }
+    const handMs = clock() - t0;
+
+    t0 = clock();
+    const objects = [];
+    if (det) {
+      tsDet = nextTs(tsDet, t);
+      const r = det.detectForVideo(src, tsDet);
+      for (const dd of r.detections || []) {
+        const c = dd.categories[0]; if (!c) continue;
+        const b = dd.boundingBox;
+        objects.push({ n: c.categoryName, s: c.score, x: b.originX / W, y: b.originY / H, w: b.width / W, h: b.height / H });
+      }
+    }
+    let zoomed = false;
+    if (detCrop && prm.zoom && handBoxes.length) {
+      let x1 = 1, y1 = 1, x2 = 0, y2 = 0;
+      for (const h of handBoxes) { x1 = Math.min(x1, h.x - h.w * 0.8); y1 = Math.min(y1, h.y - h.h * 0.8); x2 = Math.max(x2, h.x + h.w * 1.8); y2 = Math.max(y2, h.y + h.h * 1.8); }
+      let cw = Math.max(0.3, x2 - x1), ch = Math.max(0.3, y2 - y1);
+      const cxn = (x1 + x2) / 2, cyn = (y1 + y2) / 2;
+      cw = Math.min(1, cw); ch = Math.min(1, ch);
+      const nx = Math.min(1 - cw, Math.max(0, cxn - cw / 2)), ny = Math.min(1 - ch, Math.max(0, cyn - ch / 2));
+      if (cw * ch < 0.7) {
+        const sx = Math.round(nx * W), sy = Math.round(ny * H), sw = Math.round(cw * W), sh = Math.round(ch * H);
+        const crop = await createImageBitmap(src, sx, sy, sw, sh);
+        try {
+          const r = detCrop.detect(crop);
+          for (const dd of r.detections || []) {
+            const c = dd.categories[0]; if (!c || c.categoryName === 'person') continue;
+            const b = dd.boundingBox;
+            const o = { n: c.categoryName, s: c.score, x: (sx + b.originX) / W, y: (sy + b.originY) / H, w: b.width / W, h: b.height / H, z: 1 };
+            const same = objects.find(p => p.n === o.n && iou(p, o) > 0.35);
+            if (same) { if (o.s > same.s) Object.assign(same, o); }
+            else objects.push(o);
+          }
+        } finally { crop.close(); }
+        zoomed = true;
+      }
+    }
+    const detMs = clock() - t0;
+
+    t0 = clock();
+    const devices = objects
+      .filter(o => (o.n === 'cell phone' || o.n === 'remote' || (o.n === 'keyboard' && o.w * o.h < 0.12)) && o.s >= prm.deviceMin)
+      .sort((a, b) => b.s - a.s).slice(0, 2);
+    for (const o of devices) Object.assign(o, await classifyDevice(src, o, W, H), { device: true });
+    const clsMs = clock() - t0;
+
+    t0 = clock();
+    const scene = analyseScene(src, prm);
+    const sceneMs = clock() - t0;
+    return { ms: handMs + detMs + clsMs + sceneMs, detMs, handMs, clsMs, sceneMs, zoomed, classifier: !!cls, delegate: detDelegate, handDelegate, objects, hands: handBoxes, paper: scene.paper, luma: scene.luma };
+  }
+
+  /* ---------------- Identity ---------------- */
+  let ic = null, ictx = null;
+  async function initIdentity() {
+    fa = await import(urls.faceapi);
+    class Img {}
+    class Vid {}
+    fa.env.setEnv({
+      Canvas: OffscreenCanvas,
+      CanvasRenderingContext2D: typeof OffscreenCanvasRenderingContext2D !== 'undefined' ? OffscreenCanvasRenderingContext2D : Object,
+      Image: Img, ImageData, Video: Vid,
+      createCanvasElement: () => new OffscreenCanvas(1, 1),
+      createImageElement: () => new Img(),
+      createVideoElement: () => new Vid(),
+      fetch: (u, i) => fetch(u, i),
+      readFile: async () => { throw new Error('readFile is not available'); }
+    });
+    let ok = false;
+    try { ok = await fa.tf.setBackend('webgl'); } catch (e) { ok = false; }
+    if (!ok) await fa.tf.setBackend('cpu');
+    await fa.tf.ready();
+    idBackend = fa.tf.getBackend();
+    await fa.nets.faceRecognitionNet.loadFromUri(urls.faceapiModels);
+    net = fa.nets.faceRecognitionNet;
+    const z = fa.tf.zeros([150, 150, 3]);
+    await net.computeFaceDescriptor(z);
+    z.dispose();
+    ic = new OffscreenCanvas(150, 150); ictx = ic.getContext('2d', { willReadFrequently: true });
+  }
+  async function idFrame(bitmap) {
+    const t0 = clock();
+    ictx.drawImage(bitmap, 0, 0, 150, 150);
+    const img = ictx.getImageData(0, 0, 150, 150);
+    const tensor = fa.tf.browser.fromPixels(img);
+    const desc = await net.computeFaceDescriptor(tensor);
+    tensor.dispose();
+    return { ms: clock() - t0, backend: idBackend, desc: Array.from(desc) };
+  }
+
+  /* ---------------- Message handling ---------------- */
+  async function handle(msg) {
+    if (msg.type === 'init') {
+      urls = msg.urls;
+      if (msg.kind === 'face') {
+        await loadVision();
+        const r = await make(mp.FaceLandmarker, {
+          baseOptions: { modelAssetPath: urls.face },
+          runningMode: 'VIDEO', numFaces: 4,
+          minFaceDetectionConfidence: 0.5, minFacePresenceConfidence: 0.5, minTrackingConfidence: 0.5,
+          outputFaceBlendshapes: true
+        });
+        face = r.t; faceDelegate = r.d;
+        return { reply: { delegate: faceDelegate } };
+      }
+      if (msg.kind === 'objects') {
+        await loadVision();
+        await loadDetector(msg.detector);
+        for (const u of urls.cls) {
+          try { cls = (await make(mp.ImageClassifier, { baseOptions: { modelAssetPath: u }, runningMode: 'IMAGE', maxResults: 15, scoreThreshold: 0.01 })).t; break; }
+          catch (e) { cls = null; }
+        }
+        try {
+          const h = await make(mp.HandLandmarker, {
+            baseOptions: { modelAssetPath: urls.hand }, runningMode: 'VIDEO', numHands: 2,
+            minHandDetectionConfidence: 0.5, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5
+          });
+          hands = h.t; handDelegate = h.d;
+        } catch (e) { hands = null; }
+        return { reply: { delegate: detDelegate, hands: !!hands, classifier: !!cls, zoom: !!detCrop } };
+      }
+      if (msg.kind === 'identity') {
+        await initIdentity();
+        return { reply: { delegate: idBackend } };
+      }
+      throw new Error('Unknown engine kind ' + msg.kind);
+    }
+    if (msg.type === 'detector') {
+      try { await loadDetector(msg.detector); }
+      catch (e) { if (msg.detector !== 'lite0') { await loadDetector('lite0'); return { reply: { delegate: detDelegate, fellBack: true } }; } throw e; }
+      return { reply: { delegate: detDelegate } };
+    }
+    if (msg.type === 'face') { try { return { reply: faceFrame(msg.bitmap, msg.ts) }; } finally { msg.bitmap.close(); } }
+    if (msg.type === 'objects') { try { return { reply: await objFrame(msg.bitmap, msg.ts, msg.prm) }; } finally { msg.bitmap.close(); } }
+    if (msg.type === 'identity') { try { return { reply: await idFrame(msg.bitmap) }; } finally { msg.bitmap.close(); } }
+    throw new Error('Unknown message ' + msg.type);
+  }
+  return { handle };
+}
+
+/* ============================================================
+   ExamFlow camera monitoring — controller
+   Hooks into setupAC / teardownAC / showACWarn / goStudentForm /
+   openMonitor / renderMon by wrapping them; their code is unchanged.
+   ============================================================ */
+const MP_VER = '0.10.14';
+const URLS = {
+  mp: `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/vision_bundle.mjs`,
+  wasm: `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/wasm`,
+  face: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+  hand: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+  obj: {
+    lite0: 'https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite',
+    lite2: 'https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite2/float16/1/efficientdet_lite2.tflite'
+  },
+  cls: [
+    'https://storage.googleapis.com/mediapipe-models/image_classifier/efficientnet_lite0/int8/1/efficientnet_lite0.tflite',
+    'https://storage.googleapis.com/mediapipe-models/image_classifier/efficientnet_lite0/float32/1/efficientnet_lite0.tflite'
+  ],
+  faceapi: 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.esm.js',
+  faceapiModels: 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model'
+};
+const CFG = {
+  headTurnDeg: 22, gazeThreshold: 0.35, turnsForRepeat: 3, glancesForRepeat: 4, repeatWindowSec: 30, lookAwaySec: 2.5,
+  talkDelta: 0.055, talkEpisodesForRepeat: 3, talkWindowSec: 60,
+  phoneConfidence: 0.40, bookConfidence: 0.35, paperMinBright: 135, notesEdge: 0.025,
+  idThreshold: 0.55, idEverySec: 2, detector: 'lite0'
+};
+const PERMS = [
+  ['calculator', 'Calculator'],
+  ['roughPaper', 'Rough paper and notes'],
+  ['books', 'Books'],
+  ['phone', 'Phone'],
+  ['screens', 'Another laptop, tablet or TV']
+];
+const ALWAYS_BANNED = ['Another person in view', 'Talking', 'Leaving your seat', 'Covering the camera'];
+const DEFAULT_ALLOW = { calculator: false, roughPaper: false, books: false, phone: false, screens: false };
+const camCfg = exam => {
+  const c = exam && exam.camMon;
+  return { on: !!(c && c.on), allow: Object.assign({}, DEFAULT_ALLOW, (c && c.allow) || {}) };
+};
+
+/* ---------------- small helpers ---------------- */
+const $id = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const median = a => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+const pct = (a, p) => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; };
+const euclid = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) { const d = a[i] - b[i]; s += d * d; } return Math.sqrt(s); };
+const hits = a => a.reduce((n, v) => n + (v ? 1 : 0), 0);
+const pushHit = (a, v, n) => { a.push(v); if (a.length > n) a.shift(); };
+const overlaps = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+const grow = (b, k) => ({ x: b.x - b.w * k / 2, y: b.y - b.h * k / 2, w: b.w * (1 + k), h: b.h * (1 + k) });
+const escH = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const hasS = () => typeof S !== 'undefined' && S && Array.isArray(S.exams);
+const curExam = () => hasS() ? S.exams[S.examIdx] : null;
+const hasDb = () => typeof db !== 'undefined' && db && typeof db.collection === 'function';
+
+class OneEuro {
+  constructor(minCut, beta, dCut = 1) { this.minCut = minCut; this.beta = beta; this.dCut = dCut; this.reset(); }
+  reset() { this.x = null; this.dx = 0; this.t = 0; }
+  static a(cut, dt) { const tau = 1 / (2 * Math.PI * cut); return 1 / (1 + tau / dt); }
+  f(v, t) {
+    if (this.x === null) { this.x = v; this.t = t; return v; }
+    const dt = Math.max(1e-3, (t - this.t) / 1000); this.t = t;
+    this.dx += OneEuro.a(this.dCut, dt) * ((v - this.x) / dt - this.dx);
+    this.x += OneEuro.a(this.minCut + this.beta * Math.abs(this.dx), dt) * (v - this.x);
+    return this.x;
+  }
+}
+
+/* ---------------- styles ---------------- */
+function injectCss() {
+  if ($id('efcam-css')) return;
+  const st = document.createElement('style'); st.id = 'efcam-css';
+  st.textContent = `
+.efcam-pip{position:fixed;right:16px;top:84px;z-index:7900;width:148px;border-radius:14px;overflow:hidden;background:#0f0e0d;box-shadow:0 8px 28px rgba(15,14,13,.28);cursor:pointer;transition:transform .2s cubic-bezier(.22,1,.36,1),width .2s cubic-bezier(.22,1,.36,1);-webkit-tap-highlight-color:transparent}
+.efcam-pip:active{transform:scale(.97)}
+.efcam-pip[hidden]{display:none}
+.efcam-pip video{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;transform:scaleX(-1)}
+.efcam-pip .efcam-st{display:flex;align-items:center;gap:6px;padding:6px 9px;font:500 11px/1.3 var(--fb,system-ui);color:#f0ede6}
+.efcam-pip .efcam-st i{width:7px;height:7px;border-radius:50%;background:#3fbf7f;flex:none}
+.efcam-pip.warn .efcam-st i{background:#e8a33a}
+.efcam-pip.bad .efcam-st i{background:#e5534b}
+.efcam-pip .efcam-cal{position:absolute;left:0;right:0;top:0;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;text-align:center;padding:8px;background:rgba(15,14,13,.55);color:#fff;font:600 11px/1.3 var(--fb,system-ui)}
+.efcam-pip .efcam-cal[hidden]{display:none}
+.efcam-pip.min{width:46px;border-radius:50%;box-shadow:0 0 0 3px #3fbf7f,0 6px 20px rgba(15,14,13,.3)}
+.efcam-pip.min.warn{box-shadow:0 0 0 3px #e8a33a,0 6px 20px rgba(15,14,13,.3)}
+.efcam-pip.min.bad{box-shadow:0 0 0 3px #e5534b,0 6px 20px rgba(15,14,13,.3)}
+.efcam-pip.min video{aspect-ratio:1}
+.efcam-pip.min .efcam-st,.efcam-pip.min .efcam-cal{display:none}
+@media (max-width:760px){.efcam-pip{top:auto;bottom:88px;right:12px;width:120px}}
+.efcam-lists{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+@media (max-width:480px){.efcam-lists{grid-template-columns:1fr}}
+.efcam-lists b{display:block;font-size:.8rem;margin-bottom:4px}
+.efcam-lists ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px;font-size:.8rem}
+.efcam-lists ul.ok li::before{content:'\\2713  ';color:var(--ok);font-weight:700}
+.efcam-lists ul.no li::before{content:'\\2715  ';color:var(--err);font-weight:700}
+.efcam-lists li.none{color:var(--ink3)} .efcam-lists li.none::before{content:''!important}
+.efcam-msg{margin:4px 0 12px;padding:10px 14px;border-radius:var(--r,10px);background:var(--errbg);color:var(--err);font-size:.84rem;line-height:1.5}
+.efcam-msg[hidden]{display:none}
+.efcam-msg button{margin-top:8px}
+.efcam-tp{margin-bottom:16px}
+.efcam-tp-h{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.efcam-tp-h p{font-size:.82rem;color:var(--ink3);margin-top:2px}
+.efcam-sw{position:relative;display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-size:.85rem;font-weight:500;user-select:none}
+.efcam-sw input{position:absolute;opacity:0;width:1px;height:1px}
+.efcam-sw .tr{width:44px;height:26px;border-radius:99px;background:var(--paper3);position:relative;transition:background .2s}
+.efcam-sw .tr::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .22s cubic-bezier(.22,1,.36,1)}
+.efcam-sw input:checked+.tr{background:var(--ok)}
+.efcam-sw input:checked+.tr::after{transform:translateX(18px)}
+.efcam-sw input:focus-visible+.tr{outline:2px solid var(--ac);outline-offset:2px}
+.efcam-lbl{font-size:.8rem;font-weight:600;color:var(--ink2);margin:2px 0 8px}
+.efcam-perms{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.efcam-perm{display:flex;align-items:center;gap:8px;padding:7px 12px;border:1px solid var(--paper3);border-radius:99px;background:#fff;font-size:.82rem;cursor:pointer;transition:transform .12s cubic-bezier(.22,1,.36,1)}
+.efcam-perm:active{transform:scale(.97)}
+.efcam-perm input{accent-color:var(--ok);width:15px;height:15px}
+.efcam-perm:has(input:checked){border-color:var(--ok);background:var(--okbg)}
+.efcam-stat{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.efcam-alerts{display:flex;flex-direction:column;max-height:340px;overflow:auto}
+.efcam-al{display:grid;grid-template-columns:72px 1fr auto;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--paper2);font-size:.82rem}
+.efcam-al:last-child{border-bottom:0}
+.efcam-al img,.efcam-al .ph{width:72px;height:54px;border-radius:8px;object-fit:cover;background:var(--paper2);display:block}
+.efcam-al .n{font-weight:600}
+.efcam-al .l{color:var(--err)} .efcam-al .l.medium{color:var(--warn)} .efcam-al .l.low{color:var(--ink3)}
+.efcam-al time{font-family:var(--fm);font-size:.72rem;color:var(--ink3)}
+.efcam-empty{color:var(--ink3);font-size:.825rem;padding:6px 0}
+@media (prefers-reduced-motion:reduce){.efcam-pip,.efcam-sw .tr,.efcam-sw .tr::after,.efcam-perm{transition:none}}
+`;
+  document.head.appendChild(st);
+}
+
+/* ---------------- engines (Web Workers, main-thread fallback) ---------------- */
+const WORKER_SRC = 'const E=(' + engineFactory.toString() + ')();' +
+  'self.onmessage=async e=>{const{id,msg}=e.data;try{const r=await E.handle(msg);self.postMessage({id,reply:r.reply})}' +
+  'catch(err){self.postMessage({id,error:String(err&&err.message||err)})}};';
+let WORKER_URL = null;
+
+class Engine {
+  constructor(name) { this.name = name; this.seq = 0; this.pending = new Map(); this.mode = 'worker'; this.worker = null; this.local = null; this.ready = null; this.info = null; this.initMsg = null; this.fails = 0; this.switching = false; this.ok = false; }
+  _startWorker() {
+    if (!WORKER_URL) WORKER_URL = URL.createObjectURL(new Blob([WORKER_SRC], { type: 'text/javascript' }));
+    this.worker = new Worker(WORKER_URL, { name: 'efcam-' + this.name });
+    this.worker.onmessage = e => {
+      const { id, reply, error } = e.data; const p = this.pending.get(id);
+      if (!p) return; this.pending.delete(id);
+      if (error) p.rej(new Error(error)); else p.res(reply);
+    };
+    this.worker.onerror = e => {
+      e.preventDefault();
+      for (const p of this.pending.values()) p.rej(new Error(e.message || 'worker error'));
+      this.pending.clear();
+    };
+  }
+  call(msg, transfer = []) {
+    if (this.switching) return Promise.reject(new Error('engine switching'));
+    if (this.mode === 'local') return this.local.handle(msg).then(r => r.reply);
+    return new Promise((res, rej) => { const id = ++this.seq; this.pending.set(id, { res, rej }); this.worker.postMessage({ id, msg }, transfer); });
+  }
+  init(msg) {
+    if (this.ready) return this.ready;
+    this.initMsg = msg;
+    this.ready = (async () => {
+      try {
+        if (typeof Worker === 'undefined' || typeof OffscreenCanvas === 'undefined') throw new Error('workers not supported');
+        this._startWorker();
+        this.info = await Promise.race([this.call(msg), new Promise((_, rej) => setTimeout(() => rej(new Error('worker init timeout')), 90000))]);
+        this.mode = 'worker';
+      } catch (e) {
+        console.warn(`[camera:${this.name}] worker unavailable, running on main thread:`, e.message);
+        try { if (this.worker) this.worker.terminate(); } catch (x) { /* ignore */ }
+        this.worker = null; this.mode = 'local'; this.local = engineFactory();
+        this.info = (await this.local.handle(msg)).reply;
+      }
+      this.ok = true;
+      return this.info;
+    })();
+    this.ready.catch(e => console.warn(`[camera:${this.name}] failed to load`, e));
+    return this.ready;
+  }
+  good() { this.fails = 0; }
+  async fail() {
+    this.fails++;
+    if (this.fails < 5 || this.mode !== 'worker' || this.switching) return;
+    this.switching = true;
+    try { this.worker.terminate(); } catch (e) { /* ignore */ }
+    this.worker = null; this.mode = 'local'; this.local = engineFactory();
+    try { this.info = (await this.local.handle(this.initMsg)).reply; this.fails = 0; } catch (e) { console.warn(e); this.ok = false; }
+    this.switching = false;
+  }
+}
+const faceEng = new Engine('face'), objEng = new Engine('objects'), idEng = new Engine('identity');
+let handsAvailable = false;
+function preload() {
+  faceEng.init({ type: 'init', kind: 'face', urls: URLS });
+  objEng.init({ type: 'init', kind: 'objects', urls: URLS, detector: CFG.detector }).then(r => { handsAvailable = !!(r && r.hands); }).catch(() => {});
+  idEng.init({ type: 'init', kind: 'identity', urls: URLS }).catch(() => {});
+}
+
+/* ---------------- frames ---------------- */
+let useVideoFrame = typeof VideoFrame !== 'undefined';
+async function grabFrame() {
+  if (useVideoFrame) { try { return new VideoFrame(video, { timestamp: Math.round(performance.now() * 1000) }); } catch (e) { useVideoFrame = false; } }
+  return createImageBitmap(video);
+}
+const closeFrame = f => { try { if (f) f.close(); } catch (e) { /* transferred */ } };
+
+/* ---------------- camera ---------------- */
+let stream = null, cameraLost = false, camUnavailable = false, denyCount = 0;
+async function requestCamera() {
+  if (stream && stream.active && stream.getVideoTracks().some(t => t.readyState === 'live')) return stream;
+  stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30, max: 30 } },
+    audio: false
+  });
+  const track = stream.getVideoTracks()[0];
+  cameraLost = false;
+  track.addEventListener('ended', () => { cameraLost = true; });
+  track.addEventListener('mute', () => { cameraLost = true; });
+  track.addEventListener('unmute', () => { cameraLost = false; });
+  return stream;
+}
+function releaseCamera() {
+  if (stream) stream.getTracks().forEach(t => { try { t.stop(); } catch (e) { /* ignore */ } });
+  stream = null;
+  if (video) video.srcObject = null;
+}
+
+/* ---------------- student picture-in-picture ---------------- */
+let pip = null, video = null;
+function ensurePip() {
+  if (pip) return;
+  injectCss();
+  pip = document.createElement('div');
+  pip.className = 'efcam-pip'; pip.hidden = true;
+  pip.setAttribute('role', 'status'); pip.setAttribute('aria-label', 'Exam camera');
+  pip.title = 'Exam camera. Tap to shrink or expand.';
+  pip.innerHTML = '<video playsinline muted autoplay></video><div class="efcam-cal" hidden>Look at the screen</div><div class="efcam-st"><i></i><span>Camera on</span></div>';
+  video = pip.querySelector('video');
+  pip.addEventListener('click', () => pip.classList.toggle('min'));
+  if (window.matchMedia && matchMedia('(max-width: 760px)').matches) pip.classList.add('min');
+  document.body.appendChild(pip);
+}
+function pipState(cls, text) {
+  if (!pip) return;
+  pip.classList.toggle('warn', cls === 'warn'); pip.classList.toggle('bad', cls === 'bad');
+  pip.querySelector('.efcam-st span').textContent = text;
+}
+function pipCal(text) { if (!pip) return; const c = pip.querySelector('.efcam-cal'); c.hidden = !text; if (text) c.textContent = text; }
+
+/* ---------------- student banner (reuses the exam's anti-cheat banner) ---------------- */
+let bannerId = 'acbanner', bannerTimer = 0;
+function info(text) { if (typeof toast === 'function') { try { toast(text, 'info', 4000); return; } catch (e) { /* fall through */ } } banner(text); }
+function banner(text) {
+  const b = $id(bannerId); if (!b) return;
+  b.textContent = text; b.classList.add('show');
+  clearTimeout(bannerTimer); bannerTimer = setTimeout(() => b.classList.remove('show'), 3000);
+}
+
+/* ---------------- rules ---------------- */
+let allow = { ...DEFAULT_ALLOW };
+const deviceAllowed = kind => kind === 'phone' ? allow.phone : kind === 'calculator' ? allow.calculator : (allow.phone && allow.calculator);
+
+class Rule {
+  constructor(id, label, sev, onMs, offMs) { Object.assign(this, { id, label, sev, onMs, offMs }); this.reset(); }
+  get onDelay() { return typeof this.onMs === 'function' ? this.onMs() : this.onMs; }
+  update(cond, now) {
+    if (cond) {
+      this.offSince = null;
+      if (this.since === null) this.since = now;
+      if (!this.active && now - this.since >= this.onDelay) { this.active = true; onRuleStart(this, now); }
+    } else {
+      this.since = null;
+      if (this.active) {
+        if (this.offSince === null) this.offSince = now;
+        if (now - this.offSince >= this.offMs) this.active = false;
+      }
+    }
+  }
+  pulse(now) { onRuleStart(this, now); }
+  reset() { this.since = null; this.offSince = null; this.active = false; }
+}
+const R = {
+  noPerson: new Rule('noPerson', 'No one at the screen', 'high', 1500, 600),
+  noFace: new Rule('noFace', 'Face not visible', 'medium', 1200, 400),
+  multiPeople: new Rule('multiPeople', 'More than one person', 'high', 600, 1200),
+  phone: new Rule('phone', 'Phone visible', 'high', 0, 1200),
+  calculator: new Rule('calculator', 'Calculator visible', 'high', 0, 1200),
+  device: new Rule('device', 'Handheld device, could be a phone', 'medium', 0, 1200),
+  book: new Rule('book', 'Book visible', 'high', 0, 1200),
+  notes: new Rule('notes', 'Notes or paper visible', 'high', 0, 1200),
+  handHeld: new Rule('handHeld', 'Holding something up to the camera', 'high', 0, 1200),
+  secondScreen: new Rule('secondScreen', 'Another screen visible', 'medium', 600, 1200),
+  lookingAway: new Rule('lookingAway', 'Looking away from the screen', 'medium', () => CFG.lookAwaySec * 1000, 400),
+  repeatedTurns: new Rule('repeatedTurns', 'Repeated head turning', 'medium', 0, 0),
+  repeatedGlances: new Rule('repeatedGlances', 'Repeated side glances', 'low', 0, 0),
+  talking: new Rule('talking', 'Talking', 'low', 800, 1000),
+  repeatedTalking: new Rule('repeatedTalking', 'Repeated talking', 'medium', 0, 0),
+  differentPerson: new Rule('differentPerson', 'Different person in front of the camera', 'high', 0, 3000),
+  cameraBlocked: new Rule('cameraBlocked', 'Camera covered or too dark', 'high', 1000, 800),
+  cameraStopped: new Rule('cameraStopped', 'Camera stopped', 'high', 0, 500)
+};
+const AFFECTED = { calculator: ['calculator', 'device', 'handHeld'], roughPaper: ['notes', 'handHeld'], books: ['book', 'handHeld'], phone: ['phone', 'device', 'handHeld'], screens: ['secondScreen'] };
+
+let talkEpisodes = [], forceIdCheck = false;
+const lastReport = {};
+function onRuleStart(rule, now) {
+  if (rule.id === 'talking') {
+    talkEpisodes.push(now);
+    talkEpisodes = talkEpisodes.filter(t => now - t <= CFG.talkWindowSec * 1000);
+    if (talkEpisodes.length >= CFG.talkEpisodesForRepeat) { talkEpisodes = []; R.repeatedTalking.pulse(now); }
+  }
+  if (rule.id === 'noFace' || rule.id === 'noPerson' || rule.id === 'multiPeople') forceIdCheck = true;
+  report(rule);
+}
+
+/* ---------------- reporting to the teacher ---------------- */
+const violType = label => 'CAMERA_' + label.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+let shots = [], shotTimer = 0;
+const snapCv = document.createElement('canvas'); snapCv.width = 128; snapCv.height = 96;
+function snapshot() {
+  try {
+    const c = snapCv.getContext('2d');
+    c.save(); c.setTransform(-1, 0, 0, 1, 128, 0); c.drawImage(video, 0, 0, 128, 96); c.restore();
+    return snapCv.toDataURL('image/jpeg', 0.55);
+  } catch (e) { return ''; }
+}
+function report(rule) {
+  const t = Date.now();
+  if (t - (lastReport[rule.id] || 0) < 15000) return; // one report per alert type every 15 s
+  lastReport[rule.id] = t;
+  if (rule.sev !== 'low') {
+    banner('\u{1F4F7} ' + rule.label + ' \u2014 your teacher has been notified.');
+    pipState(rule.sev === 'high' ? 'bad' : 'warn', rule.label);
+    clearTimeout(pipResetTimer); pipResetTimer = setTimeout(() => { if (running) pipState('', 'Camera on'); }, 4000);
+    try { if (typeof logViol === 'function') logViol(violType(rule.label)); } catch (e) { console.warn('camera logViol', e); }
+  }
+  const img = snapshot();
+  shots.push({ t, l: rule.label, s: rule.sev, img });
+  if (shots.length > 6) shots.shift();
+  clearTimeout(shotTimer); shotTimer = setTimeout(uploadShots, 1200);
+}
+let pipResetTimer = 0;
+function sessionRef() {
+  const exam = curExam();
+  if (!hasDb() || !exam || !hasS() || !S.sessId) return null;
+  return { ref: db.collection('sessions').doc(S.sessId), token: exam.token };
+}
+function uploadShots() {
+  const s = sessionRef(); if (!s) return;
+  try { s.ref.set({ camShots: shots, examToken: s.token, savedAt: Date.now() }, { merge: true }).catch(e => console.warn('camera shots', e.message)); }
+  catch (e) { console.warn('camera shots', e.message); }
+}
+function writeStatus(state) {
+  const s = sessionRef(); if (!s) return;
+  try { s.ref.set({ camStatus: { state, t: Date.now() }, examToken: s.token, savedAt: Date.now() }, { merge: true }).catch(e => console.warn('camera status', e.message)); }
+  catch (e) { console.warn('camera status', e.message); }
+}
+
+/* ---------------- per-frame state ---------------- */
+let running = false, phase = 'idle', calib = null, base = null;
+const F = { t: 0, ms: 8, count: 0, boxes: [], yaw: 0, pitch: 0, roll: 0, gaze: 0, mar: 0, id: null };
+const filt = { yaw: new OneEuro(1.2, 0.03), pitch: new OneEuro(1.2, 0.03), gaze: new OneEuro(1.5, 0.8) };
+const O = { t: 0, ms: 30, persons: 0, screens: 0 };
+let phoneHits = [], calcHits = [], deviceHits = [], bookHits = [], notesHits = [], heldHits = [];
+let blocked = false;
+let faceBusy = false, objBusy = false, lastFaceSent = 0, lastObjSent = 0, needBgReset = false;
+let away = false, awayCand = null, turnTimes = [];
+let glance = false, glanceCand = null, glanceTimes = [];
+let marBuf = [], mouthOpen = false, closeTimes = [], mouthMoving = false;
+let gallery = [], idDists = [], idBusy = false, lastIdTs = 0, enrollUntil = 0;
+
+function resetState() {
+  phoneHits = []; calcHits = []; deviceHits = []; bookHits = []; notesHits = []; heldHits = [];
+  away = false; awayCand = null; turnTimes = []; glance = false; glanceCand = null; glanceTimes = [];
+  marBuf = []; mouthOpen = false; closeTimes = []; mouthMoving = false; talkEpisodes = [];
+  gallery = []; idDists = []; forceIdCheck = false; blocked = false;
+  filt.yaw.reset(); filt.pitch.reset(); filt.gaze.reset();
+  Object.values(R).forEach(r => r.reset());
+}
+
+/* ---------------- face ---------------- */
+async function pumpFace() {
+  faceBusy = true;
+  try {
+    const frame = await grabFrame();
+    let r;
+    try { r = await faceEng.call({ type: 'face', bitmap: frame, ts: performance.now() }, [frame]); }
+    catch (e) { closeFrame(frame); if (useVideoFrame) { useVideoFrame = false; return; } throw e; }
+    faceEng.good();
+    if (running) onFace(r, performance.now());
+  } catch (e) { await faceEng.fail(); }
+  finally { faceBusy = false; }
+}
+function onFace(r, now) {
+  F.t = now; F.ms = r.ms; F.count = r.faces.length; F.boxes = r.faces;
+  if (!r.p) {
+    filt.yaw.reset(); filt.pitch.reset(); filt.gaze.reset();
+    away = false; awayCand = null; glance = false; glanceCand = null; mouthMoving = false; F.id = null;
+    return;
+  }
+  const p = r.p;
+  F.yaw = filt.yaw.f(p.yaw, now); F.pitch = filt.pitch.f(p.pitch, now); F.gaze = filt.gaze.f(p.gaze, now);
+  F.roll = p.roll; F.mar = p.mar; F.id = p.id;
+  if (phase === 'calibrating' && F.count === 1) { calib.yaw.push(F.yaw); calib.pitch.push(F.pitch); calib.gaze.push(F.gaze); calib.mar.push(F.mar); }
+  if (phase === 'monitoring') analyseFaceMotion(now);
+}
+function analyseFaceMotion(now) {
+  const yawDev = F.yaw - base.yaw, gazeDev = F.gaze - base.gaze;
+  const T = CFG.headTurnDeg, v = Math.abs(yawDev);
+  if (!away) {
+    if (v > T) { if (awayCand === null) awayCand = now; if (now - awayCand >= 200) { away = true; turnTimes.push(now); } }
+    else awayCand = null;
+  } else if (v < T * 0.6) { away = false; awayCand = null; }
+  turnTimes = turnTimes.filter(t => now - t <= CFG.repeatWindowSec * 1000);
+  if (turnTimes.length >= CFG.turnsForRepeat) { turnTimes = []; R.repeatedTurns.pulse(now); }
+
+  const G = CFG.gazeThreshold, gv = Math.abs(gazeDev);
+  if (!glance) {
+    if (!away && gv > G) { if (glanceCand === null) glanceCand = now; if (now - glanceCand >= 200) { glance = true; glanceTimes.push(now); } }
+    else glanceCand = null;
+  } else if (gv < G * 0.6) { glance = false; glanceCand = null; }
+  glanceTimes = glanceTimes.filter(t => now - t <= CFG.repeatWindowSec * 1000);
+  if (glanceTimes.length >= CFG.glancesForRepeat) { glanceTimes = []; R.repeatedGlances.pulse(now); }
+
+  const d = CFG.talkDelta;
+  if (F.mar < base.mar) base.mar = base.mar * 0.95 + F.mar * 0.05;
+  marBuf.push([now, F.mar]); while (marBuf.length && now - marBuf[0][0] > 1600) marBuf.shift();
+  if (!mouthOpen && F.mar > base.mar + d) mouthOpen = true;
+  else if (mouthOpen && F.mar < base.mar + d * 0.45) { mouthOpen = false; closeTimes.push(now); }
+  closeTimes = closeTimes.filter(t => now - t <= 1600);
+  let mn = Infinity, mx = -Infinity; for (const [, m] of marBuf) { if (m < mn) mn = m; if (m > mx) mx = m; }
+  mouthMoving = closeTimes.length >= 3 && (mx - mn) > d * 1.2;
+}
+
+/* ---------------- objects, hands, books, notes ---------------- */
+function faceExclusion() {
+  if (performance.now() - F.t > 300) return [];
+  return F.boxes.map(b => ({ x: b.x - b.w * 0.25, y: b.y - b.h * 0.35, w: b.w * 1.5, h: b.h * 1.75 }));
+}
+async function pumpObjects(now) {
+  objBusy = true; lastObjSent = now;
+  const prm = {
+    paper: true, learnBg: phase === 'calibrating', resetBg: needBgReset,
+    minBright: CFG.paperMinBright, minEdge: CFG.notesEdge,
+    hands: handsAvailable, zoom: true, deviceMin: CFG.phoneConfidence * 0.8, exclude: faceExclusion()
+  };
+  needBgReset = false;
+  try {
+    const frame = await grabFrame();
+    let r;
+    try { r = await objEng.call({ type: 'objects', bitmap: frame, ts: performance.now(), prm }, [frame]); }
+    catch (e) { closeFrame(frame); if (useVideoFrame) { useVideoFrame = false; return; } throw e; }
+    objEng.good();
+    if (running) onObjects(r, performance.now());
+  } catch (e) { await objEng.fail(); }
+  finally { objBusy = false; }
+}
+function onObjects(r, now) {
+  let persons = 0, bookScore = 0, screens = 0, phoneSeen = false, calcSeen = false, unclearSeen = false;
+  const heldTargets = [];
+  for (const o of r.objects) {
+    if (o.n === 'person') { if (o.s >= 0.45) persons++; continue; }
+    if (o.device) {
+      if (o.s >= CFG.phoneConfidence) { if (o.kind === 'phone') phoneSeen = true; else if (o.kind === 'calculator') calcSeen = true; else unclearSeen = true; }
+      if (o.s >= 0.3 && !deviceAllowed(o.kind)) heldTargets.push(o);
+      continue;
+    }
+    if (o.n === 'book') { bookScore = Math.max(bookScore, o.s); if (o.s >= 0.3 && !allow.books) heldTargets.push(o); continue; }
+    if (o.n === 'laptop' || o.n === 'tv') { if (o.s >= 0.5) screens++; continue; }
+    if (o.n === 'cell phone' || o.n === 'remote') continue;
+    if (o.s >= 0.3) heldTargets.push(o);
+  }
+  if (r.paper && !allow.roughPaper) heldTargets.push(r.paper);
+  const held = r.hands.some(h => heldTargets.some(t => overlaps(grow(h, 0.5), t)));
+  O.t = now; O.ms = r.ms; O.persons = persons; O.screens = screens;
+  pushHit(phoneHits, phoneSeen, 4); pushHit(calcHits, calcSeen, 4); pushHit(deviceHits, unclearSeen, 5);
+  pushHit(bookHits, bookScore >= CFG.bookConfidence, 4); pushHit(notesHits, !!(r.paper && r.paper.s >= 0.5), 5); pushHit(heldHits, held, 4);
+  blocked = r.luma.mean < 22 || r.luma.std < 5;
+}
+
+/* ---------------- identity ---------------- */
+function maybeIdentity(now) {
+  if (!idEng.ok || idBusy || phase === 'idle' || F.count !== 1 || !F.id || now - F.t > 150) return;
+  const enrolling = gallery.length < 2 || (gallery.length < 5 && now < enrollUntil);
+  const yawOff = base ? Math.abs(F.yaw - base.yaw) : Math.abs(F.yaw);
+  if (yawOff > 18 || Math.abs(F.roll) > 15) return;
+  const due = enrolling ? now - lastIdTs > 300 : (forceIdCheck || now - lastIdTs > CFG.idEverySec * 1000);
+  if (!due) return;
+  if (enrolling && phase === 'monitoring' && (R.multiPeople.active || R.phone.active)) return;
+  const W = video.videoWidth, H = video.videoHeight;
+  const side = Math.min(F.id.sw * W, W, H);
+  if (side < 40) return;
+  const sx = clamp(F.id.cx * W - side / 2, 0, W - side), sy = clamp(F.id.cy * H - side / 2, 0, H - side);
+  idBusy = true; lastIdTs = now;
+  const wasForced = forceIdCheck; forceIdCheck = false;
+  createImageBitmap(video, sx, sy, side, side, { resizeWidth: 150, resizeHeight: 150, resizeQuality: 'medium' })
+    .then(bmp => idEng.call({ type: 'identity', bitmap: bmp }, [bmp]))
+    .then(r => {
+      idEng.good();
+      if (!running) return;
+      const desc = r.desc;
+      if (enrolling) { if (!gallery.length || Math.min(...gallery.map(g => euclid(g, desc))) < CFG.idThreshold * 0.85) gallery.push(desc); return; }
+      const dist = Math.min(...gallery.map(g => euclid(g, desc)));
+      idDists.push(dist); if (idDists.length > 3) idDists.shift();
+      if (wasForced && dist > CFG.idThreshold) forceIdCheck = true;
+    })
+    .catch(() => { idEng.fail(); })
+    .finally(() => { idBusy = false; });
+}
+
+/* ---------------- evaluation ---------------- */
+function evaluate(now) {
+  if (phase !== 'monitoring') return;
+  const faceFresh = now - F.t < 400, objFresh = now - O.t < 1200;
+  const faces = faceFresh ? F.count : 0, persons = objFresh ? O.persons : 0;
+  R.cameraStopped.update(cameraLost, now);
+  R.cameraBlocked.update(blocked && !cameraLost && objFresh, now);
+  const camOk = !cameraLost && !blocked;
+  R.noPerson.update(camOk && faceFresh && faces === 0 && persons === 0, now);
+  R.noFace.update(camOk && faceFresh && faces === 0 && !R.noPerson.active, now);
+  R.multiPeople.update(faces > 1 || persons > 1, now);
+  R.phone.update(!allow.phone && objFresh && hits(phoneHits) >= 2, now);
+  R.calculator.update(!allow.calculator && objFresh && hits(calcHits) >= 2, now);
+  R.device.sev = !allow.phone && !allow.calculator ? 'high' : 'medium';
+  R.device.update(!(allow.phone && allow.calculator) && objFresh && hits(deviceHits) >= 3, now);
+  R.book.update(!allow.books && objFresh && hits(bookHits) >= 2, now);
+  R.notes.update(!allow.roughPaper && objFresh && hits(notesHits) >= 3, now);
+  R.handHeld.update(objFresh && hits(heldHits) >= 2, now);
+  R.secondScreen.update(!allow.screens && objFresh && O.screens > 0, now);
+  R.lookingAway.update(faces === 1 && away, now);
+  R.talking.update(faces >= 1 && mouthMoving, now);
+  const bad = idDists.filter(d => d > CFG.idThreshold).length;
+  R.differentPerson.update(gallery.length >= 2 && idDists.length >= 2 && bad >= 2 && faces === 1, now);
+  if (faceFresh && faces !== 1) idDists = [];
+}
+
+/* ---------------- loop ---------------- */
+const useRVFC = typeof HTMLVideoElement !== 'undefined' && 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
+function schedule() { if (!running) return; if (useRVFC) video.requestVideoFrameCallback(tick); else requestAnimationFrame(tick); }
+function tick() {
+  if (!running) return;
+  const now = performance.now();
+  try {
+    if (video.readyState >= 2) {
+      // On the main-thread fallback, slow down so the exam page stays smooth.
+      const faceGap = faceEng.mode === 'local' ? 100 : clamp(F.ms * 1.2, 0, 66);
+      const objGap = objEng.mode === 'local' ? 400 : clamp(O.ms * 1.5, 50, 300);
+      if (faceEng.ok && !faceBusy && now - lastFaceSent >= faceGap) { lastFaceSent = now; pumpFace(); }
+      if (objEng.ok && !objBusy && now - lastObjSent >= objGap) pumpObjects(now);
+      if (phase === 'calibrating') stepCalibration(now);
+      maybeIdentity(now);
+      evaluate(now);
+    }
+  } catch (e) { console.warn('camera tick', e); }
+  schedule();
+}
+
+/* ---------------- calibration ---------------- */
+function startCalibration() {
+  phase = 'calibrating';
+  calib = { t0: performance.now(), yaw: [], pitch: [], gaze: [], mar: [] };
+  enrollUntil = performance.now() + 12000; needBgReset = true;
+  resetState();
+  pipCal('Look at the screen');
+}
+function stepCalibration(now) {
+  const n = calib.yaw.length, elapsed = now - calib.t0;
+  if (now - F.t < 400 && F.count !== 1) pipCal(F.count === 0 ? 'Face the camera' : 'Only you should be visible');
+  else pipCal('Look at the screen');
+  if (n >= 25 && elapsed >= 2000) {
+    base = { yaw: median(calib.yaw), pitch: median(calib.pitch), gaze: median(calib.gaze), mar: pct(calib.mar, 0.3) };
+    phase = 'monitoring';
+    pipCal('');
+    pipState('', 'Camera on');
+  }
+}
+
+/* ---------------- start / stop ---------------- */
+let starting = false;
+async function start() {
+  if (running || starting) return;
+  starting = true;
+  ensurePip(); injectCss();
+  preload();
+  pip.hidden = false; pipState('warn', 'Starting camera'); pipCal('Allow the camera if asked');
+  try {
+    await requestCamera();
+  } catch (e) {
+    starting = false;
+    pipCal(''); pip.hidden = true;
+    const t = Date.now();
+    if (t - (lastReport.permission || 0) > 15000) {
+      lastReport.permission = t;
+      const denied = e && e.name === 'NotAllowedError';
+      try { if (typeof logViol === 'function') logViol(denied ? 'CAMERA_ACCESS_DENIED' : 'CAMERA_NOT_AVAILABLE'); } catch (x) { /* ignore */ }
+      writeStatus(denied ? 'denied' : 'unavailable');
+      banner(denied ? '\u{1F4F7} Camera access was blocked. Your teacher has been notified.' : '\u{1F4F7} Your camera could not start. Your teacher has been notified.');
+    }
+    return;
+  }
+  video.srcObject = stream;
+  try { await video.play(); } catch (e) { /* autoplay with muted video is allowed */ }
+  pipState('warn', 'Loading');
+  try { await faceEng.ready; } catch (e) { /* handled below */ }
+  starting = false;
+  if (!faceEng.ok) { pipState('bad', 'Camera check unavailable'); writeStatus('unavailable'); setTimeout(() => { if (!running) { releaseCamera(); if (pip) pip.hidden = true; } }, 4000); return; }
+  if (!examLive || !camCfg(curExam()).on) { releaseCamera(); pip.hidden = true; return; }
+  running = true; lastFaceSent = 0; lastObjSent = 0;
+  startCalibration();
+  writeStatus('on');
+  schedule();
+}
+function stop(reason) {
+  const was = running || starting;
+  running = false; starting = false; phase = 'idle';
+  resetState();
+  releaseCamera();
+  if (pip) { pip.hidden = true; pipCal(''); }
+  if (was && reason) writeStatus(reason);
+}
+
+/* ---------------- live rule updates from the teacher ---------------- */
+let examLive = false, stopTimer = 0, unsubExam = null, listenTok = null;
+function listen(token) {
+  if (!hasDb() || !token || listenTok === token) return;
+  unlisten();
+  listenTok = token;
+  try {
+    unsubExam = db.collection('exams').doc(token).onSnapshot(doc => {
+      const d = doc && doc.exists ? doc.data() : null; if (!d) return;
+      const exam = curExam(); if (!exam || exam.token !== token) return;
+      const prev = camCfg(exam), next = camCfg(d);
+      exam.camMon = d.camMon || null;
+      applyRules(prev, next);
+    }, e => console.warn('camera rules listener', e.message));
+  } catch (e) { console.warn('camera rules listener', e.message); }
+}
+function unlisten() { if (unsubExam) { try { unsubExam(); } catch (e) { /* ignore */ } } unsubExam = null; listenTok = null; }
+function applyRules(prev, next) {
+  const changed = PERMS.filter(([k]) => prev.allow[k] !== next.allow[k]);
+  allow = next.allow;
+  changed.forEach(([k]) => { if (allow[k]) AFFECTED[k].forEach(id => R[id].reset()); });
+  if (examLive) {
+    if (next.on && !prev.on) { info('\u{1F4F7} Your teacher turned on camera monitoring. Allow the camera if asked.'); start(); }
+    else if (!next.on && prev.on) { info('\u{1F4F7} Your teacher turned off camera monitoring.'); stop('off'); }
+    else if (changed.length && next.on) {
+      const msg = changed.map(([k, l]) => `${l.toLowerCase()} ${allow[k] ? 'allowed' : 'not allowed'}`).join(', ');
+      info('\u{1F4F7} Exam rules updated: ' + msg);
+    }
+  }
+}
+
+/* ---------------- hooks into the exam flow ---------------- */
+function onExamStart(bid) {
+  if (bid) bannerId = bid;
+  clearTimeout(stopTimer);
+  examLive = true;
+  const exam = curExam(); if (!exam) return;
+  const c = camCfg(exam);
+  allow = c.allow;
+  listen(exam.token);
+  if (!c.on) return;
+  if (camUnavailable) {
+    camUnavailable = false;
+    try { if (typeof logViol === 'function') logViol('CAMERA_NOT_AVAILABLE'); } catch (e) { /* ignore */ }
+    writeStatus('unavailable');
+    return;
+  }
+  start();
+}
+function onExamStop() {
+  // A combined exam tears down after the MCQ part and sets up again for the written part;
+  // wait briefly so the camera is not switched off and on in between.
+  clearTimeout(stopTimer);
+  stopTimer = setTimeout(() => { examLive = false; stop('off'); unlisten(); }, 2500);
+}
+
+/* ---------------- student rules on the "Read before you begin" page ---------------- */
+function listsHtml(a) {
+  const allowed = PERMS.filter(([k]) => a[k]).map(([, l]) => l);
+  const banned = PERMS.filter(([k]) => !a[k]).map(([, l]) => l).concat(ALWAYS_BANNED);
+  const li = (arr, empty) => arr.length ? arr.map(x => `<li>${escH(x)}</li>`).join('') : `<li class="none">${escH(empty)}</li>`;
+  return `<div class="efcam-lists"><div><b>Allowed on your desk</b><ul class="ok">${li(allowed, 'Only the device you are taking the exam on')}</ul></div>` +
+    `<div><b>Not allowed</b><ul class="no">${li(banned, 'Nothing')}</ul></div></div>`;
+}
+function renderAcwBlock(exam) {
+  const page = $id('pg-acwarn'); if (!page) return;
+  const cb = page.querySelector('.cb'); if (!cb) return;
+  let blk = $id('efcam-acw'), msg = $id('efcam-acw-msg');
+  const c = camCfg(exam);
+  if (!c.on) { if (blk) blk.remove(); if (msg) msg.remove(); return; }
+  injectCss();
+  if (!blk) {
+    blk = document.createElement('div'); blk.id = 'efcam-acw'; blk.className = 'acRule'; blk.style.background = 'var(--infobg)';
+    msg = document.createElement('div'); msg.id = 'efcam-acw-msg'; msg.className = 'efcam-msg'; msg.hidden = true; msg.setAttribute('role', 'alert');
+    const btn = [...cb.querySelectorAll('button')].pop();
+    cb.insertBefore(blk, btn || null); cb.insertBefore(msg, btn || null);
+  }
+  msg.hidden = true; msg.innerHTML = '';
+  blk.innerHTML = '<span style="font-size:1.2rem;flex-shrink:0">\u{1F4F7}</span><div style="flex:1;min-width:0">' +
+    '<div style="font-weight:600;font-size:.875rem;margin-bottom:2px">Camera monitoring is on</div>' +
+    '<div style="font-size:.82rem;color:var(--ink3)">Your camera stays on during the exam. It is checked on your device and never recorded; your teacher only receives alerts with a small snapshot. You will be asked to allow the camera when you continue.</div>' +
+    listsHtml(c.allow) + '</div>';
+}
+function acwMessage(html) { const m = $id('efcam-acw-msg'); if (!m) return; m.innerHTML = html; m.hidden = !html; }
+
+/* ---------------- teacher panel on the Live Monitor ---------------- */
+function ensureTeacherPanel() {
+  const page = $id('pg-monitor'); if (!page) return null;
+  let tp = $id('efcam-tp');
+  if (tp) return tp;
+  injectCss();
+  const stats = $id('ms-total') && $id('ms-total').closest('.scard') && $id('ms-total').closest('.scard').parentElement;
+  tp = document.createElement('div'); tp.id = 'efcam-tp'; tp.className = 'card efcam-tp';
+  tp.innerHTML =
+    '<div class="ch efcam-tp-h"><div><h3>\u{1F4F7} Camera monitoring</h3><p id="efcam-tp-sub"></p></div>' +
+    '<label class="efcam-sw"><input type="checkbox" id="efcam-tp-on"><span class="tr"></span><span id="efcam-tp-onl">Off</span></label></div>' +
+    '<div class="cb">' +
+    '<div class="efcam-lbl">Allowed on the student\u2019s desk</div><div class="efcam-perms" id="efcam-tp-perms"></div>' +
+    '<div class="efcam-stat" id="efcam-tp-stat"></div>' +
+    '<div class="efcam-lbl">Camera alerts</div><div class="efcam-alerts" id="efcam-tp-alerts"></div></div>';
+  if (stats && stats.parentElement) stats.parentElement.insertBefore(tp, stats.nextSibling);
+  else { const main = page.querySelector('main'); if (!main) return null; main.insertBefore(tp, main.firstChild); }
+  $id('efcam-tp-perms').innerHTML = PERMS.map(([k, l]) => `<label class="efcam-perm"><input type="checkbox" data-k="${k}"><span>${escH(l)}</span></label>`).join('');
+  $id('efcam-tp-on').addEventListener('change', e => saveTeacher({ on: e.target.checked }));
+  tp.querySelectorAll('#efcam-tp-perms input').forEach(inp => inp.addEventListener('change', () => saveTeacher({ allowKey: inp.dataset.k, val: inp.checked })));
+  return tp;
+}
+function saveTeacher(ch) {
+  const exam = hasS() ? S.exams[S.monIdx] : null; if (!exam) return;
+  const c = camCfg(exam);
+  if ('on' in ch) c.on = ch.on;
+  if (ch.allowKey) c.allow[ch.allowKey] = ch.val;
+  exam.camMon = { on: c.on, allow: c.allow };
+  try { if (typeof saveExams === 'function') saveExams(); } catch (e) { /* ignore */ }
+  try { if (typeof fbSave === 'function') fbSave(exam); } catch (e) { /* ignore */ }
+  syncTeacherControls();
+  if (typeof toast === 'function') {
+    if ('on' in ch) toast(c.on ? 'Camera monitoring is on. Students see the rules before they start.' : 'Camera monitoring is off.', 'ok');
+    else toast('Rules updated. Students in the exam are notified.', 'ok');
+  }
+}
+function syncTeacherControls() {
+  const exam = hasS() ? S.exams[S.monIdx] : null; if (!exam || !$id('efcam-tp')) return;
+  const c = camCfg(exam);
+  $id('efcam-tp-on').checked = c.on;
+  $id('efcam-tp-onl').textContent = c.on ? 'On' : 'Off';
+  $id('efcam-tp-sub').textContent = c.on
+    ? 'Students\u2019 cameras check for phones, books, notes, other people, talking and looking away. Video stays on their devices.'
+    : 'Off. Turn on to check students through their own cameras. Set this before sharing the link; changes also reach students already in the exam.';
+  $id('efcam-tp-perms').querySelectorAll('input').forEach(inp => { inp.checked = !!c.allow[inp.dataset.k]; });
+}
+let lastAlertSig = '';
+function renderTeacherPanel() {
+  const exam = hasS() ? S.exams[S.monIdx] : null; if (!exam || !$id('efcam-tp')) return;
+  const sessions = (S.liveSess && S.liveSess.length) ? S.liveSess : (exam.sessions || []);
+  const active = sessions.filter(s => !s.submitted);
+  const st = { on: 0, denied: 0, unavailable: 0 };
+  active.forEach(s => { const k = s.camStatus && s.camStatus.state; if (k in st) st[k]++; });
+  $id('efcam-tp-stat').innerHTML = camCfg(exam).on || st.on || st.denied || st.unavailable
+    ? `<span class="bx bK">${st.on} camera${st.on === 1 ? '' : 's'} on</span>` +
+      (st.denied ? `<span class="bx bE">${st.denied} blocked access</span>` : '') +
+      (st.unavailable ? `<span class="bx bW">${st.unavailable} without a camera</span>` : '')
+    : '';
+  const all = sessions.flatMap(s => (Array.isArray(s.camShots) ? s.camShots : []).map(x => ({ n: s.name || 'Student', r: s.studentId || '', ...x })))
+    .sort((a, b) => (b.t || 0) - (a.t || 0)).slice(0, 40);
+  const sig = all.map(a => a.t + a.n).join('|');
+  if (sig === lastAlertSig && $id('efcam-tp-alerts').childElementCount) return;
+  lastAlertSig = sig;
+  $id('efcam-tp-alerts').innerHTML = all.length ? all.map(a => {
+    const when = a.t ? new Date(a.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+    const img = typeof a.img === 'string' && a.img.startsWith('data:image/') ? `<img src="${a.img}" alt="Snapshot of ${escH(a.n)}" loading="lazy">` : '<span class="ph"></span>';
+    const sev = a.s === 'high' || a.s === 'medium' || a.s === 'low' ? a.s : 'high';
+    return `<div class="efcam-al">${img}<div><div class="n">${escH(a.n)}${a.r ? ` <span style="color:var(--ink3);font-weight:400">${escH(a.r)}</span>` : ''}</div><div class="l ${sev}">${escH(a.l || '')}</div></div><time>${when}</time></div>`;
+  }).join('') : '<p class="efcam-empty">No camera alerts yet.</p>';
+}
+
+/* ---------------- install wrappers ---------------- */
+function wrap(name, after, before) {
+  const orig = window[name];
+  if (typeof orig !== 'function' || orig.__efcam) return;
+  const w = function () {
+    if (before) { const r = before.apply(this, arguments); if (r === false) return; }
+    const out = orig.apply(this, arguments);
+    try { if (after) after.apply(this, arguments); } catch (e) { console.warn('camera hook ' + name, e); }
+    return out;
+  };
+  w.__efcam = true;
+  window[name] = w;
+}
+function install() {
+  wrap('setupAC', bid => onExamStart(bid));
+  wrap('teardownAC', () => onExamStop());
+  wrap('showACWarn', exam => { camUnavailable = false; denyCount = 0; renderAcwBlock(exam); const c = camCfg(exam); if (c.on) preload(); });
+  wrap('openMonitor', () => { ensureTeacherPanel(); syncTeacherControls(); lastAlertSig = ''; renderTeacherPanel(); });
+  wrap('renderMon', () => renderTeacherPanel());
+  // goStudentForm needs the camera before continuing, so it is wrapped asynchronously.
+  const gsf = window.goStudentForm;
+  if (typeof gsf === 'function' && !gsf.__efcam) {
+    let busy = false;
+    const w = async function () {
+      const page = $id('pg-acwarn');
+      const idx = parseInt((page && page.dataset.idx) || '0');
+      const exam = hasS() ? S.exams[idx] : null;
+      if (!camCfg(exam).on || camUnavailable) return gsf.apply(this, arguments);
+      if (busy) return; busy = true;
+      acwMessage('');
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { const er = new Error('Camera is not supported in this browser.'); er.name = 'NotSupported'; throw er; }
+        await requestCamera();
+        preload();
+        busy = false;
+        return gsf.apply(this, arguments);
+      } catch (e) {
+        busy = false;
+        const denied = e && e.name === 'NotAllowedError';
+        if (denied) denyCount++;
+        const why = denied
+          ? '<b>Camera access was blocked.</b> This exam needs your camera. Allow it from the camera icon in the address bar (or your phone\u2019s browser settings), then press the button again.'
+          : `<b>Your camera could not start</b> (${escH(e && (e.message || e.name) || 'unknown error')}). Close other apps that use the camera, then press the button again.`;
+        const allowSkip = !denied || denyCount >= 2;
+        acwMessage(why + (allowSkip ? '<br><button class="btn btnS sm" type="button" id="efcam-skip">Continue without camera (your teacher will be notified)</button>' : ''));
+        const sk = $id('efcam-skip');
+        if (sk) sk.onclick = () => { camUnavailable = true; acwMessage(''); gsf.call(window); };
+      }
+    };
+    w.__efcam = true;
+    window.goStudentForm = w;
+  }
+}
+install();
+window.EFCam = { version: 1, start, stop, preload, get running() { return running; } };
+
+})();
+</script>
 <script type="importmap">
 {"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}
 </script>
