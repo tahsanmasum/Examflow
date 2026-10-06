@@ -61,17 +61,23 @@
 <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+/* Desktop display scale: renders the whole site at 85%, like browser zoom at 85%.
+   To change it, edit both .85 values below (e.g. .8 for 80%). Viewport units in this
+   file are divided by --efz so full-screen sections still fill the screen. */
+:root{--efz:1}
+@media (min-width:1100px){@supports (zoom:1){:root{--efz:.85}html{zoom:.85}}}
+
 .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
 :root{--ink:#0f0e0d;--ink2:#3a3834;--ink3:#7a7670;--paper:#faf9f6;--paper2:#f0ede6;--paper3:#e4dfd5;--ac:#c8401a;--ac2:#e8855e;--acbg:#fdf0eb;--ok:#1a6b3a;--okbg:#edf7f2;--warn:#a05c10;--warnbg:#fef7ed;--err:#b01a1a;--errbg:#fdf0f0;--info:#1a4a8a;--infobg:#edf3fd;--r:10px;--rl:16px;--sh:0 1px 3px rgba(15,14,13,.08),0 4px 16px rgba(15,14,13,.06);--shl:0 8px 32px rgba(15,14,13,.12);--fd:'Fraunces',Georgia,serif;--fb:'Plus Jakarta Sans',system-ui,sans-serif;--fm:'JetBrains Mono',monospace;--tr:all .15s cubic-bezier(.4,0,.2,1)}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:15px;scroll-behavior:smooth}
-body{font-family:var(--fb);background:var(--paper);color:var(--ink);line-height:1.6;min-height:100vh;-webkit-font-smoothing:antialiased}
+body{font-family:var(--fb);background:var(--paper);color:var(--ink);line-height:1.6;min-height:calc(100vh / var(--efz,1));-webkit-font-smoothing:antialiased}
 h1{font-family:var(--fd);font-size:2.4rem;line-height:1.15;font-weight:400}
 h2{font-family:var(--fd);font-size:1.7rem;line-height:1.2;font-weight:400}
 h3{font-size:1.05rem;font-weight:600;letter-spacing:-.01em}
 h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3)}
 .hidden{display:none!important}
-.page{display:none;min-height:100vh;flex-direction:column;content-visibility:auto;}
+.page{display:none;min-height:calc(100vh / var(--efz,1));flex-direction:column;content-visibility:auto;}
 .page.active{display:flex}
 /* Navbar */
 .nav{display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:64px;background:#fff;border-bottom:1px solid var(--paper3);position:sticky;top:0;z-index:100}
@@ -348,8 +354,8 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
 /* ─── SCROLL STORY ─── */
 #scroll-story{background:#0a0806;}
 #sticky-scene{background:#0a0806;}
-#pin-wrap{height:300vh;position:relative;}
-#sticky-scene{position:sticky;top:0;height:100vh;overflow:hidden;}
+#pin-wrap{height:calc(300vh / var(--efz,1));position:relative;}
+#sticky-scene{position:sticky;top:0;height:calc(100vh / var(--efz,1));overflow:hidden;}
 #layer-papers,#layer-transform,#layer-digital{
   position:absolute;inset:0;display:flex;
   align-items:center;justify-content:center;
@@ -499,7 +505,7 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
   .mbx{
     width:100%!important;max-width:100%!important;
     border-radius:24px 24px 0 0!important;
-    max-height:88vh;overflow:hidden;
+    max-height:calc(88vh / var(--efz,1));overflow:hidden;
     animation:sheetUp .28s cubic-bezier(.32,0,.67,0)!important;
     display:flex;flex-direction:column;
   }
@@ -644,11 +650,11 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
   --mono:'JetBrains Mono',ui-monospace,monospace;
   background:var(--bg);color:var(--ink);font-family:var(--sans);
   font-weight:400;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
-  position:relative;min-height:100vh;overflow-x:hidden;display:block!important;
+  position:relative;min-height:calc(100vh / var(--efz,1));overflow-x:hidden;display:block!important;
 }
 #pg-landing:not(.active){display:none!important}
 #pg-landing *,#pg-landing *::before,#pg-landing *::after{box-sizing:border-box}
-#three-canvas{position:fixed;inset:0;width:100vw;height:100vh;z-index:1;pointer-events:none}
+#three-canvas{position:fixed;inset:0;width:calc(100vw / var(--efz,1));height:calc(100vh / var(--efz,1));z-index:1;pointer-events:none}
 .grain{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:.35;mix-blend-mode:multiply;
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.06 0 0 0 0 0.04 0 0 0 .14 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
 #pg-landing .ef-page{position:relative;z-index:10}
@@ -678,7 +684,7 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
 .ef-burger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
 .ef-mnav-scrim{position:fixed;inset:0;z-index:48;background:rgba(26,15,10,.32);backdrop-filter:blur(2px);opacity:0;visibility:hidden;transition:opacity .3s,visibility .3s}
 .ef-mnav-scrim.open{opacity:1;visibility:visible}
-.ef-mnav{position:fixed;top:0;right:0;z-index:49;height:100dvh;width:min(82vw,320px);background:var(--bg);border-left:1px solid var(--line-strong);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:6px;padding:88px 20px 28px;transform:translateX(100%);transition:transform .38s cubic-bezier(.22,1,.36,1)}
+.ef-mnav{position:fixed;top:0;right:0;z-index:49;height:calc(100dvh / var(--efz,1));width:min(calc(82vw / var(--efz,1)),320px);background:var(--bg);border-left:1px solid var(--line-strong);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:6px;padding:88px 20px 28px;transform:translateX(100%);transition:transform .38s cubic-bezier(.22,1,.36,1)}
 .ef-mnav.open{transform:translateX(0)}
 .ef-mnav-link{display:flex;align-items:center;gap:12px;font-family:var(--sans);font-size:16px;font-weight:500;color:var(--ink);padding:14px 16px;border-radius:12px;text-decoration:none;cursor:pointer;transition:background .2s}
 .ef-mnav-link span{font-size:18px;width:22px;text-align:center}
@@ -686,13 +692,13 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
 .ef-mnav-cta{margin-top:10px;display:flex;align-items:center;justify-content:center;font-family:var(--sans);font-size:16px;font-weight:600;color:#fff;background:var(--c1);padding:15px 18px;border-radius:12px;text-decoration:none;cursor:pointer;box-shadow:0 8px 24px -8px rgba(200,64,26,.55);transition:transform .2s}
 .ef-mnav-cta:active{transform:scale(.98)}
 
-#pg-landing section.ef-hero{min-height:100vh;display:grid;place-items:center;padding:120px 36px 80px;position:relative}
+#pg-landing section.ef-hero{min-height:calc(100vh / var(--efz,1));display:grid;place-items:center;padding:120px 36px 80px;position:relative}
 .ef-hero-grid{max-width:1280px;margin:0 auto;display:grid;grid-template-columns:1.15fr 1fr;gap:80px;align-items:center;width:100%}
 .ef-hero-text{position:relative;z-index:2}
 .ef-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;background:var(--c3);border:1px solid rgba(200,64,26,.2);border-radius:99px;font-size:12px;color:var(--c1);font-weight:500;font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;margin-bottom:28px}
 .ef-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--c1);box-shadow:0 0 0 4px rgba(200,64,26,.18);animation:efPulse 2s ease-in-out infinite}
 @keyframes efPulse{50%{box-shadow:0 0 0 8px rgba(200,64,26,0)}}
-#pg-landing h1.ef-hero-h{font-family:var(--serif);font-size:clamp(52px,7.4vw,104px);line-height:.92;letter-spacing:-.032em;margin-bottom:28px;color:var(--ink);font-weight:400;font-optical-sizing:auto}
+#pg-landing h1.ef-hero-h{font-family:var(--serif);font-size:clamp(52px,calc(7.4vw / var(--efz,1)),104px);line-height:.92;letter-spacing:-.032em;margin-bottom:28px;color:var(--ink);font-weight:400;font-optical-sizing:auto}
 #pg-landing h1.ef-hero-h em{font-style:italic;font-weight:500;color:var(--c1);position:relative;display:inline-block}
 #pg-landing h1.ef-hero-h em::after{content:'';position:absolute;left:-.02em;right:-.02em;bottom:.06em;height:.085em;background:rgba(200,64,26,.20);z-index:-1;border-radius:4px;transform:scaleX(0);transform-origin:left;animation:efUnderline 1s cubic-bezier(.22,1,.36,1) 1.1s forwards}
 @keyframes efUnderline{to{transform:scaleX(1)}}
@@ -708,11 +714,11 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
 .ef-scroll-line::after{content:'';position:absolute;top:-10px;left:0;width:100%;height:10px;background:var(--bg);animation:efScrollLine 2s linear infinite}
 @keyframes efScrollLine{to{top:100%}}
 
-#pg-landing section.ef-transform-sec{min-height:100vh;padding:160px 36px;position:relative}
+#pg-landing section.ef-transform-sec{min-height:calc(100vh / var(--efz,1));padding:160px 36px;position:relative}
 .ef-sec-wrap{max-width:1180px;margin:0 auto}
 .ef-eyebrow{font-family:var(--mono);font-size:12px;color:var(--c1);text-transform:uppercase;letter-spacing:.16em;margin-bottom:20px;display:flex;align-items:center;gap:12px}
 .ef-eyebrow::before{content:'';width:32px;height:1px;background:var(--c1)}
-#pg-landing h2.ef-sec-h{font-family:var(--serif);font-size:clamp(40px,5.6vw,72px);line-height:1.02;letter-spacing:-.02em;margin-bottom:24px;max-width:900px;font-weight:400}
+#pg-landing h2.ef-sec-h{font-family:var(--serif);font-size:clamp(40px,calc(5.6vw / var(--efz,1)),72px);line-height:1.02;letter-spacing:-.02em;margin-bottom:24px;max-width:900px;font-weight:400}
 #pg-landing h2.ef-sec-h em{font-style:italic;color:var(--c1)}
 .ef-sec-lede{font-size:18px;color:var(--ink-soft);max-width:620px;line-height:1.6;margin-bottom:64px}
 .ef-transform-row{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;margin-top:80px}
@@ -743,7 +749,7 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
 
 #pg-landing section.ef-stats{margin:80px 36px;border-radius:24px;background:#0e0806;color:#fff;padding:80px 56px;position:relative;overflow:hidden}
 #pg-landing section.ef-stats::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 20% 30%,rgba(200,64,26,.22),transparent 50%),radial-gradient(circle at 80% 70%,rgba(232,133,94,.16),transparent 50%);pointer-events:none}
-.ef-stats-h{font-family:var(--serif);font-size:clamp(32px,4vw,52px);line-height:1.05;margin-bottom:64px;max-width:780px;position:relative;font-weight:400}
+.ef-stats-h{font-family:var(--serif);font-size:clamp(32px,calc(4vw / var(--efz,1)),52px);line-height:1.05;margin-bottom:64px;max-width:780px;position:relative;font-weight:400}
 .ef-stats-h em{font-style:italic;color:var(--c2)}
 .ef-stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:48px;position:relative}
 .ef-stat-cell{border-left:1px solid rgba(255,255,255,.12);padding-left:24px}
@@ -763,7 +769,7 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
 .ef-cta-card{max-width:1180px;margin:0 auto;border-radius:24px;padding:80px 64px;background:linear-gradient(135deg,#c8401a 0%,#9b2f12 100%);color:#fff;text-align:center;position:relative;overflow:hidden;box-shadow:0 40px 80px -24px rgba(200,64,26,.4)}
 .ef-cta-card::before{content:'';position:absolute;inset:-1px;background:radial-gradient(circle at 30% 20%,rgba(255,255,255,.15),transparent 50%);pointer-events:none}
 .ef-cta-card::after{content:'EXAMFLOW';position:absolute;bottom:-40px;left:50%;transform:translateX(-50%);font-family:var(--serif);font-size:240px;color:rgba(255,255,255,.06);letter-spacing:-.04em;font-style:italic;pointer-events:none;line-height:1}
-#pg-landing .ef-cta-card h2{font-family:var(--serif);font-size:clamp(40px,5vw,64px);line-height:1.05;margin-bottom:20px;position:relative;font-weight:400}
+#pg-landing .ef-cta-card h2{font-family:var(--serif);font-size:clamp(40px,calc(5vw / var(--efz,1)),64px);line-height:1.05;margin-bottom:20px;position:relative;font-weight:400}
 #pg-landing .ef-cta-card p{font-size:18px;opacity:.85;margin-bottom:36px;max-width:520px;margin-left:auto;margin-right:auto;position:relative}
 .ef-cta-card .efbtn{position:relative}
 .ef-cta-card .efbtn-primary{background:#fff;color:var(--c1)}
@@ -850,7 +856,7 @@ body{background:#faf9f6}
 
 /* ═══ ENHANCED MOBILE OPTIMIZATION ═══ */
 @media(max-width:760px){
-  #three-canvas{height:100vh!important;}
+  #three-canvas{height:calc(100vh / var(--efz,1))!important;}
   #pg-landing nav.ef-top{padding:12px 16px}
   #pg-landing nav.ef-top.scrolled{padding:8px 16px}
   .ef-brand{font-size:18px;gap:8px}
@@ -931,7 +937,7 @@ body{background:#faf9f6}
 @keyframes efHeroIn{to{opacity:1;transform:none}}
 
 /* ══ Admin: read-only teacher view ══ */
-#va-bar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:8500;display:flex;align-items:center;gap:14px;width:max-content;max-width:calc(100vw - 24px);padding:9px 9px 9px 16px;background:var(--ink);color:var(--paper);border-radius:14px;box-shadow:0 18px 48px rgba(15,14,13,.28),0 2px 8px rgba(15,14,13,.18);transform:translateX(-50%);animation:vaIn .42s cubic-bezier(.16,1,.3,1) both}
+#va-bar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:8500;display:flex;align-items:center;gap:14px;width:max-content;max-width:calc(calc(100vw / var(--efz,1)) - 24px);padding:9px 9px 9px 16px;background:var(--ink);color:var(--paper);border-radius:14px;box-shadow:0 18px 48px rgba(15,14,13,.28),0 2px 8px rgba(15,14,13,.18);transform:translateX(-50%);animation:vaIn .42s cubic-bezier(.16,1,.3,1) both}
 #va-bar[hidden]{display:none!important}
 #va-bar .va-dot{width:9px;height:9px;border-radius:50%;background:var(--ac2);box-shadow:0 0 0 4px rgba(232,133,94,.2);flex-shrink:0}
 #va-bar .va-txt{display:flex;flex-direction:column;min-width:0;line-height:1.3}
@@ -1148,7 +1154,7 @@ body.va-on #toastbox{bottom:calc(96px + env(safe-area-inset-bottom,0px))}
   <!-- #21: Manuals -->
   <section style="padding:48px 36px;border-top:1px solid var(--line);text-align:center">
     <div style="font-family:var(--fm);font-size:12px;letter-spacing:3px;color:var(--ac);text-transform:uppercase;margin-bottom:14px">Guides &amp; Manuals</div>
-    <h2 style="font-family:var(--serif);font-weight:400;font-size:clamp(24px,3vw,34px);margin-bottom:22px">How to use ExamFlow</h2>
+    <h2 style="font-family:var(--serif);font-weight:400;font-size:clamp(24px,calc(3vw / var(--efz,1)),34px);margin-bottom:22px">How to use ExamFlow</h2>
     <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap">
       <button class="btn btnP" onclick="openManual('teacher')">📘 Teacher's Manual</button>
       <button class="btn btnS" onclick="openManual('student')">🎓 Student's Manual</button>
@@ -1471,7 +1477,7 @@ Here is my file:</textarea>
 <div class="mbd" id="m-mcq">
   <div class="mbx" style="max-width:640px;">
     <div class="mh"><h3 id="mcq-modal-title">Create MCQ Exam</h3><p style="color:var(--ink3);font-size:.85rem;margin-top:4px">Configure settings and upload your question bank.</p><div class="gline"><span>💡</span><span><b>Steps:</b> ⚙ Settings → 📄 Questions (upload CSV/JSON, paste, AI-convert, or add manually) → 👥 Students (optional) → 👁 Preview → Create. MCQs are auto-graded.</span></div></div>
-    <div class="mb" style="max-height:70vh;overflow-y:auto;">
+    <div class="mb" style="max-height:calc(70vh / var(--efz,1));overflow-y:auto;">
       <div class="tnav" id="mcq-tnav">
         <button class="tb on" onclick="mcqTab('t-cfg',this)">&#9881; Settings</button>
         <button class="tb" onclick="mcqTab('t-qs',this)">&#128196; Questions</button>
@@ -1552,7 +1558,7 @@ Here is my file:</textarea>
 <div class="mbd" id="m-wrt">
   <div class="mbx" style="max-width:640px;">
     <div class="mh"><h3 id="wrt-title">Create Written Exam</h3><p style="color:var(--ink3);font-size:.85rem;margin-top:4px">Students write manually or upload photos. You grade manually.</p><div class="gline"><span>💡</span><span><b>Steps:</b> set duration &amp; schedule → add questions with marks → students type or 📷 upload photo answers → you grade them later in 📡 Monitor.</span></div></div>
-    <div class="mb" style="max-height:70vh;overflow-y:auto;">
+    <div class="mb" style="max-height:calc(70vh / var(--efz,1));overflow-y:auto;">
       <div class="tnav" id="wrt-tnav">
         <button class="tb on" onclick="wrtTab('wt-cfg',this)">&#9881; Settings</button>
         <button class="tb" onclick="wrtTab('wt-qs',this)">&#9997; Questions</button>
@@ -1732,7 +1738,7 @@ Here is my file:</textarea>
         <div class="fg" style="margin-top:10px"><label class="fl">Your one-time password <span>*</span></label><input class="fi" id="review-otp" placeholder="The password you set"></div>
         <button class="btn btnP full" style="margin-top:14px" onclick="openMyScript()">View my script &rarr;</button>
       </div>
-      <div id="review-content" style="display:none;max-height:60vh;overflow-y:auto"></div>
+      <div id="review-content" style="display:none;max-height:calc(60vh / var(--efz,1));overflow-y:auto"></div>
     </div>
     <div class="mf"><button class="btn btnG" onclick="closeM('m-review')">Close</button></div>
   </div>
@@ -1742,7 +1748,7 @@ Here is my file:</textarea>
 <div class="mbd" id="m-manual">
   <div class="mbx" style="max-width:640px">
     <div class="mh"><h3 id="manual-title">Manual</h3></div>
-    <div class="mb"><div id="manual-body" style="max-height:60vh;overflow-y:auto;font-size:.9rem;line-height:1.7;color:var(--ink2)"></div></div>
+    <div class="mb"><div id="manual-body" style="max-height:calc(60vh / var(--efz,1));overflow-y:auto;font-size:.9rem;line-height:1.7;color:var(--ink2)"></div></div>
     <div class="mf"><button class="btn btnP" onclick="closeM('m-manual')">Close</button></div>
   </div>
 </div>
@@ -1763,9 +1769,9 @@ Here is my file:</textarea>
 
 <!-- ══ EDIT EXAM QUESTIONS MODAL ══ -->
 <div class="mbd" id="m-editex">
-  <div class="mbx" style="max-width:860px;width:min(94vw,860px)">
+  <div class="mbx" style="max-width:860px;width:min(calc(94vw / var(--efz,1)),860px)">
     <div class="mh"><h3>&#9998; Edit Exam</h3><p style="color:var(--ink3);font-size:.85rem;margin-top:4px" id="editex-sub"></p><div class="gline"><span>💡</span><span>Everything is pre-filled from when you created the exam. Blank a question’s text to remove it, use <b>+ Add</b> to append new ones. Saving syncs instantly to students.</span></div></div>
-    <div class="mb" style="max-height:70vh;overflow-y:auto">
+    <div class="mb" style="max-height:calc(70vh / var(--efz,1));overflow-y:auto">
       <div style="font-size:.78rem;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px">Exam settings</div>
       <div class="fg" style="margin-bottom:12px"><label class="fl">Course / Title</label><input class="fi" id="editex-course"></div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:12px">
@@ -2190,7 +2196,7 @@ Here is my file:</textarea>
       <p style="color:var(--ink3);font-size:.85rem;margin-top:4px">One exam with both MCQ and written questions. Email, course, and section are shared.</p>
       <div class="gline"><span>💡</span><span><b>Student flow:</b> MCQ phase first (auto-graded) → then the written phase (you grade). Set a separate duration for each part below.</span></div>
     </div>
-    <div class="mb" style="max-height:75vh;overflow-y:auto;">
+    <div class="mb" style="max-height:calc(75vh / var(--efz,1));overflow-y:auto;">
 
       <!-- ── Shared Settings ── -->
       <div style="background:var(--paper2);border-radius:var(--r);padding:14px 16px;margin-bottom:16px;">
@@ -2336,7 +2342,7 @@ Here is my file:</textarea>
 <div class="mbd" id="m-vaq">
   <div class="mbx" style="max-width:640px">
     <div class="mh"><h3 id="vaq-title">Questions</h3><p style="color:var(--ink3);font-size:.85rem;margin-top:4px" id="vaq-sub"></p></div>
-    <div class="mb" id="vaq-body" style="max-height:min(62vh,560px);overflow-y:auto"></div>
+    <div class="mb" id="vaq-body" style="max-height:min(calc(62vh / var(--efz,1)),560px);overflow-y:auto"></div>
     <div class="mf"><button class="btn btnP" onclick="closeM('m-vaq')">Close</button></div>
   </div>
 </div>
@@ -4680,7 +4686,7 @@ function initAnnCanvas(j){
   setSize();
   const ctx=cv.getContext('2d');ctx.strokeStyle='#e01b1b';ctx.lineWidth=3;ctx.lineCap='round';ctx.lineJoin='round';
   let drawing=false;
-  const pos=e=>{const r=cv.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:t.clientX-r.left,y:t.clientY-r.top};};
+  const pos=e=>{const r=cv.getBoundingClientRect();const t=e.touches?e.touches[0]:e;const kx=r.width?cv.width/r.width:1,ky=r.height?cv.height/r.height:1;return{x:(t.clientX-r.left)*kx,y:(t.clientY-r.top)*ky};};
   const start=e=>{drawing=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);e.preventDefault();};
   const move=e=>{if(!drawing)return;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();e.preventDefault();};
   const end=()=>{drawing=false;_annData[_gradQIdx+'_'+j]=cv.toDataURL();};
@@ -5704,7 +5710,7 @@ function injectCss() {
 .efv-btn:active{transform:scale(.97)}
 .efv-btn:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
 #m-efviol .mbx{max-width:640px}
-#m-efviol .mb{max-height:min(66vh,620px);overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain}
+#m-efviol .mb{max-height:min(calc(66vh / var(--efz,1)),620px);overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain}
 .efv-head{display:flex;align-items:center;gap:14px}
 .efv-av{width:44px;height:44px;border-radius:12px;background:var(--acbg);color:var(--ac);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;flex:none}
 .efv-head h3{font-size:1.1rem;line-height:1.2}
@@ -5726,7 +5732,7 @@ function injectCss() {
 .efv-shot{width:96px;height:72px;border-radius:10px;object-fit:cover;cursor:zoom-in;border:1px solid var(--paper3);display:block;background:var(--paper2)}
 .efv-empty{color:var(--ink3);font-size:.86rem;text-align:center;padding:22px 0}
 .efv-zoom{position:fixed;inset:0;z-index:9500;background:rgba(15,14,13,.85);display:flex;align-items:center;justify-content:center;padding:24px;cursor:zoom-out}
-.efv-zoom img{max-width:min(92vw,640px);width:100%;border-radius:14px;image-rendering:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.efv-zoom img{max-width:min(calc(92vw / var(--efz,1)),640px);width:100%;border-radius:14px;image-rendering:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
 .efv-zoom p{position:absolute;bottom:24px;left:0;right:0;text-align:center;color:#fff;font-size:.85rem}
 @media (prefers-reduced-motion:reduce){.efcam-pip,.efcam-sw .tr,.efcam-sw .tr::after,.efcam-perm,.efcam-pip .efcam-st i{transition:none;animation:none}}
 `;
@@ -5859,7 +5865,8 @@ function ensurePip() {
     const dx = e.clientX - sx, dy = e.clientY - sy;
     if (!moved && Math.hypot(dx, dy) < 6) return;
     moved = true; pip.classList.add('drag');
-    pip.style.transform = `translate(${dx}px,${dy}px)`;
+    const zf = (rect && pip.offsetWidth) ? rect.width / pip.offsetWidth : 1; // 0.85 when the page is zoomed
+    pip.style.transform = `translate(${dx / zf}px,${dy / zf}px)`;
   });
   const end = e => {
     if (!down) return; down = false; pip.classList.remove('drag');
@@ -6726,7 +6733,7 @@ function startThreeScene() {
     canvas, alpha: true, antialias: true, powerPreference: 'high-performance'
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.1;
@@ -6892,7 +6899,7 @@ function startThreeScene() {
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(window.innerWidth, window.innerHeight, false);
     const cx = getCenterX(), cy = getCenterY();
     paperGroup.position.set(cx, cy, 0);
     coreGroup.position.set(cx, cy, 0);
