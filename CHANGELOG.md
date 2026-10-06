@@ -1,6 +1,134 @@
 # ExamFlow changelog
 
-How the three recent versions compare, what changed in v38, and why.
+What changed in each version, and why. Newest first.
+
+- **v39** (current): v38 plus camera monitoring, the per-student violations window and SEO.
+- **v38**: v33 plus the admin teacher-dashboard view, every bug fix from the audit, and new security rules. Grade Vision AI is not included.
+- **v36**: v33 plus Grade Vision AI and emailed graded scripts.
+- **v33**: the version before Grade Vision AI. v38 is built on it.
+
+---
+
+## v39: camera monitoring
+
+| | v38 | v39 (current) |
+|---|---|---|
+| Built on | v33 | v38 |
+| File size | 5,406 lines · 584 KB | 7,040 lines · 680 KB |
+| Lines | | 1,647 added · 39 changed · 5 removed |
+| Firebase services used | Auth, Firestore | Auth, Firestore (no new services) |
+| Security rules | | Unchanged (comments added describing the new fields) |
+| Paid APIs or keys | None | None |
+
+<details open>
+<summary><b>Added: camera monitoring</b></summary>
+
+<br>
+
+- **Teacher switch** in Create exam (MCQ, Written, MCQ + Written), Edit exam and the Live Monitor. Off by default. Saved on the exam as `camMon`.
+- **Allowed items** the teacher ticks: calculator, rough paper and notes, books, phone, another laptop, tablet or TV. Another person, talking, leaving the seat and covering the camera are always flagged.
+- **Live rule changes:** students already in the exam receive changes instantly through a listener on the exam document, with a short notice.
+- **Student rules** on *Read before you begin*: what's allowed and not allowed. The camera is requested before the details form, so it never costs exam time. A blocked or missing camera is explained; after a second refusal, or with no camera, the student may continue and the teacher is notified (`CAMERA_ACCESS_DENIED` / `CAMERA_NOT_AVAILABLE`).
+- **Detection, all on the student's device** in three Web Workers:
+  - Face: MediaPipe Face Landmarker. Face count, 3D head pose from the face transform, a looking-down signal, mouth movement for talking, eye glances.
+  - Objects: EfficientDet-Lite0 (phone, book, laptop, TV), Hand Landmarker, a second detection pass zoomed around the hands, a phone-vs-calculator classifier (EfficientNet-Lite0 plus a key-grid pattern check), and a paper and handwriting detector that learns the background during calibration.
+  - Identity: face-api.js face descriptors, checked every 2 seconds and right after the face reappears or the tab regains focus.
+- **Alerts** use the existing `logViol()`, so they appear in the violation count, flag the student, sort under "Most violations" and export to CSV like any other violation. Each alert saves a 128×96 snapshot (`camShots`, last 12 kept).
+- **Student preview:** a small camera window in a corner. It can be dragged to any corner (the position is remembered) and tapped to shrink. It turns amber with "Look at the screen" before an alert is sent.
+- **Written answers:** paper is always allowed in written exams and in the written part of a combined exam, because students photograph handwritten answers.
+- **Combined exams:** the camera stays on between the MCQ and written parts, and switches off after submission.
+
+</details>
+
+<details>
+<summary><b>Accuracy and speed decisions</b></summary>
+
+<br>
+
+- Head turn: 20° from the calibrated position for 0.25 s counts as a turn; 1.5 s raises *Looking away*; 3 turns within 30 s raise *Repeated head turning*. Shorter twitches are ignored.
+- The straight-ahead angle slowly follows posture changes while the student is settled, so leaning back is not a turn.
+- Looking down for 2 s raises *Looking down*, unless rough paper or a calculator is allowed.
+- *Face not visible* waits 4 s instead of 1.5 s when rough paper or a calculator is allowed.
+- A second face triggers after 0.5 s; a second body without a face must stay for 1 s more, so posters and reflections don't count.
+- Books on a shelf or a TV behind the student that were visible during calibration are ignored unless the student touches them.
+- An alert that stays on, such as a phone left in view, is reported again every 45 s with a new snapshot.
+- Frames are passed to the workers as zero-copy `VideoFrame`s (with an `ImageBitmap` fallback). Each model is warmed up while loading. The check rate adapts to each device; without worker support it falls back to the main thread at a lower rate so the exam stays smooth.
+- Models start downloading on *Read before you begin*. Students download about 30 MB once; the browser caches it.
+
+</details>
+
+<details>
+<summary><b>Changed: Live Monitor</b></summary>
+
+<br>
+
+- Each student's **violations badge is now a button**. It opens a window with only that student's violations, newest first, with readable labels, times, question numbers and camera snapshots (tap to enlarge). Tabs: All, Camera, Browser, Camera notes. The window updates live.
+- The sidebar's combined **Violation log** is now a **Flagged students** list: one row per student with their count and latest violation. A row opens that student's window.
+- A **📷 Camera monitoring** card under the stats shows the switch, allowed items, cameras on, blocked cameras and the total of camera alerts. It doesn't list individual alerts.
+- Violation labels moved into one shared function, `_violLabel()`, used by the sidebar and the student window.
+
+</details>
+
+<details>
+<summary><b>Added: SEO</b></summary>
+
+<br>
+
+- Title shortened to fit search results (55 characters), description to 151 characters, expanded keywords (including Bangla terms).
+- Inline SVG favicon (there was none).
+- `hreflang`, sitemap link, `og:image:type`, `twitter:image:alt`; duplicate theme-color and mobile meta tags removed.
+- The three JSON-LD blocks merged into one connected graph: WebSite, WebPage, Organization (with founder), SoftwareApplication, FAQPage.
+- A screen-reader-only keyword phrase in the hero heading (no visual change), alt text on images, and a `<noscript>` summary for crawlers that don't run JavaScript.
+- New `robots.txt` and `sitemap.xml`.
+
+</details>
+
+<details>
+<summary><b>Fixed during the camera work</b></summary>
+
+<br>
+
+- The camera setting could only be turned on from the Live Monitor, so teachers didn't find it. It's now in Create exam and Edit exam.
+- Old long links (`?ed=`) dropped the camera setting. The student page now fetches the latest setting from Firestore before starting.
+- Written exams would have flagged answer paper as notes. Paper is now allowed whenever written answers are expected.
+- The camera setting write now carries `teacherUid`, so it passes the rules even if it reaches Firestore before the exam document.
+- No camera-status write is attempted after submission, when the rules lock the attempt.
+- In the admin's read-only teacher view, the camera switch is refused like every other write.
+
+</details>
+
+<details>
+<summary><b>Known limitations</b></summary>
+
+<br>
+
+- **Snapshots are readable like the rest of an attempt.** `sessions` reads are open by design (signed-out students must resume and review). Planned: move snapshots to a collection only the exam's teacher can read.
+- The camera can't see what is outside its view, such as notes flat on the desk below the screen or a phone held above the laptop.
+- Coloured sticky notes and blank paper are not treated as notes; the detector looks for white or grey paper with writing.
+- Chewing can look like talking.
+- The exam answer key still reaches the student's browser (unchanged from v38).
+
+</details>
+
+### Tests run for v39
+
+The real `index.html` was run in a simulated browser with Firestore replaced by an in-memory stand-in:
+
+| Area | Checks |
+|---|---|
+| Create and edit exam, Live Monitor card, per-student violations window, Flagged students list | 31 |
+| Student flow: rules page, camera errors, continue without a camera, exams without a camera unchanged | 10 |
+| Existing anti-cheat (tab switch, copy, paste, cut, right-click, shortcuts, screenshot) with camera off and on | 41 |
+| Detection logic frame by frame: calibration, natural movement, sustained and repeated head turns, twitches, looking down, allowed paper, written exams, posture drift | 11 |
+| Admin read-only view refuses camera changes | 2 |
+| Head-pose math against known angles in both matrix layouts | 5 |
+| Notes detector and phone-vs-calculator pattern on synthetic frames | 7 |
+
+Not covered by automated tests: the models themselves on a real webcam. Use the 2-minute checklist in the README.
+
+---
+
+# Earlier versions
 
 - **v33**: the version before Grade Vision AI. v38 is built on it.
 - **v36**: v33 plus Grade Vision AI and emailed graded scripts.
@@ -10,7 +138,7 @@ How the three recent versions compare, what changed in v38, and why.
 
 ## Version comparison
 
-| | v33 | v36 | v38 (current) |
+| | v33 | v36 | v38 |
 |---|---|---|---|
 | Built on | — | v33 | v33 |
 | File size | 5,063 lines · 559 KB | 6,835 lines · 656 KB | 5,405 lines · 583 KB |

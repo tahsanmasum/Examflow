@@ -83,6 +83,10 @@ service cloud.firestore {
     // Every exam carries teacherUid (backfill: 87 already set, 3 fixed,
     // 0 orphans), so the old "legacy exam with empty teacherUid" exception is
     // gone, and a teacher cannot hand an exam over to another account.
+    // Camera monitoring (v39) stores its setting on this document as
+    //   camMon: { on: bool, allow: { calculator, roughPaper, books, phone, screens } }
+    // It is written by the owning teacher like any other exam field (with
+    // teacherUid included), so the rules below already cover it.
     match /exams/{token} {
       allow get:  if true;
       allow list: if isAdmin()
@@ -108,6 +112,13 @@ service cloud.firestore {
     //   · used-roll check            where('examToken','==',TOKEN)
     // The one-time password is checked in the browser after the read, so the
     // read itself cannot be gated. This is the widest permission, by design.
+    // Camera monitoring (v39) adds three fields to an attempt, written by the
+    // student's browser before submission, so the update rule below covers them:
+    //   violations[]  entries of type CAMERA_*   (through the existing logViol)
+    //   camShots[]    up to 12 small JPEG snapshots (128x96, about 4 KB each)
+    //   camStatus     { state: 'on' | 'denied' | 'unavailable' | 'off', t }
+    // Because reads here are open (see below), camShots are as readable as the
+    // rest of the attempt. See README, "Security model".
     match /sessions/{sessionId} {
       allow get, list: if true;
 
