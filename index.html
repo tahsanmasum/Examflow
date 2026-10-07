@@ -79,6 +79,8 @@ h4{font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.07
 .hidden{display:none!important}
 .page{display:none;min-height:calc(100vh / var(--efz,1));flex-direction:column;content-visibility:auto;}
 .page.active{display:flex}
+/* Exam pages: no containment, so the fixed red warning banner stays on screen when a student has scrolled */
+#pg-exam.active,#pg-wexam.active{content-visibility:visible}
 /* Navbar */
 .nav{display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:64px;background:#fff;border-bottom:1px solid var(--paper3);position:sticky;top:0;z-index:100}
 .brand{font-family:var(--fd);font-size:1.35rem;color:var(--ink);text-decoration:none;display:flex;align-items:center;gap:10px}
@@ -5108,7 +5110,8 @@ function engineFactory() {
   let fa = null, net = null, idBackend = '';
   let tsFace = 0, tsDet = 0, tsHand = 0;
   const clock = () => performance.now();
-  const nextTs = (last, t) => Math.max(Math.round(t), last + 1);
+  // Frame timestamps only need to increase per task; keep them above any timing-run timestamps.
+  const nextTs = (last, t) => Math.max(Math.round(t) + 2e9, last + 1);
   const dims = s => s.videoWidth !== undefined ? [s.videoWidth, s.videoHeight] : s.displayWidth !== undefined ? [s.displayWidth, s.displayHeight] : [s.width, s.height];
   const clamp01 = v => Math.min(1, Math.max(0, v));
   const iou = (a, b) => { const x1 = Math.max(a.x, b.x), y1 = Math.max(a.y, b.y), x2 = Math.min(a.x + a.w, b.x + b.w), y2 = Math.min(a.y + a.h, b.y + b.h); const i = Math.max(0, x2 - x1) * Math.max(0, y2 - y1); return i / (a.w * a.h + b.w * b.h - i + 1e-9); };
@@ -5119,27 +5122,47 @@ function engineFactory() {
     mp = await import(urls.mp);
     vision = await mp.FilesetResolver.forVisionTasks(urls.wasm);
   }
-  async function make(Cls, opts) {
-    try {
-      return { t: await Cls.createFromOptions(vision, { ...opts, baseOptions: { ...opts.baseOptions, delegate: 'GPU' } }), d: 'GPU' };
-    } catch (e) {
-      return { t: await Cls.createFromOptions(vision, { ...opts, baseOptions: { ...opts.baseOptions, delegate: 'CPU' } }), d: 'CPU' };
-    }
+  // Create a task on the GPU, or the CPU if the GPU fails. With a bench function, also time both and keep
+  // the faster one: some machines only have a software GPU, where the CPU path is many times quicker.
+  async function make(Cls, opts, bench) {
+    const build = d => Cls.createFromOptions(vision, { ...opts, baseOptions: { ...opts.baseOptions, delegate: d } });
+    let gpu = null;
+    try { gpu = await build('GPU'); } catch (e) { gpu = null; }
+    if (!gpu) return { t: await build('CPU'), d: 'CPU' };
+    if (!bench) return { t: gpu, d: 'GPU' };
+    const time = t => { try { bench(t); const a = clock(); bench(t); bench(t); return (clock() - a) / 2; } catch (e) { return Infinity; } };
+    const gMs = time(gpu);
+    if (gMs < 60) return { t: gpu, d: 'GPU' };
+    let cpu = null;
+    try { cpu = await build('CPU'); } catch (e) { cpu = null; }
+    if (!cpu) return { t: gpu, d: 'GPU' };
+    const cMs = time(cpu);
+    if (cMs < gMs) { try { gpu.close(); } catch (e) { /* ignore */ } return { t: cpu, d: 'CPU' }; }
+    try { cpu.close(); } catch (e) { /* ignore */ }
+    return { t: gpu, d: 'GPU' };
   }
+  let benchCanvas = null;
+  function benchImage() {
+    if (!benchCanvas) { benchCanvas = new OffscreenCanvas(320, 240); const x = benchCanvas.getContext('2d'); x.fillStyle = '#777'; x.fillRect(0, 0, 320, 240); }
+    return benchCanvas;
+  }
+  let benchTs = 1e9; // timestamps for timing runs, far ahead of real frame timestamps
+  const benchVideo = t => t.detectForVideo(benchImage(), ++benchTs);
   async function loadDetector(which) {
     if (det) { try { det.close(); } catch (e) { /* ignore */ } det = null; }
     if (detCrop) { try { detCrop.close(); } catch (e) { /* ignore */ } detCrop = null; }
     const r = await make(mp.ObjectDetector, {
       baseOptions: { modelAssetPath: urls.obj[which] },
       runningMode: 'VIDEO', maxResults: 10, scoreThreshold: 0.2, categoryAllowlist: ALLOW
-    });
-    det = r.t; detDelegate = r.d; tsDet = 0;
+    }, benchVideo);
+    det = r.t; detDelegate = r.d; tsDet = benchTs;
+    const useCpu = r.d === 'CPU';
     // Second instance used on a zoomed crop around the hands, where phones and calculators are small.
     try {
-      detCrop = (await make(mp.ObjectDetector, {
-        baseOptions: { modelAssetPath: urls.obj[which] },
+      detCrop = await mp.ObjectDetector.createFromOptions(vision, {
+        baseOptions: { modelAssetPath: urls.obj[which], delegate: useCpu ? 'CPU' : 'GPU' },
         runningMode: 'IMAGE', maxResults: 6, scoreThreshold: 0.25, categoryAllowlist: ALLOW
-      })).t;
+      });
     } catch (e) { detCrop = null; }
   }
 
@@ -5528,9 +5551,9 @@ function engineFactory() {
           runningMode: 'VIDEO', numFaces: 2,
           minFaceDetectionConfidence: 0.5, minFacePresenceConfidence: 0.5, minTrackingConfidence: 0.5,
           outputFaceBlendshapes: true, outputFacialTransformationMatrixes: true
-        });
-        face = r.t; faceDelegate = r.d;
-        warmUp(c => { tsFace = nextTs(tsFace, performance.now()); face.detectForVideo(c, tsFace); });
+        }, benchVideo);
+        face = r.t; faceDelegate = r.d; tsFace = benchTs;
+        warmUp(c => { tsFace = nextTs(tsFace, tsFace + 1); face.detectForVideo(c, tsFace); });
         return { reply: { delegate: faceDelegate } };
       }
       if (msg.kind === 'objects') {
@@ -5544,13 +5567,13 @@ function engineFactory() {
           const h = await make(mp.HandLandmarker, {
             baseOptions: { modelAssetPath: urls.hand }, runningMode: 'VIDEO', numHands: 2,
             minHandDetectionConfidence: 0.5, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5
-          });
-          hands = h.t; handDelegate = h.d;
+          }, benchVideo);
+          hands = h.t; handDelegate = h.d; tsHand = benchTs;
         } catch (e) { hands = null; }
         warmUp(c => {
           const t = performance.now();
-          if (det) { tsDet = nextTs(tsDet, t); det.detectForVideo(c, tsDet); }
-          if (hands) { tsHand = nextTs(tsHand, t); hands.detectForVideo(c, tsHand); }
+          if (det) { tsDet = nextTs(tsDet, tsDet + 1); det.detectForVideo(c, tsDet); }
+          if (hands) { tsHand = nextTs(tsHand, tsHand + 1); hands.detectForVideo(c, tsHand); }
           if (detCrop) detCrop.detect(c);
           if (cls) cls.classify(c);
         });
@@ -5667,7 +5690,7 @@ function injectCss() {
 .efcam-pip.min{width:48px;border-radius:50%}
 .efcam-pip.min video{aspect-ratio:1}
 .efcam-pip.min .efcam-st,.efcam-pip.min .efcam-cal{display:none}
-@media (max-width:760px){.efcam-pip{width:118px}}
+@media (max-width:760px){.efcam-pip{width:118px}body.efcam-live #pg-exam .exam-main,body.efcam-live #pg-wexam main{padding-bottom:calc(240px + env(safe-area-inset-bottom,0px))!important}}
 .efcam-lists{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
 @media (max-width:480px){.efcam-lists{grid-template-columns:1fr}}
 .efcam-lists b{display:block;font-size:.8rem;margin-bottom:4px;color:var(--ink)}
@@ -5706,6 +5729,7 @@ function injectCss() {
 .efcam-stat{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
 .efcam-hint{font-size:.78rem;color:var(--ink3);margin-top:10px}
 .efv-btn{border:0;cursor:pointer;font-family:inherit;transition:transform .12s cubic-bezier(.22,1,.36,1),filter .15s}
+.bx.efv-btn{white-space:nowrap}
 .efv-btn:hover{filter:brightness(.96)}
 .efv-btn:active{transform:scale(.97)}
 .efv-btn:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
@@ -5854,6 +5878,8 @@ function ensurePip() {
   pip.title = 'Exam camera. Tap to shrink, drag to move.';
   pip.innerHTML = '<video playsinline muted autoplay></video><div class="efcam-cal" hidden>Look at the screen</div><div class="efcam-st"><i></i><span>Camera on</span></div>';
   video = pip.querySelector('video');
+  // While the preview is showing, phones get extra room at the end of the exam (see the CSS above).
+  new MutationObserver(() => document.body.classList.toggle('efcam-live', !pip.hidden)).observe(pip, { attributes: true, attributeFilter: ['hidden'] });
   let corner = 'br';
   try { corner = localStorage.getItem(CORNER_KEY) || 'br'; } catch (e) { /* ignore */ }
   placePip(corner);
@@ -6002,7 +6028,8 @@ function writeStatus(state) {
 }
 
 /* ---------------- per-frame state ---------------- */
-let running = false, phase = 'idle', calib = null, base = null;
+let running = false, phase = 'idle', calib = null, base = null, autoCal = null;
+const DEFAULT_BASE = { yaw: 0, pitch: 0, gaze: 0, mar: 0.03, down: 0.45 };
 const F = { t: 0, ms: 8, count: 0, boxes: [], yaw: 0, pitch: 0, roll: 0, gaze: 0, mar: 0, down: 0, id: null };
 const filt = { yaw: new OneEuro(1.0, 0.05), pitch: new OneEuro(1.0, 0.05), gaze: new OneEuro(1.5, 0.8), down: new OneEuro(1.0, 0.5) };
 const O = { t: 0, ms: 30, persons: 0, screens: 0 };
@@ -6048,6 +6075,18 @@ function onFace(r, now) {
   F.down = filt.down.f(typeof p.down === 'number' && isFinite(p.down) ? p.down : 0.5, now);
   F.roll = p.roll; F.mar = p.mar; F.id = p.id;
   if (phase === 'calibrating' && F.count === 1) { calib.yaw.push(F.yaw); calib.pitch.push(F.pitch); calib.gaze.push(F.gaze); calib.mar.push(F.mar); calib.down.push(F.down); }
+  if (phase === 'monitoring' && autoCal) {
+    // Monitoring started without a clear face (see stepCalibration): learn the baseline as soon as one is seen.
+    if (F.count === 1) {
+      ['yaw', 'pitch', 'gaze', 'mar', 'down'].forEach(k => autoCal[k].push(F[k]));
+      if (autoCal.yaw.length >= 25) {
+        base = { yaw: median(autoCal.yaw), pitch: median(autoCal.pitch), gaze: median(autoCal.gaze), mar: pct(autoCal.mar, 0.3), down: median(autoCal.down) };
+        autoCal = null;
+        if (!R.differentPerson.active) pipState('', 'Camera on');
+      }
+    }
+    return; // no head, eye or mouth alerts until the baseline is known
+  }
   if (phase === 'monitoring') analyseFaceMotion(now);
 }
 function analyseFaceMotion(now) {
@@ -6174,7 +6213,8 @@ function maybeIdentity(now) {
 function evaluate(now) {
   if (phase !== 'monitoring') return;
   const allow = A(); // effective permissions (shadows the teacher setting inside this function)
-  const faceFresh = now - F.t < 400, objFresh = now - O.t < 1200;
+  // Results count as current for a little longer than one inference takes, so slow devices still get alerts.
+  const faceFresh = now - F.t < Math.max(400, F.ms * 2 + 250), objFresh = now - O.t < Math.max(1200, O.ms * 2 + 400);
   const faces = faceFresh ? F.count : 0, persons = objFresh ? O.persons : 0;
   R.cameraStopped.update(cameraLost, now);
   R.cameraBlocked.update(blocked && !cameraLost && objFresh, now);
@@ -6227,6 +6267,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && ru
 function startCalibration() {
   phase = 'calibrating';
   calib = { t0: performance.now(), yaw: [], pitch: [], gaze: [], mar: [], down: [] };
+  autoCal = null;
   enrollUntil = performance.now() + 12000; needBgReset = true;
   resetState(); bgObjs = [];
   pipCal('Look at the screen');
@@ -6237,9 +6278,18 @@ function stepCalibration(now) {
   else pipCal('Look at the screen');
   if (n >= 25 && elapsed >= 2000) {
     base = { yaw: median(calib.yaw), pitch: median(calib.pitch), gaze: median(calib.gaze), mar: pct(calib.mar, 0.3), down: median(calib.down) };
+    autoCal = null;
     phase = 'monitoring';
     pipCal('');
     pipState('', 'Camera on');
+  } else if (elapsed >= 8000) {
+    // Never wait forever: if no single face was seen (student away, dark room), start monitoring now so
+    // "No one at the screen" and object checks run, and learn the baseline once the face appears.
+    if (n >= 8) { base = { yaw: median(calib.yaw), pitch: median(calib.pitch), gaze: median(calib.gaze), mar: pct(calib.mar, 0.3), down: median(calib.down) }; autoCal = null; }
+    else { base = { ...DEFAULT_BASE }; autoCal = { yaw: [], pitch: [], gaze: [], mar: [], down: [] }; }
+    phase = 'monitoring';
+    pipCal('');
+    pipState(autoCal ? 'warn' : '', autoCal ? 'Face the camera' : 'Camera on');
   }
 }
 
@@ -6280,7 +6330,7 @@ async function start() {
 }
 function stop(reason) {
   const was = running || starting;
-  running = false; starting = false; phase = 'idle';
+  running = false; starting = false; phase = 'idle'; autoCal = null;
   resetState();
   releaseCamera();
   if (pip) { pip.hidden = true; pipCal(''); }
@@ -6594,6 +6644,24 @@ function openStudent(s) {
 window.efcamOpenStudent = i => { if (hasS() && Array.isArray(S._monRows)) openStudent(S._monRows[i]); };
 window.efcamOpenStudentAll = i => { if (hasS() && Array.isArray(S._monAll)) openStudent(S._monAll[i]); };
 
+/* ---------------- late start ---------------- */
+// A fast exam load can open the rules page, or resume an exam after a refresh, a moment before this
+// script finishes installing its hooks. Pick up whatever is already on screen.
+function catchUp() {
+  try {
+    const acw = $id('pg-acwarn');
+    if (acw && acw.classList.contains('active') && hasS()) {
+      const ex = S.exams[parseInt(acw.dataset.idx || S.examIdx || 0)];
+      if (ex) { renderAcwBlock(ex); if (camCfg(ex).on) preload(); refreshExamCam(ex, 4000).then(ch => { if (ch && acw.classList.contains('active')) renderAcwBlock(ex); }); }
+    }
+    const acOn = typeof _acOn !== 'undefined' && _acOn;
+    if (acOn && !examLive) {
+      const w = $id('pg-wexam');
+      onExamStart(w && w.classList.contains('active') ? 'acbanner-w' : 'acbanner');
+    }
+  } catch (e) { console.warn('camera catch-up', e); }
+}
+
 /* ---------------- install wrappers ---------------- */
 function wrap(name, after, before) {
   const orig = window[name];
@@ -6701,6 +6769,7 @@ function install() {
   }
 }
 install();
+catchUp();
 window.EFCam = { version: 3, start, stop, preload, openStudent, get running() { return running; } };
 
 })();

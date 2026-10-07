@@ -2,7 +2,7 @@
 
 What changed in each version, and why. Newest first.
 
-- **v39** (current): v38 plus camera monitoring, the per-student violations window and SEO.
+- **v39** (current): v38 plus camera monitoring, the per-student violations window, an 85% desktop display scale and SEO.
 - **v38**: v33 plus the admin teacher-dashboard view, every bug fix from the audit, and new security rules. Grade Vision AI is not included.
 - **v36**: v33 plus Grade Vision AI and emailed graded scripts.
 - **v33**: the version before Grade Vision AI. v38 is built on it.
@@ -14,8 +14,8 @@ What changed in each version, and why. Newest first.
 | | v38 | v39 (current) |
 |---|---|---|
 | Built on | v33 | v38 |
-| File size | 5,406 lines · 584 KB | 7,040 lines · 680 KB |
-| Lines | | 1,647 added · 39 changed · 5 removed |
+| File size | 5,406 lines · 584 KB | 7,116 lines · 685 KB |
+| Lines | | 1,723 added · 59 changed · 13 removed |
 | Firebase services used | Auth, Firestore | Auth, Firestore (no new services) |
 | Security rules | | Unchanged (comments added describing the new fields) |
 | Paid APIs or keys | None | None |
@@ -52,7 +52,8 @@ What changed in each version, and why. Newest first.
 - A second face triggers after 0.5 s; a second body without a face must stay for 1 s more, so posters and reflections don't count.
 - Books on a shelf or a TV behind the student that were visible during calibration are ignored unless the student touches them.
 - An alert that stays on, such as a phone left in view, is reported again every 45 s with a new snapshot.
-- Frames are passed to the workers as zero-copy `VideoFrame`s (with an `ImageBitmap` fallback). Each model is warmed up while loading. The check rate adapts to each device; without worker support it falls back to the main thread at a lower rate so the exam stays smooth.
+- Frames are passed to the workers as zero-copy `VideoFrame`s (with an `ImageBitmap` fallback). Each model is warmed up while loading, and timed on the GPU and the CPU so it keeps whichever is faster on that device. The check rate adapts to each device; without worker support it falls back to the main thread at a lower rate so the exam stays smooth.
+- Calibration never waits forever: if no single face is seen in 8 s, monitoring starts anyway and learns the head and mouth baseline once the face appears.
 - Models start downloading on *Read before you begin*. Students download about 30 MB once; the browser caches it.
 
 </details>
@@ -66,6 +67,17 @@ What changed in each version, and why. Newest first.
 - The sidebar's combined **Violation log** is now a **Flagged students** list: one row per student with their count and latest violation. A row opens that student's window.
 - A **📷 Camera monitoring** card under the stats shows the switch, allowed items, cameras on, blocked cameras and the total of camera alerts. It doesn't list individual alerts.
 - Violation labels moved into one shared function, `_violLabel()`, used by the sidebar and the student window.
+
+</details>
+
+<details>
+<summary><b>Changed: display scale</b></summary>
+
+<br>
+
+- On screens 1100 px and wider, the whole site renders at 85% (like browser zoom at 85%). Phones and tablets stay at 100%; browsers without CSS `zoom` show 100%.
+- Full-screen sections, the 3D background and modal heights are compensated, so they still fill the screen.
+- The red-pen grading canvas and the camera preview drag map the pointer correctly at any scale.
 
 </details>
 
@@ -94,6 +106,12 @@ What changed in each version, and why. Newest first.
 - The camera setting write now carries `teacherUid`, so it passes the rules even if it reaches Firestore before the exam document.
 - No camera-status write is attempted after submission, when the rules lock the attempt.
 - In the admin's read-only teacher view, the camera switch is refused like every other write.
+- With no face in view at the start, calibration waited forever and nothing was flagged. It now starts after 8 s.
+- On machines with only a software GPU, detection ran several seconds per frame. Each model now uses the faster of GPU and CPU.
+- If the camera script finished loading after the rules page or a resumed exam was already on screen, the camera never started. It now picks up from there.
+- The Flagged students list overflowed on long alert names; rows now wrap.
+- On phones, the expanded camera preview could sit on top of **Next**. The end of the exam page now has room to scroll the buttons above it.
+- **Existing bug:** on phones, the red warning banner (tab switch, right-click and camera alerts) went off screen once the student had scrolled, because the exam page's `content-visibility` made it the banner's containing block. The exam pages now opt out, so the banner stays at the top.
 
 </details>
 
@@ -112,19 +130,17 @@ What changed in each version, and why. Newest first.
 
 ### Tests run for v39
 
-The real `index.html` was run in a simulated browser with Firestore replaced by an in-memory stand-in:
+**Final build, in real Chromium** (fake camera, the real MediaPipe and face-api.js models running in Web Workers, Firestore replaced by an in-memory stand-in): **37 of 37 checks passed.**
 
 | Area | Checks |
 |---|---|
-| Create and edit exam, Live Monitor card, per-student violations window, Flagged students list | 31 |
-| Student flow: rules page, camera errors, continue without a camera, exams without a camera unchanged | 10 |
-| Existing anti-cheat (tab switch, copy, paste, cut, right-click, shortcuts, screenshot) with camera off and on | 41 |
-| Detection logic frame by frame: calibration, natural movement, sustained and repeated head turns, twitches, looking down, allowed paper, written exams, posture drift | 11 |
-| Admin read-only view refuses camera changes | 2 |
-| Head-pose math against known angles in both matrix layouts | 5 |
-| Notes detector and phone-vs-calculator pattern on synthetic frames | 7 |
+| Teacher: 85% scale, Create exam camera switch, saving `camMon` with `teacherUid`, Edit exam load and save, Live Monitor card, violations button on every row, one student's window (newest first, with snapshots), Flagged students wrapping, admin read-only refusal | 16 |
+| Normal exam (camera off): no camera box, details form, exam page, tab switch / right-click / copy logged, flagged overlay, no preview, submit | 8 |
+| Camera exam: camera box, details form, exam page, anti-cheat still logged, **real detection flags an empty camera** (*No one at the screen*), status and snapshot saved, room for the preview on phones, banner visible after scrolling, all three detectors in workers, submit, camera off after submitting | 13 |
 
-Not covered by automated tests: the models themselves on a real webcam. Use the 2-minute checklist in the README.
+**Earlier builds** were also checked in a simulated browser (create and edit, monitor, student flow, anti-cheat with camera on and off, head-turn logic frame by frame, head-pose math, notes and phone-vs-calculator patterns): 96 checks.
+
+Not covered: every real-world camera, lighting and phone model. Run a 2-minute test exam on a real phone and laptop before a real one.
 
 ---
 

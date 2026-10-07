@@ -57,7 +57,7 @@ sequenceDiagram
 ```
 
 - If the camera is blocked, the student sees how to allow it. After a second refusal, or if no camera exists, **Continue without camera** appears and the teacher gets `CAMERA_ACCESS_DENIED` or `CAMERA_NOT_AVAILABLE`.
-- The preview window can be dragged to any corner (remembered per device) and tapped to shrink. On phones it starts small.
+- The preview window can be dragged to any corner (remembered per device) and tapped to shrink. On phones it starts small, and the end of the exam page gets extra room so scrolling down lifts **Next** and **Submit** above the preview.
 - Real alerts use the exam's existing red banner, with "your teacher has been notified".
 
 ## Detection rules
@@ -138,11 +138,13 @@ flowchart TB
 | `face_recognition_model` | `@vladmandic/face-api` 1.7.15 | Same-person check |
 
 - Libraries: `@mediapipe/tasks-vision` 0.10.14 and `@vladmandic/face-api` 1.7.15 from jsDelivr; models from Google's public model storage. No API keys.
-- Each worker uses the GPU when available and falls back to CPU. If workers aren't available at all, the engines run on the main thread with lower rates (face 10 Hz, objects 2.5 Hz) to keep the exam smooth. A worker that keeps failing on frames is moved to the main thread automatically.
+- Each model is timed on the GPU and, if the GPU looks slow (some machines only have a software GPU), on the CPU too, and keeps whichever is faster. If workers aren't available at all, the engines run on the main thread with lower rates (face 10 Hz, objects 2.5 Hz) to keep the exam smooth. A worker that keeps failing on frames is moved to the main thread automatically.
 - Only one frame is in flight per worker, so lag can't build up. Face checks run as often as the device allows, up to every camera frame; object checks adapt between 3 and 20 per second.
 - Models start loading on *Read before you begin* (camera exams only) and are run once on a blank frame while loading, so GPU shaders are ready before the exam.
 - **Head pose** is read from MediaPipe's facial transformation matrix (layout-independent), with a landmark-based fallback, and smoothed with a One Euro filter.
-- **Calibration** (2 s, at least 25 frames with exactly one face) records the straight-ahead angle, the looking-down ratio, the closed-mouth position, the face identity (2–5 samples), the empty background for the notes detector, and background books, laptops and TVs.
+- **Calibration** (2 s, at least 25 frames with exactly one face) records the straight-ahead angle, the looking-down ratio, the closed-mouth position, the face identity (2–5 samples), the empty background for the notes detector, and background books, laptops and TVs. If no single face is seen within 8 s (student away, dark room), monitoring starts anyway: *No one at the screen* and the object checks run straight away, and the head, eye and mouth baseline is learned as soon as the face appears.
+- **Late start:** if the rules page or a resumed exam is already on screen when the camera script finishes loading, it picks up from there.
+- **Freshness:** a result counts as current for a little longer than one inference takes, so slow devices still raise alerts.
 
 ## Data stored in Firestore
 
@@ -177,7 +179,7 @@ The module is one self-contained `<script>` near the end of `index.html` (`windo
 | `editExam` / `saveEditExam` | Loads and saves the setting (only if validation passed). |
 | `openMonitor` / `renderMon` | Camera card and live updates for the student window. |
 
-The only direct edits to existing code are in `renderMon`: the violations badge became a button, the sidebar became the Flagged students list, and labels moved into `_violLabel()`.
+The only direct edits to existing code are in `renderMon` (the violations badge became a button, the sidebar became the Flagged students list, and labels moved into `_violLabel()`) and one CSS rule that keeps the exam pages free of `content-visibility` containment, so the fixed red warning banner stays on screen after a student scrolls.
 
 ## Tuning
 
@@ -223,6 +225,7 @@ const CFG = {
 | "Your camera could not start" | Another app is using the camera | Close Zoom, Meet, Photo Booth, then try again |
 | Camera never starts | Page opened over `http://` or `file://` | Use HTTPS (Vercel) or `localhost` |
 | Very slow on an old phone | No worker or GPU support, so it runs on the main thread | Expected; rates are lowered automatically |
+| The preview covers a button | The student hasn't scrolled to the end | Scroll down (there's extra room for this), drag the preview to another corner, or tap it to shrink |
 | A bookshelf triggers *Book visible* | The shelf wasn't visible during calibration (lighting or camera angle changed) | The student can refresh the page: the exam resumes where it was and the camera recalibrates |
 
 ## Limitations
