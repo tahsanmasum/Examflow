@@ -1,535 +1,287 @@
-<div align="center">
+# ExamFlow v45
 
-<a href="https://examflow-tahcreations.vercel.app"><img src="assets/banner.svg" alt="ExamFlow: run secure exams, effortlessly. MCQ, written and combined exams with live monitoring and anti-cheat. Students never need an account." width="100%"></a>
+> **Updated build of v45 (still v45).** It adds:
+>
+> - the **GHUM** name and logo in place of TahCreations;
+> - the new admin email, **examflow.live@gmail.com**;
+> - a guide for every feature, opened from wherever you need it;
+> - updated camera and paper-reader guides;
+> - fixes for the bugs found while testing.
+>
+> See [section 0](#0-this-update-ghum-admin-email-guides-and-bug-fixes).
 
-<p>
-<a href="https://examflow-tahcreations.vercel.app"><img alt="Live site" src="https://img.shields.io/badge/live-examflow--tahcreations.vercel.app-c8401a?style=flat-square"></a>
-<img alt="Version v39" src="https://img.shields.io/badge/version-v39-0f0e0d?style=flat-square">
-<a href="#camera-monitoring"><img alt="New: camera monitoring" src="https://img.shields.io/badge/new-camera%20monitoring-c8401a?style=flat-square"></a>
-<img alt="Firebase Auth and Firestore" src="https://img.shields.io/badge/Firebase-Auth%20%2B%20Firestore-f5820d?style=flat-square&logo=firebase&logoColor=white">
-<img alt="Hosted on Vercel" src="https://img.shields.io/badge/hosted%20on-Vercel-000000?style=flat-square&logo=vercel">
-<img alt="No build step" src="https://img.shields.io/badge/build%20step-none-5c564c?style=flat-square">
-<img alt="No paid APIs" src="https://img.shields.io/badge/paid%20APIs-none-5c564c?style=flat-square">
-</p>
+This version makes the paper reader much more accurate on every kind of file:
 
-**Browser-based exams for teachers.** Build an MCQ, written or combined exam, share one link,<br>watch the class live, even through each student's own camera, grade and export.<br>Students never need an account.
+- phone photos;
+- scanned PDFs;
+- typed PDFs;
+- Word files (`.doc` and `.docx`).
 
-<a href="https://examflow-tahcreations.vercel.app"><b>Open the live site</b></a>
-&nbsp;·&nbsp; <a href="#how-an-exam-flows">How it works</a>
-&nbsp;·&nbsp; <a href="#camera-monitoring">Camera</a>
-&nbsp;·&nbsp; <a href="#a-look-inside">Screens</a>
-&nbsp;·&nbsp; <a href="#features">Features</a>
-&nbsp;·&nbsp; <a href="#admin-monitor">Admin</a>
-&nbsp;·&nbsp; <a href="#run-your-own-copy">Run your own</a>
-&nbsp;·&nbsp; <a href="#faq">FAQ</a>
-&nbsp;·&nbsp; <a href="CHANGELOG.md">Changelog</a>
+It also adds the v45 features you asked for: answers found in every form, pages put in order, typed matrices, the maths keyboard and the single upload box.
 
-</div>
+All other features work as before. There is still no API, no AI service and nothing to pay for. Everything runs in the teacher's browser.
 
-<br>
+## What's in this folder
 
-## How an exam flows
-
-<img src="assets/flow.svg" alt="Six steps: create, share, take, monitor, grade, export." width="100%">
-
-<details>
-<summary><b>The student's side, step by step</b></summary>
-<br>
-
-```mermaid
-%%{init: {'theme':'base','themeVariables':{'primaryColor':'#faf9f6','primaryBorderColor':'#c8401a','primaryTextColor':'#0f0e0d','lineColor':'#8a8378','secondaryColor':'#f1ede6','tertiaryColor':'#ffffff','fontSize':'14px'}}}%%
-flowchart TD
-  A([Open the link<br/>or scan the QR]) --> B[Read the<br/>anti-cheat rules]
-  B --> C[Enter name, roll and<br/>a one-time password]
-  B -. camera exam .-> CAM[See what's allowed<br/>and allow the camera]
-  CAM --> C
-  C --> D{Exam window<br/>open?}
-  D -- no --> X([Not open yet,<br/>or closed])
-  D -- yes --> E[Answer questions<br/>progress autosaves]
-  E -. page reloads .-> E
-  E -. device dies .-> F[Switch device<br/>code + password]
-  F --> E
-  E --> G[Submit]
-  G --> H([Score and results])
-  H --> I([Review link<br/>after grading])
-```
-
-- **Reloads are safe.** The student comes back to the same questions in the same shuffled order, with their answers and name intact, and the clock keeps running from the original start.
-- **One attempt per browser,** and no new starts once the window has closed.
-- **Camera exams** ask for the camera before the details form, so permission prompts never eat exam time.
-
-</details>
-
-<details>
-<summary><b>What happens behind the scenes during a live exam</b></summary>
-<br>
-
-```mermaid
-%%{init: {'theme':'base','themeVariables':{'primaryColor':'#faf9f6','primaryBorderColor':'#c8401a','primaryTextColor':'#0f0e0d','lineColor':'#8a8378','actorBkg':'#faf9f6','actorBorder':'#c8401a','signalColor':'#5c564c','fontSize':'14px'}}}%%
-sequenceDiagram
-  autonumber
-  actor T as Teacher
-  participant A as ExamFlow (browser)
-  participant F as Firestore
-  actor S as Student
-  T->>A: Create exam
-  A->>F: Save exam, owned by the teacher
-  T-->>S: Share link or QR code
-  S->>A: Open link, enter details
-  A->>F: Start attempt, autosave answers
-  F-->>A: Live updates in the teacher's Monitor
-  S->>A: Submit
-  A->>F: Final attempt and score
-  T->>A: Grade written answers (red pen)
-  A->>F: Save marks (exam owner only)
-  T->>A: Export CSV or PDF
-```
-
-</details>
-
-<br>
-
-## Camera monitoring
-
-<img src="assets/camera.svg" alt="A student's camera view where a phone appears, the student looks away and a second person walks in; each event is added to that student's violations window on the teacher's Live Monitor." width="100%">
-
-Turn it on for any exam and ExamFlow uses **each student's own camera** to flag a phone, a book or notes, another person, talking, looking away or down, and a different person sitting down. You choose what's allowed on the desk, such as a calculator or rough paper. Everything is checked **on the student's device**: video is never uploaded or recorded, and you get each alert with a small snapshot, filed under that student's name.
-
-<img src="assets/screens/camera-student.webp" alt="Student's phone: the camera rules on Read before you begin, the exam with the camera preview in the corner, and a Phone visible alert" width="100%">
-<p align="center"><sub><b>The student's side.</b> The rules list what's allowed and what isn't, the camera turns on before the details form, and a small preview stays in the corner. It turns amber with <i>Look at the screen</i> before any alert, and red when one is sent.</sub></p>
-
-<table>
-<tr>
-<td width="50%" valign="top" align="center"><img src="assets/screens/camera-create.webp" alt="Create MCQ Exam with Camera monitoring switched on and Calculator allowed" width="100%"><br><sub><b>One switch when you create the exam.</b> Tick what's allowed on the desk; everything else is flagged. Also in Edit exam and the Live Monitor.</sub></td>
-<td width="50%" valign="top" align="center"><img src="assets/screens/camera-violations.webp" alt="Mahmud Hasan's violations window with camera snapshots" width="100%"><br><sub><b>Violations per student.</b> Click a student's <b>violations</b> button to see only theirs, newest first, with the snapshot, time and question.</sub></td>
-</tr>
-</table>
-
-<details>
-<summary><b>Everything it flags</b></summary>
-<br>
-
-| Alert | When | Severity |
-|---|---|---|
-| No one at the screen | No face and no person for 1.5 s | High |
-| Face not visible | Face hidden for 1.5 s (4 s if paper or a calculator is allowed) | Medium |
-| More than one person | A second face, or a second body that stays | High |
-| Different person in front of the camera | The face no longer matches the one seen at the start | High |
-| Phone visible | A phone in view or in hand | High |
-| Calculator visible | Only when calculators aren't allowed | High |
-| Handheld device, could be a phone | An unclear device while calculators are allowed | Medium |
-| Book visible · Notes or paper visible | A book, or paper with writing on it | High |
-| Holding something up to the camera | A hand holding anything that isn't allowed | High |
-| Another screen visible | A laptop, tablet or TV that wasn't there at the start | Medium |
-| Looking away from the screen | Head turned 20° or more for 1.5 s | Medium |
-| Repeated head turning | 3 turns within 30 s | Medium |
-| Looking down, away from the screen | 2 s, unless paper or a calculator is allowed | Medium |
-| Repeated talking | 3 times within 60 s | Medium |
-| Camera covered or too dark · Camera stopped | The picture goes dark or the camera ends | High |
-| Blocked camera access · No camera available | At the start of the exam | High · Medium |
-
-High and medium alerts go into the student's violation log exactly like a tab switch: they flag the student, count in **Most violations**, and appear in the CSV export. Minor moments, like talking once, are kept as snapshots under **Camera notes**.
-
-</details>
-
-<details>
-<summary><b>What teachers can allow</b></summary>
-<br>
-
-| Allowed item | Effect |
+| File | What it is |
 |---|---|
-| Calculator | No alert for a calculator. A device that might be a phone is still flagged. |
-| Rough paper and notes | No alert for paper or notes, and looking down is fine. |
-| Books | No alert for books (open-book exam). |
-| Phone | No alert for phones. |
-| Another laptop, tablet or TV | No alert for extra screens. |
-
-- **Always flagged:** another person, talking, leaving the seat, covering the camera.
-- **Written answers:** in written exams, and the written part of a combined exam, paper is always allowed, because students photograph their handwritten work.
-- **Live changes:** change the rules in the Live Monitor and students already in the exam are told within a second.
-
-</details>
-
-<details>
-<summary><b>How it works</b></summary>
-<br>
-
-```mermaid
-%%{init: {'theme':'base','themeVariables':{'primaryColor':'#faf9f6','primaryBorderColor':'#c8401a','primaryTextColor':'#0f0e0d','lineColor':'#8a8378','clusterBkg':'#f1ede6','clusterBorder':'#e4ded3','fontSize':'14px'}}}%%
-flowchart LR
-  CAM[Student's camera<br/>640×480] --> F
-  subgraph B[Student's browser, three background workers]
-    F[Face<br/>head angle, mouth,<br/>eyes, face count]
-    O[Objects<br/>phone, book, notes,<br/>hands, screens]
-    I[Identity<br/>same person?]
-  end
-  CAM --> O
-  CAM --> I
-  F --> R{{Rules<br/>timing + allowed items}}
-  O --> R
-  I --> R
-  R -- alert + snapshot --> FS[(Firestore<br/>that student's attempt)]
-  FS --> M([Teacher's Live Monitor])
-```
-
-- **Models:** MediaPipe Face Landmarker, EfficientDet-Lite0 object detection, Hand Landmarker and an image classifier (phone vs calculator), plus face-api.js for the same-person check. All open source and free; they load from public CDNs only for camera exams.
-- **Smooth on any device:** detection runs in three Web Workers, so the exam page never waits for it. Each model uses the GPU or the CPU, whichever is faster on that device, and the check rate adapts to the device.
-- **Calibration:** the first 2 seconds learn the student's straight-ahead position, closed mouth, face and empty background, so posters, a bookshelf or a TV behind them aren't flagged. If no face is seen in 8 seconds, monitoring starts anyway and learns once the face appears.
-- **Data:** students download about 30 MB of models once; the browser caches it.
-
-</details>
-
-<br>
-
-## A look inside
-
-<img src="assets/screens/dashboard.webp" alt="Teacher dashboard with stats, sections and the exam list" width="100%">
-<p align="center"><sub><b>Teacher dashboard.</b> Every exam at a glance: status, window, questions, students, and one-click link, monitor, preview and exports.</sub></p>
-
-<img src="assets/screens/monitor.webp" alt="Live monitor with camera monitoring, student progress, flags, score distribution and flagged students" width="100%">
-<p align="center"><sub><b>Live monitor.</b> Progress per student, camera monitoring controls, flags and a score distribution, updating in real time. Each student's violations open in their own window.</sub></p>
-
-<table>
-<tr>
-<td width="50%" valign="top" align="center"><img src="assets/screens/grading.webp" alt="Grading a handwritten answer with the red pen" width="100%"><br><sub><b>Red-pen grading.</b> Mark photographed handwritten answers right on the script.</sub></td>
-<td width="50%" valign="top" align="center"><img src="assets/screens/share.webp" alt="Share exam link with QR code" width="100%"><br><sub><b>One link, one QR.</b> Post it in WhatsApp, Google Classroom or email.</sub></td>
-</tr>
-</table>
-
-<img src="assets/screens/student-mobile.webp" alt="Student view on a phone: anti-cheat rules, details form, and a question" width="100%">
-<p align="center"><sub><b>The student's phone.</b> Anti-cheat rules, then their details, then the exam, with a question map, timer and flags.</sub></p>
-
-<img src="assets/screens/landing.webp" alt="ExamFlow landing page" width="100%">
-<p align="center"><sub><b>The front door.</b> Teachers sign up with email or Google and create their first exam.</sub></p>
-
-<br>
-
-## Features
-
-<table>
-<tr>
-<td width="33%" valign="top">
-
-**Build**
-
-MCQ, written, or combined exams. Import questions from a CSV; a built-in prompt turns any question file into the right format with ChatGPT. Set marks per MCQ, a duration, and an opening and closing time.
-
-</td>
-<td width="33%" valign="top">
-
-**Share**
-
-One link and a QR code per exam. Optional student list, so students pick their name instead of typing it. Questions and options can shuffle per student.
-
-</td>
-<td width="33%" valign="top">
-
-**Watch**
-
-A live monitor with progress, submissions and flags. Every student's violations open in their own window. Search, filter, sort, and see the score distribution form.
-
-</td>
-</tr>
-<tr>
-<td width="33%" valign="top">
-
-**Protect**
-
-Leaving full screen, switching tabs, copy/paste, right-click, blocked shortcuts, screenshot keys and leaving the page are all logged, per student, with a timestamp.
-
-</td>
-<td width="33%" valign="top">
-
-**Grade**
-
-MCQs mark themselves. Written answers get a red-pen layer on photos. Combined exams keep the MCQ marks in the total.
-
-</td>
-<td width="33%" valign="top">
-
-**Export**
-
-Results as CSV, answer scripts as PDF, and a private review link where each student sees only their own graded script.
-
-</td>
-</tr>
-<tr>
-<td width="33%" valign="top">
-
-**See** <sup>new</sup>
-
-Optional camera monitoring through each student's own camera: phones, books, notes, another person, talking, looking away.
-
-</td>
-<td width="33%" valign="top">
-
-**Allow** <sup>new</sup>
-
-Tick what's fine on the desk (calculator, rough paper, books, phone, another screen). Everything else is flagged.
-
-</td>
-<td width="33%" valign="top">
-
-**Review** <sup>new</sup>
-
-Camera alerts arrive with a small snapshot, the time and the question, filed under each student. Video never leaves their device.
-
-</td>
-</tr>
-</table>
-
-<details>
-<summary><b>Everything teachers get</b></summary>
-<br>
-
-- **Three exam types:** MCQ, written, and combined (an MCQ section, then a timed written section). Either section of a combined exam can be left empty.
-- **Scheduling:** an opening time, a closing time (which must come after the opening time) and a duration, or no timer at all. Ended exams can be reopened with a new window.
-- **Drafts, live edits and sections:** save drafts, edit a live exam (students get the change instantly), group exams into sections, and restore deleted exams from the trash.
-- **Camera monitoring:** one switch in Create exam, Edit exam and the Live Monitor, with allowed items. See [Camera monitoring](#camera-monitoring).
-- **Violations per student:** each student's violations button opens a window with only theirs (browser and camera, with snapshots); the sidebar lists **Flagged students**.
-- **Grading safety:** if saving marks fails, you're told instead of seeing "Marks saved".
-- **Safe exports:** in CSV exports, spreadsheet formulas typed into student names are neutralised.
-- Teacher and student manuals, plus an in-app feedback form.
-
-</details>
-
-<details>
-<summary><b>Everything students get</b></summary>
-<br>
-
-- **No account, no install.** Open the link, read the rules, enter your details, start.
-- **Safe to refresh.** Same questions, same shuffled order, answers, name and roll kept, and the clock keeps its original start, so a reload can't reset the timer.
-- **Device switching.** If a phone dies, **Switch device** resumes the same unsubmitted attempt elsewhere with a code and the student's one-time password.
-- **Photo answers.** Handwritten work can be photographed for written questions. Photos are compressed in the browser (a 12-megapixel photo becomes roughly 100–250 KB) and each attempt holds about 700 KB of them. The first photos stay sharp, later ones get smaller, and the student is told when the limit is reached.
-- **Camera exams, clearly explained.** The rules page says what's allowed and what isn't. If the camera is blocked or missing, the student is told how to fix it and can still continue (the teacher is notified). The preview can be dragged to any corner or tapped to shrink.
-- **Clear outcomes.** One submission per browser, no new starts after the window closes, and if a submission can't reach the teacher, the student is told to keep the page open.
-
-</details>
-
-<br>
-
-## Admin Monitor
-
-For the owner only: sign in with the admin email, then avatar menu → **Admin Monitor**.
-
-<img src="assets/screens/admin.webp" alt="Admin Monitor teachers tab with activity status and drop-off flags" width="100%">
-
-| Tab | What you see |
-|---|---|
-| **Overview** | Teachers, exams, attempts in progress, submissions, flags, feedback |
-| **Teachers** | Every teacher's activity status, exams in the last 30 and 90 days, students, last activity, join date, and **View dashboard** |
-| **Exams** | Every exam with its owner, status and attempts; open its sessions, the owner's dashboard, or delete it |
-| **Live & sessions** | Every attempt across the platform |
-| **Feedback** | The inbox from the in-app form |
-
-**Status** is **Active** (used in the last 14 days), **Cooling** (15–30), **Dormant** (31–60), **Churned** (over 60) or **Never used**. **Drop-off** marks teachers who ran 3–6 exams and then went quiet for over 30 days, and sorts them to the top: the people worth asking why they stopped.
-
-### View any teacher's dashboard
-
-<img src="assets/screens/teacher-view.webp" alt="A teacher's dashboard opened read-only from the Admin Monitor, with the Exit to Admin bar" width="100%">
-
-**View dashboard** opens a teacher's dashboard exactly as they see it: their exams, stats, sections and trash, and each exam's monitor with results, violation logs and written answers. The bar at the bottom shows whose dashboard is open; **Exit to Admin** takes you back.
-
-<details>
-<summary><b>How the read-only lock works</b></summary>
-<br>
-
-- **Disabled while viewing:** creating, editing, deleting, restoring, publishing, reopening and ending exams, saving marks, changing camera settings, adding sections, sending feedback and signing out.
-- **Preview becomes a question sheet** with the correct answers ticked. A real preview runs an exam session that would write into their exam.
-- **A safety net on the Firestore SDK** refuses every write while the view is open, even from a code path nobody remembered to guard.
-- **Fresh data every time,** loaded with the same queries their own dashboard runs. Sections are rebuilt from their exams, because each teacher's sections are saved in their own browser.
-
-</details>
-
-<br>
-
-## Under the hood
-
-```mermaid
-%%{init: {'theme':'base','themeVariables':{'primaryColor':'#faf9f6','primaryBorderColor':'#c8401a','primaryTextColor':'#0f0e0d','lineColor':'#8a8378','clusterBkg':'#f1ede6','clusterBorder':'#e4ded3','fontSize':'14px'}}}%%
-flowchart LR
-  T((Teacher)) --> H
-  S((Student)) --> H
-  AD((Admin)) --> H
-  subgraph V[Vercel]
-    H[index.html<br/>one static file]
-  end
-  H <--> AU[Firebase Auth<br/>email + Google]
-  H <--> FS[(Cloud Firestore)]
-  H -. camera exams .-> CV[On-device vision<br/>MediaPipe + face-api.js<br/>in Web Workers]
-```
-
-- **One static file.** `index.html` holds all the markup, styles and scripts. No server of its own, no build step.
-- **Firebase** (compat SDK 10.7.1): Authentication (email/password and Google, with a redirect on phones) and Cloud Firestore.
-- **Libraries from CDNs:** GSAP 3.12.5 and three.js 0.160 for the landing page, plus libraries that load only when needed: jsPDF 2.5.1, qrcodejs 1.0.0, and for camera exams MediaPipe Tasks Vision 0.10.14 and face-api.js 1.7.15.
-- **Display scale:** on screens 1100 px and wider the site renders at 85%, like browser zoom at 85%; phones and tablets stay at 100%.
-- **Hosting:** Vercel, as a static site.
-
-<details>
-<summary><b>Data model</b></summary>
-<br>
-
-| Collection | What it holds | Written by |
-|---|---|---|
-| `teachers/{uid}` | Teacher profile | The teacher, at sign-up |
-| `exams/{token}` | Exam definition, keyed by its share token. Camera exams add `camMon` (on/off and allowed items) | The teacher who owns it |
-| `sessions/{id}` | One student attempt. Camera exams add `CAMERA_*` violations, `camShots` (last 12 snapshots, 128×96) and `camStatus` | The student's browser; the owning teacher when grading |
-| `feedback/{id}` | Feedback form entries | Anyone |
-| `meta/stats` | Visit counter (no personal data) | Any visitor |
-
-Exam sections live in each teacher's browser (localStorage). The browser cache never blocks the app: if it fills up, it's saved without photos (Firestore still has them) and exams keep working.
-
-</details>
-
-<details>
-<summary><b>What's in this repository</b></summary>
-<br>
-
-| File | Purpose |
-|---|---|
-| `index.html` | The entire app, camera monitoring included |
-| `robots.txt`, `sitemap.xml` | Search engine crawling for the live domain |
-| `firestore.rules` | Cloud Firestore security rules |
-| `database.rules.json` | Realtime Database rules; the app doesn't use it, so they deny everything |
-| `firebase.json`, `.firebaserc` | Let the Firebase CLI deploy both rule files to project `examflow-195df` |
-| `assets/` | The images and animations in this README |
-| `docs/camera-monitoring.md` | Camera monitoring in depth: timings, data, tuning, troubleshooting |
-| `CHANGELOG.md` | Version comparison and the reason for every change |
-
-</details>
-
-<details>
-<summary><b>What it costs to run</b></summary>
-<br>
-
-| Piece | Cost |
-|---|---|
-| Vercel Hobby hosting | Free |
-| Firebase Spark plan | Free. Past the daily limits (50,000 reads, 20,000 writes, 1 GB stored), requests pause until the next day instead of billing you |
-| AI or paid APIs | None. ExamFlow calls no AI service and has no email or payment integration |
-| Camera monitoring | Free. Open-source models (MediaPipe: Apache 2.0, face-api.js: MIT) run in each student's browser; there is no server, key or per-use fee |
-
-The biggest reader is the Admin Monitor, which reads every teacher, exam, attempt and feedback entry each time it opens. Camera monitoring adds only a few small writes per student: its status, its alerts and their snapshots.
-
-</details>
-
-<br>
-
-## Run your own copy
-
-1. **Create a Firebase project.** Enable Authentication → Sign-in method → **Email/Password** and **Google**. Create a **Cloud Firestore** database. Realtime Database isn't needed.
-2. **Authorize your domain.** Authentication → Settings → Authorized domains → add the domain you'll host on, such as `your-app.vercel.app`. Google sign-in fails on unlisted domains.
-3. **Point the app at your project.** In `index.html`, replace the config inside `firebase.initializeApp({...})` with your project's web config.
-4. **Set the admin.** Change `const ADMIN_EMAILS` in `index.html` and `adminEmails()` in `firestore.rules`. They must match.
-5. **Publish the rules** (below). Camera monitoring needs no rule changes.
-6. **Deploy on Vercel.** Import this repository → framework preset **Other** → no build command → output directory is the repository root. Every push to `main` redeploys.
-7. **Hosting elsewhere?** Update the domain in `index.html`, `robots.txt` and `sitemap.xml`. The camera needs HTTPS (or `localhost`).
-
-<details>
-<summary><b>Publishing the security rules</b></summary>
-<br>
-
-**From the Firebase Console:** Firestore Database → **Rules** → paste `firestore.rules` → **Publish**. If the project has a Realtime Database, do the same with `database.rules.json` under Realtime Database → **Rules**.
-
-**From the Firebase CLI:**
-
-```bash
-npm install -g firebase-tools
-firebase login
-firebase deploy --only firestore:rules,database
-```
-
-</details>
-
-<br>
-
-## Security
-
-> [!NOTE]
-> **Students never sign in.** Single-exam reads and the `sessions` collection stay open so signed-out browsers can take, resume and review exams. Listing exams is limited to each exam's owner and the admin.
-
-> [!IMPORTANT]
-> **Scores are calculated in the student's browser,** and the exam, answer key included, reaches that browser. There is no server to hide it behind, so a technically skilled student could tamper with their own attempt before submitting. Keep that in mind for high-stakes exams.
-
-- **Submitted attempts are locked.** Only the teacher who owns the exam, or the admin, can change an attempt after it's submitted. Any other account, and any signed-out browser, is refused.
-- **Teachers only touch their own data.** They can read, edit and delete their own exams, and can't hand an exam over to another account.
-- **Student-supplied text is always shown as text.** Names, scores, violation labels, snapshots and photo data can't inject markup or scripts into the monitor, the violations window, the grading screen or the Admin Monitor.
-- **The read-only teacher view is enforced in the app,** not in the rules; the rules keep the admin's delete powers.
-- **Realtime Database is fully locked,** since nothing uses it.
-- **Camera video stays on the student's device.** Frames are analysed in the browser and thrown away; only alerts and up to 12 small snapshots per attempt are saved.
-
-> [!WARNING]
-> **Camera snapshots are as readable as the rest of an attempt.** `sessions` is open to read (students need that to resume and review), so anyone who queries Firestore directly could read the small snapshots too. Students are told on the rules page; turn camera monitoring on only when you need it.
-
-> [!TIP]
-> **Admin rights come from one email,** set in `adminEmails()` and `ADMIN_EMAILS`. Keep that account's sign-in secure.
-
-<br>
-
-## FAQ
-
-<details>
-<summary><b>Do students need an account or an app?</b></summary>
-<br>
-No. They open the link or scan the QR code in any modern browser, on a phone or a computer.
-</details>
-
-<details>
-<summary><b>Does ExamFlow use the camera to watch students?</b></summary>
-<br>
-Only if the teacher turns on <b>camera monitoring</b> for that exam; it's off by default. Students see the rules before they start, and the video is checked on their own device and never uploaded or recorded. The teacher receives alerts with a small snapshot. Without camera monitoring, anti-cheat is based on behaviour (full screen, tab switches, copy/paste, right-click, shortcuts, leaving the page), and the camera opens only when a student taps <b>Take photo</b> to attach handwritten work.
-</details>
-
-<details>
-<summary><b>Can students use a calculator or rough paper in a camera exam?</b></summary>
-<br>
-Yes, if the teacher ticks it. Calculator, rough paper and notes, books, phone and another screen can each be allowed. Paper is always allowed while answering written questions.
-</details>
-
-<details>
-<summary><b>What if a student has no camera, or blocks it?</b></summary>
-<br>
-They're told how to allow it. After a second refusal, or if there's no camera at all, they can continue the exam, and the teacher sees <i>Blocked camera access</i> or <i>No camera available</i> in that student's violations.
-</details>
-
-<details>
-<summary><b>Will camera monitoring slow down a student's phone?</b></summary>
-<br>
-It runs in background workers so the exam stays responsive, picks the GPU or CPU per model (whichever is faster), and checks less often on slower devices. The models are about 30 MB, downloaded once and cached.
-</details>
-
-<details>
-<summary><b>What if a student's phone reloads or dies mid-exam?</b></summary>
-<br>
-A reload brings them back to the same questions in the same order with their answers, and the timer keeps its original start. If the phone dies, <b>Switch device</b> resumes the same attempt on another device with a code and their one-time password.
-</details>
-
-<details>
-<summary><b>How many photos can a student attach?</b></summary>
-<br>
-About 700 KB of photos per attempt, roughly 5–10 phone photos: the first ones stay sharp and later ones get smaller. An attempt is a single Firestore document, which caps at 1 MB.
-</details>
-
-<details>
-<summary><b>Can a student change their score?</b></summary>
-<br>
-Not after submitting: only the exam's teacher or the admin can edit a submitted attempt. Before submitting, a technically skilled student could tamper with their own attempt, because scoring happens in the browser (see <a href="#security">Security</a>).
-</details>
-
-<details>
-<summary><b>Does it cost anything?</b></summary>
-<br>
-Not on Vercel's Hobby plan and Firebase's Spark plan. There are no AI, email or payment services built in, and camera monitoring uses free, open-source models that run in the student's browser. See <b>What it costs to run</b> under <a href="#under-the-hood">Under the hood</a>.
-</details>
-
-<br>
+| `index.html` | ExamFlow v45. |
+| `tessdata/ben.traineddata.gz` | The Bangla + English reading model from v43. It is unchanged. |
+| `tessdata/eng.traineddata.gz` | The English model. It is unchanged. |
+| `firestore.rules` | The security rules with the new admin email. **Must be published** (step 3 below). |
+| `docs/camera-monitoring.md` | The camera guide for the repo, updated for v44 and v45. |
+| `docs/paper-reader.md` | **New.** The paper-reader guide for the repo. |
+| `README-repo.md` | Your repo's README, with GHUM, the admin email and the v40–v45 features. Save it as `README.md` in the repo. |
+| `README.md` | This file: what changed in v45. |
+
+## Putting it live (GitHub → Vercel)
+
+1. In your repo, replace `index.html` and `firestore.rules`, and copy in the `docs` folder.
+2. Rename `README-repo.md` to `README.md` and replace the one in your repo.
+3. **Publish the new rules.** Without this, the Admin Monitor can't load data for the new admin email. Do one of these:
+   - In the Firebase Console, open Firestore Database → Rules, paste in `firestore.rules`, and click **Publish**.
+   - Or run `firebase deploy --only firestore:rules`.
+4. In Firebase Authentication, make sure the account **examflow.live@gmail.com** can sign in: create it with a password, or use Google sign-in with that address.
+5. The `tessdata` folder is the same as in v43 and v44. If it is already in your repo, leave it.
+6. Commit. Vercel deploys it on its own.
 
 ---
 
-<div align="center">
+## 0. This update: GHUM, admin email, guides and bug fixes
 
-**ExamFlow v39** · Built by **TahCreations** · <a href="mailto:hellotahcreations@gmail.com">hellotahcreations@gmail.com</a>
+### GHUM in place of TahCreations
 
-<sub>Full history and the reason behind every change: <a href="CHANGELOG.md">CHANGELOG.md</a></sub>
+- **The logo.** The landing page shows the GHUM logo you sent. On phones it now fills the width of the screen; before, it was held to 280 px and the tagline was too small to read.
+- **The name.** TahCreations is replaced by GHUM everywhere:
+  - the badge under the logo;
+  - the text beside the logo;
+  - the footer ("Built by GHUM · Peace for you. No sleep for them.");
+  - the data search engines read (name, slogan, description);
+  - the repo README.
+- **The old @TahCreations Twitter tags are removed.**
+- **The web address stays the same:** `examflow-tahcreations.vercel.app`. Changing it means renaming the Vercel project. If you do that, also change the address in `index.html`, `robots.txt` and `sitemap.xml`.
 
-</div>
+### Admin email: examflow.live@gmail.com
+
+- Only **examflow.live@gmail.com** sees **🛡️ Admin Monitor** in the menu and can open it.
+- The old email no longer has admin rights. It was tested both ways.
+- The contact email on the site is also examflow.live@gmail.com.
+- **Publish `firestore.rules`** (step 3 above). The admin email lives in two places, the site and the Firestore rules, and both must match.
+
+### Guides for every feature
+
+A new guide library replaces the old two manuals. It has 18 guides, a search box, and links between guides. It works on phones.
+
+| For teachers | For students |
+|---|---|
+| Getting started | Take an exam |
+| Create an MCQ exam | Exams with the camera on |
+| Create a written exam | Written answers and photos |
+| Create an MCQ + written exam | Switch device or carry on after a refresh |
+| **Read a question paper (photo, PDF, Word)**: answer forms, photo tips, limits | See your graded script |
+| **Question pictures and the drawing pad** | |
+| **Maths & science keyboard**: every tab | |
+| **Calculator**: the calculator keys, worked-out answers, calculators under the camera | |
+| **Camera monitoring**: turning it on, allowed items, every alert and its level, privacy | |
+| Live monitor and cheating alerts | |
+| Grading, results and review links | |
+| Edit, reopen and delete exams | |
+| Admin monitor (shown only to the admin) | |
+
+**Where the guides open:**
+
+- **Landing page → Guides & Manuals:** All guides, For teachers, For students, Reading a question paper, Camera monitoring, Maths keyboard, Calculator.
+- **The avatar menu:** 📚 Manuals & guides.
+- **The dashboard tip:** 📚 Guides.
+- **The monitor tip:** Guide.
+- **❔ How it works** beside the camera switch, in every Create and Edit window.
+- **❔ How the paper reader works** under every upload box.
+- **?** on the maths keyboard. It opens the Calculator guide from the Calculator tab, and the keyboard guide from the other tabs.
+- **Student guide** on the students' "Read before you begin" page. Opening it is not flagged.
+
+**Updated for camera monitoring and the paper reader:**
+
+- The camera guide covers the v44 changes:
+  - the four checks run side by side;
+  - a phone held up clearly is flagged at once;
+  - a graphics chip that gives bad results is swapped for the processor.
+- The paper-reader guide covers everything in sections 2 and 3 below.
+- In the repo, `docs/camera-monitoring.md` is updated, and `docs/paper-reader.md` is new.
+- The **"What files can I use?"** window (once "Don't have a CSV? Convert any file with AI") now says to drop the photo, PDF or Word file straight in. Making a CSV with a chat assistant is kept as an optional extra.
+
+### Bugs found and fixed
+
+1. **Live Monitor on phones was wider than the screen.** The page can't scroll sideways, so these could not be reached on a phone:
+   - the 5th count (Avg score);
+   - the "Graded" filter;
+   - the right-hand table columns, including each student's **violations** button;
+   - **End exam early**.
+
+   Now:
+   - the counts sit in rows of three;
+   - the table scrolls inside its card;
+   - the top buttons fit, with the logo mark only on these pages.
+2. **Admin Monitor on phones had the same problem.** Fixed the same way:
+   - the 6 counts sit in rows of three;
+   - the overview cards stack;
+   - the top buttons fit.
+3. **The dashboard's Sections / Trash / Feedback / + Create exam row was cut off on phones.** It now wraps. On very small phones (360 px) the account button showed only partly; it now shows just the avatar.
+4. **Old landing-page animations ran on every page, including students' exam pages.** They targeted about 40 parts of a landing page that was redesigned long ago, and wrote about 100 warnings to the browser console on every load. They no longer run. The console is now clean on the landing, teacher, student and review pages.
+5. **Out-of-date help text.**
+   - The Create MCQ "Steps" line said "AI-convert". It now says to drop a photo, PDF, Word, CSV or JSON file.
+   - The file-help window told teachers to convert photos and PDFs with ChatGPT, although ExamFlow reads them itself.
+
+---
+
+## What was in v45 before this update
+
+Sections 1 to 5 are the v45 notes from before, unchanged except for the new tests in section 5.
+
+## 1. How much better the reader is
+
+Each test compares v44 with v45 on the same files.
+
+### Phone photos and scanned PDFs
+
+12 papers: book pages, test papers and admission-test photos, in Bangla and English. They hold 226 questions, and 192 of them have a known correct answer.
+
+| | v44 | v45 |
+|---|---|---|
+| Questions found | 73 (32%) | **203 (90%)** |
+| Correct answers | 8 (4%) | **159 (83%)** |
+
+For 36 of the 159 answers, some options could not be read (usually formulas). Those questions keep their answer, with empty option boxes for you to type in. ExamFlow will not add them to the exam until the boxes are filled.
+
+### Typed PDFs
+
+For these files a Word version of the same paper exists. The reader's result from the PDF is compared with the Word file.
+
+**60 papers (2,900 questions), used while improving the reader:**
+
+| | v44 | v45 |
+|---|---|---|
+| Questions found | 64% | **84%** |
+| Answers the same as in the Word file | 61% | **98.5%** |
+
+**190 different papers (10,238 questions), not used while improving the reader.** This shows how it does on papers it has never seen:
+
+| | v44 | v45 |
+|---|---|---|
+| Questions found | 75% | **82%** |
+| Answers the same as in the Word file | 67% | **97%** |
+
+The v44 figures are from 50 of these papers, the only ones measured with v44. Over all 190 papers, v45 finds 81% of the questions, and 90% of its answers match the Word file.
+
+### Word files
+
+**622 `.doc` files:**
+
+| | v44 | v45 |
+|---|---|---|
+| MCQs read | 27,070 | **44,811** |
+| MCQs with all their options | 22,430 | **43,254** |
+| MCQs with an answer | 8,168 | **28,207** |
+| Answers that agree with the "Answer:" line in the file | 26% (9 of 34) | **93% (54 of 58)** |
+
+**237 `.docx` files:**
+
+| | v44 | v45 |
+|---|---|---|
+| MCQs read | 12,429 | **12,712** |
+| MCQs with all their options | 11,008 | **11,884** |
+| MCQs with an answer | 3,887 | **8,365** |
+| Answers that agree with the "Answer:" line in the file | 83% | **97%** |
+
+In the `.doc` files, pictures lost on reading fell from 5,584 to 46. The lost pictures were drawings and text boxes.
+
+---
+
+## 2. What changed in the readers
+
+### Photos and scans
+
+- **A number reader that knows printed digits.** The general reader often gets a question number wrong, for example "53." read as "S3." or "৭),". ExamFlow now draws the digits 0–9 and ০–৯ in many fonts on the page itself, and matches each number against them. Nothing is downloaded, and no model was bought or trained elsewhere.
+- **Question numbers that count up.** The numbers on a page run 53, 54, 55… Two kinds of mistake are fixed using this:
+  - a number that breaks the run is not used;
+  - a number that could not be read is filled in from its neighbours.
+- **Answer-key tables are read cell by cell.** This covers keys like "53. d | 54. a | …", "০১. খ", and keys where the number and the letter are in separate cells. Each cell's number and letter is read on its own. Lines of the table the scan lost are put back.
+- **Option letters printed in circles** (ⓚ ⓛ ⓜ ⓝ, Ⓐ Ⓑ Ⓒ Ⓓ) are read by their own reader. Options are also lettered by their order along the line.
+- **Two-column pages with a printed line between the columns** are now read one column at a time.
+- **Question numbers printed in the gap between the columns** now start the right-hand question. Before, they were added to the end of a left-hand line.
+- **Tilted and curled photos.** Number columns that drift across a tilted photo are now followed. Faint or blurred numbers are read better, and digits that run together are split.
+- **Several photos are put in page order** by their question numbers, even when one photo's first number is misread.
+- **An answer key printed inside one column** now goes with the questions in that column.
+- **A page of written questions after the MCQs, numbered from 1 again**, no longer takes the MCQ answer key.
+
+### Typed PDFs
+
+- **Columns** are found from where the text sits on the page. Tables, banners and lines across the page are handled.
+- **Bijoy (SutonnyMJ) text** is found and turned into Unicode on its own.
+- **Ticks and bubbles** printed in symbol fonts are read.
+- **Answers marked by bold, underline, shading or colour** are found.
+- **Page numbers and running headings** are removed.
+- **Subscripts and superscripts** are kept.
+
+### Word files
+
+- **Drawings and text boxes** in both `.doc` and `.docx` are kept, and shapes are drawn into pictures.
+- **Old equation fields** are read, including Bijoy inside equations.
+- **Old WMF/EMF pictures** are drawn by ExamFlow's own picture reader.
+- **More answer forms are found**, such as:
+  - "ঘ ২৮০ টাকা (গ) ✓" (the answer after the last option);
+  - keys written "১।খ ২।ক";
+  - questions with five options.
+
+---
+
+## 3. The v45 features
+
+- **Answers in every form.** The answer comes from whichever of these the paper uses:
+  - an answer grid or table;
+  - a circled letter;
+  - a bold, shaded or coloured option;
+  - a tick;
+  - an "Ans: B" or "উত্তর: (খ)" line.
+- **Pages in question order.** Photos dropped in any order are sorted.
+- **Matrices as typed maths.** They show in the review list and on the student's screen as they will appear.
+- **A maths and science keyboard** for typing questions: fractions, integrals, matrices and chemical formulas.
+- **One upload box.** It takes photos, PDF, Word and CSV.
+
+---
+
+## 4. Honest limits
+
+- **Not 100%.** No reader can be fully accurate on every phone photo. On the test photos, v45 finds 9 of every 10 questions, and gets about 8 of every 10 answers right from the key. Every answer the reader is unsure of is marked for you to check before it is added.
+- **Pages photographed while curled into the book's spine** can lose the edge of the column. In the test photos this lost questions 2–10 on one page.
+- **An answer grid on a strongly curled part of a page** is read only partly. In one test photo, 2 of its 3 rows were lost.
+- **Formulas inside options** are often read badly from photos. The question is kept, and you type the formula in.
+- **A few Word files use old non-Unicode fonts that are not Bijoy**, such as VillageII. These still come out as wrong letters.
+- **The Bangla/English reading models are the same as in v43.** Other models were tried, and none read these papers better, so none is shipped.
+
+## 5. Tests run on this build
+
+All of these ran again on this update, in a real browser (Chromium) with a local Firebase stand-in, and all pass:
+
+| Test | Checks |
+|---|---|
+| Earlier regression tests (camera, anti-cheat, create, monitor, admin) | 37 of 37 |
+| v45 features (page order, answer grids, bold answers, matrices) | 7 of 7 |
+| Paper reader inside ExamFlow | 21 of 21 |
+| Maths keyboard and single upload box | 17 of 17 |
+| Question pictures and drawing, including phone and touch | 25 of 25 |
+| Written answers kept through a refresh | 6 of 6 |
+| Earlier bug fixes | 9 of 9 |
+| MCQ resumed after a refresh | 3 of 3 |
+| **New:** GHUM branding, admin email, every guide and guide button, student guide link, phone layouts | 50 of 50 |
+
+Also on this update:
+
+- **A sweep of every button** on the dashboard, monitor and admin pages, on desktop and phone, as a teacher and as the admin: no errors.
+- **Every window** opened on desktop and phone: none wider than the screen, and no "undefined" or old name on screen.
+- **The browser console** on the landing, teacher, student and review pages: no errors and no warnings from ExamFlow.
+
+The reader's earlier test files were also run again. Every result is the same as v44 or better:
+
+- **16 test papers:** all options, answers and figures correct. One Bangla PDF now also has all its options right.
+- **19 PHY121 answer-sheet photos:** 52 of 73 questions found (v44: 51); 44 with all four options (v44: 43).
+- **5 written papers:** the same questions and marks as v44, plus one question v44 missed.
