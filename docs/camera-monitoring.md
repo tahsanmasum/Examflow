@@ -1,8 +1,11 @@
 # Camera monitoring: technical guide
 
-[← Back to README](../README.md) · Added in **v39**
+[← Back to README](../README.md) · Added in **v39** · updated in **v44** and **v45**
 
 Camera monitoring uses each student's own camera during an exam to flag phones, books, notes, another person, talking, head turning, looking away or down, and a different person taking over. Everything is analysed in the student's browser. Video is never uploaded; only alerts and small snapshots reach the teacher.
+
+> [!NOTE]
+> The same guide is inside ExamFlow, in plain words, for teachers and for students: **❔ How it works** next to the camera switch, **🎥 Camera monitoring** on the landing page, and **Exams with the camera on** in the student guides. This page is the technical version.
 
 ## Contents
 
@@ -70,11 +73,11 @@ Times are how long a condition must last before it counts ("on"), and how long i
 | Face not visible | 🟠 Medium | No face, but a person may be there | 1.5 s (4 s if paper or a calculator is allowed) | 0.4 s |
 | More than one person | 🔴 High | Two faces, or two bodies for 1 s more | 0.5 s | 1.2 s |
 | Different person in front of the camera | 🔴 High | 2 of the last 3 identity checks don't match the calibrated face | immediate | 3 s |
-| Phone visible | 🔴 High | Classified as a phone in 2 of the last 4 object checks | immediate | 1.2 s |
+| Phone visible | 🔴 High | Classified as a phone in 2 of the last 4 object checks, or seen clearly once (detector ≥ 0.70 and the phone-or-calculator check ≥ 0.65) | immediate | 1.2 s |
 | Calculator visible | 🔴 High | Classified as a calculator in 2 of the last 4 checks (only when not allowed) | immediate | 1.2 s |
 | Handheld device, could be a phone | 🔴/🟠 | Unclear device in 3 of the last 5 checks; medium when calculators or phones are allowed | immediate | 1.2 s |
 | Book visible | 🔴 High | Book in 2 of the last 4 checks, not part of the calibrated background | immediate | 1.2 s |
-| Notes or paper visible | 🔴 High | Paper with writing in 3 of the last 5 checks | immediate | 1.2 s |
+| Notes or paper visible | 🔴 High | Paper with writing in 3 of the last 5 notes checks | immediate | 1.2 s |
 | Holding something up to the camera | 🔴 High | A hand overlaps a not-allowed object or paper in 2 of the last 4 checks | immediate | 1.2 s |
 | Another screen visible | 🟠 Medium | Laptop or TV not in the calibrated background | 0.6 s | 1.2 s |
 | Looking away from the screen | 🟠 Medium | Head turned 20° or more | 1.5 s | 0.4 s |
@@ -111,20 +114,26 @@ flowchart TB
     end
     GRAB -->|transfer| W1
     GRAB -->|transfer| W2
+    GRAB -->|transfer| W4
     GRAB -->|crop 150×150| W3
     subgraph W1["Worker: face"]
       FL["Face Landmarker<br/>2 faces · blendshapes · 3D transform"]
     end
     subgraph W2["Worker: objects"]
-      HL["Hand Landmarker"] --> OD["EfficientDet-Lite0<br/>+ zoomed pass around hands"]
+      OD["EfficientDet-Lite0<br/>+ zoomed pass around hands"]
       OD --> CL["EfficientNet-Lite0 classifier<br/>+ key-grid pattern"]
+    end
+    subgraph W4["Worker: notes and hands"]
+      HL["Hand Landmarker"]
       SC["Paper and handwriting detector<br/>(background learned at calibration)"]
     end
     subgraph W3["Worker: identity"]
       FA["face-api.js recognition net<br/>128-value descriptor"]
     end
+    W4 -->|hand boxes| W2
     W1 --> RULES
     W2 --> RULES
+    W4 --> RULES
     W3 --> RULES
     RULES --> UI
 ```
@@ -138,8 +147,9 @@ flowchart TB
 | `face_recognition_model` | `@vladmandic/face-api` 1.7.15 | Same-person check |
 
 - Libraries: `@mediapipe/tasks-vision` 0.10.14 and `@vladmandic/face-api` 1.7.15 from jsDelivr; models from Google's public model storage. No API keys.
-- Each model is timed on the GPU and, if the GPU looks slow (some machines only have a software GPU), on the CPU too, and keeps whichever is faster. If workers aren't available at all, the engines run on the main thread with lower rates (face 10 Hz, objects 2.5 Hz) to keep the exam smooth. A worker that keeps failing on frames is moved to the main thread automatically.
-- Only one frame is in flight per worker, so lag can't build up. Face checks run as often as the device allows, up to every camera frame; object checks adapt between 3 and 20 per second.
+- **Four workers, side by side** (v44). Face, objects, notes-and-hands and identity each run in their own worker at the same time, so no check waits for another. Before v44 the hand finder, the object detector and the notes check shared one worker and ran one after another. If the notes worker can't start, hands and paper go back into the objects worker.
+- Each model is timed on the GPU and, if the GPU looks slow (some machines only have a software GPU), on the CPU too, and keeps whichever is faster. **Checked on real frames** (v44): when the GPU wins, its first 12 real camera frames are watched too. If it finds no face or person at all, or runs much slower than the test said, the model moves to the CPU. Before, a GPU that found nothing could stay for the whole exam and cause endless *Face not visible* alerts, or none for phones. If workers aren't available at all, the engines run on the main thread with lower rates (face 10 Hz, objects 2.5 Hz) to keep the exam smooth. A worker that keeps failing on frames is moved to the main thread automatically.
+- Only one frame is in flight per worker, so lag can't build up. Face checks run as often as the device allows, up to every camera frame; object checks adapt between 3 and 20 per second, and the notes check runs on its own, several times a second. On a slow 2-core test machine one object round takes about 0.19 s and *Notes or paper visible* fires about 3.6 s after notes appear.
 - Models start loading on *Read before you begin* (camera exams only) and are run once on a blank frame while loading, so GPU shaders are ready before the exam.
 - **Head pose** is read from MediaPipe's facial transformation matrix (layout-independent), with a landmark-based fallback, and smoothed with a One Euro filter.
 - **Calibration** (2 s, at least 25 frames with exactly one face) records the straight-ahead angle, the looking-down ratio, the closed-mouth position, the face identity (2–5 samples), the empty background for the notes detector, and background books, laptops and TVs. If no single face is seen within 8 s (student away, dark room), monitoring starts anyway: *No one at the screen* and the object checks run straight away, and the head, eye and mouth baseline is learned as soon as the face appears.

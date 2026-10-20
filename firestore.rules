@@ -9,7 +9,7 @@ rules_version = '2';
 //
 //  Who talks to Firestore:
 //    · Teachers, signed in (email/password or Google) on the ExamFlow site.
-//    · The admin, signed in with the admin email. The Admin Monitor inside
+//    · The admin, signed in with the admin email (examflow.live@gmail.com). The Admin Monitor inside
 //      the app reads every collection and can open any teacher's dashboard.
 //      That teacher view is read-only, and the lock lives in the app itself
 //      (write guards + an SDK-level safety net). These rules still give the
@@ -28,7 +28,7 @@ service cloud.firestore {
 
     // ── helpers ────────────────────────────────────────────────────────
     function adminEmails() {
-      return ['hellotahcreations@gmail.com'];
+      return ['examflow.live@gmail.com'];
     }
     function signedIn() {
       return request.auth != null;
