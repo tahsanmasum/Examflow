@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="examflow-version" content="v46">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ExamFlow: Free Online Exam Maker &amp; Secure Test Platform</title>
 <meta name="description" content="Create secure MCQ &amp; written exams online for free. Share one link, monitor students live, auto-grade instantly, anti-cheat built in. No install needed.">
@@ -1039,6 +1040,17 @@ body.va-on #toastbox{bottom:calc(96px + env(safe-area-inset-bottom,0px))}
 .efq-zwrap{flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:0 12px 16px}
 .efq-zwrap img{background:#fff;border-radius:8px;max-width:none;height:auto}
 @media(max-width:640px){.efr-lang{margin-left:0}.efr-ch .btn{padding:5px 8px}.efq-imgs{margin:-6px 0 14px}}
+/* written questions: parts and marks */
+.efr-parts{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.efr-part{display:flex;align-items:flex-start;gap:6px}
+.efr-pl{font-weight:600;font-size:.84rem;min-width:30px;padding-top:8px;color:var(--ink2)}
+.efr-pta{flex:1;min-width:0;min-height:38px;font-size:.86rem;line-height:1.45;white-space:pre-wrap}
+.efr-pm{display:flex;align-items:center;gap:4px;font-size:.76rem;color:var(--ink3);padding-top:4px}
+.efr-pm .fi{width:64px;padding:6px 6px}
+.efr-marks{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.efr-msrc{font-size:.74rem;color:var(--warn)}
+.efr-addp{margin-left:auto}
+@media(max-width:640px){.efr-part{flex-wrap:wrap}.efr-pta{flex-basis:calc(100% - 40px)}.efr-pm{margin-left:36px}}
 
 /* question pictures in the "Add manually" windows */
 .efqi{border:1.5px dashed var(--paper3);border-radius:var(--r);padding:12px 14px;background:var(--paper);transition:border-color .15s,background .15s}
@@ -5010,7 +5022,7 @@ function _mcqScoreOf(sess,exam){
   snap.forEach((q,i)=>{const v=a['q'+i]!==undefined?a['q'+i]:a[i];if(v!==undefined&&v===q.correct_answer)c++;});
   return c*(exam.marks||1);
 }
-function confirmEndExam(){if(_vaBlock())return;if(confirm('End this exam for all students?')){const exam=S.exams[S.monIdx];if(exam)exam.endTime=Date.now()-1000;saveExams();toast('Exam ended.','warn');renderMon();}}
+function confirmEndExam(){if(_vaBlock())return;if(confirm('End this exam for all students?')){const exam=S.exams[S.monIdx];if(!exam)return;exam.endTime=Date.now()-1000;exam.reopened=false;saveExams();renderMon();db.collection('exams').doc(exam.token).set({endTime:exam.endTime,reopened:false,teacherUid:S.teacher?.uid||''},{merge:true}).then(()=>toast('Exam ended for everyone.','warn')).catch(e=>toast('Ended on this device only — the server did not save it: '+(e&&e.message||e),'err',9000));}}
 
 // ═══ CSV EXPORT ═══
 async function exportCSV(){doExportCSV(S.monIdx);}
@@ -12773,7 +12785,7 @@ function extractKey(F,lineTexts){
 }
 
 /* ───────────── 3. questions ───────────── */
-const QNUM=/^\s*(?:(?:Q(?:uestion|n|s)?|প্রশ্ন)\s*(?:no\.?|নং|নম্বর)?\s*[.\-:#]?\s*)?(?:\(\s*([0-9০-৯]{1,3})\s*\)|([0-9০-৯]{1,3})\s*(?:[.)।:\]]|\s[-–]\s))\s*/i;
+const QNUM=/^\s*(?:(?:Q(?:uestion|n|s)?|প্রশ্ন)\s*(?:no\.?|নং|নম্বর)?\s*[.\-:#]?\s*)?(?:\(\s*([0-9০-৯]{1,3})\s*\)|([0-9০-৯]{1,3})\s*(?:[.)।:\]]|\s[-–]\s|\s?[▸►▶➤➢](?=\s|$)))\s*/i;
 const QNUM_OCR1=/^\s*[lI|]\s*[.)]\s+(?=\S)/;
 const LAT_LOOK={'J':[3],'j':[3],'Z':[2],'z':[2],'S':[5,8],'s':[5],'$':[5,8],'G':[6],'T':[7],'?':[7],'&':[8],'g':[9],'q':[9],'h':[4]};  /* never an option letter (a–e, A–E) */
 /* Bangla question numbers misread by the OCR: "১।"→"S|", "৪।"→"81" or "৪8।", "১৪।"→"481".
@@ -12815,12 +12827,18 @@ function numberAt(text,expect){
     /* the danda was lost altogether: "২ একটি ত্রিভুজের…" when question ২ is next */
     /* …or the number itself came out as look-alikes: "8 চিত্রে…" for "৪। চিত্রে…" */
     const b=/^\s*([০-৯0-9SBRQVG]{1,3})\s+(?=[\u0980-\u09FF])/.exec(text);
-    if(b&&text.trim().length>=12&&(+toLatinDigits(b[1])===expect||(b[1].length===String(expect).length&&[...b[1]].every((c,k)=>(LOOK[c]||[]).includes(+String(expect)[k])))))return {n:expect,len:b[0].length,ocr:true};}
+    if(b&&text.trim().length>=12&&(+toLatinDigits(b[1])===expect||(b[1].length===String(expect).length&&[...b[1]].every((c,k)=>(LOOK[c]||[]).includes(+String(expect)[k])))))return {n:expect,len:b[0].length,ocr:true};
+    /* a book's "৭ ▸" read by the camera as "৭ P", "৭ )", "১ h", sometimes after the last mark of the other column ("8 ৭ ) x = …"),
+       or the number straight before a stem's "(i)" — only the number expected next */
+    const c=/^\s*(?:[0-9০-৯]\s+)?([০-৯]{1,2})\s*(?:[।|]\s*)?(?:[)Pyhb▸>»]\s+|(?=\(i\)\s))(?=\S)/.exec(text);
+    if(c&&+toLatinDigits(c[1])===expect&&text.trim().length>=12)return {n:expect,len:c[0].length,ocr:true};}
   return null;
 }
 const STIM=/^\s*(?:read|look at|observe|study|examine|see|use|consider|answer|from|refer)\b.{0,80}\b(?:passage|figure|fig\.?|diagram|graph|table|chart|picture|following|stem|stimulus|question|questions)\b|^\s*(?:নিচের|নীচের|উদ্দীপক|চিত্র|ছক|অনুচ্ছেদ|উপরের|নিম্নের)/i;
 const INSTR=/^\s*(?:find|choose|select|fill\s+in|identify|pick\s+out|correct|complete|give|write|translate|match|mark|tick|circle|change|rewrite|make|use|spot|in\s+each\s+of\s+the\s+following|শূন্যস্থান|সঠিক\s+উত্তর|বাক্যটি|অনুবাদ|সমার্থক|বিপরীত|শুদ্ধ|অশুদ্ধ)\b/i;
 const EXPL=/^\s*[\[(]?\s*(?:N\.?\s?B\.?|note|explanation|expl\.?|hints?|solution|sol\s*[nⁿ]?|trivia|ব্যাখ্যা|যুক্তি|বি\.\s?দ্র\.?|বিঃ\s?দ্রঃ|সমাধান|তথ্য|নোট)\s*[:ঃ\-–]/i;
+/* "Answer any two of the following questions (2 × 10 = 20)" is how to answer the paper, not a passage for the questions */
+const PAPER_INSTR=/\bany\s+(?:one|two|three|four|five|six|seven|eight|\d+)\b|\(\s*[0-9০-৯]{1,2}\s*[x×X]\s*[0-9০-৯.]{1,4}\s*=|যেকোনো|যে\s*কোনো|সকল\s+প্রশ্নের/i;
 const STIM_RANGE=/(?:questions?|প্রশ্ন(?:গুলোর|গুলির|ের)?|নং)\D{0,12}([0-9০-৯]{1,3})\s*(?:(?:and|&|to|or|,|-|–|ও|থেকে|এবং|ও\s*)\s*([0-9০-৯]{1,3}))?/i;
 
 /* "Correct Answer :" read loosely ("Correct Answe", "[Correct Answer", "Comest Answer", "answer :") */
@@ -12832,6 +12850,7 @@ function caLabel(t){
   return null;
 }
 function lev(a,b){const d=[];for(let i=0;i<=a.length;i++){d[i]=[i];for(let j=1;j<=b.length;j++)d[i][j]=i?Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1)):j;}return d[a.length][b.length];}
+let _segTarget=null;
 function segment(F,lineTexts,removed){
   const numAt=(i,e)=>{_ocrLine=!F.lines[i]||F.lines[i].kind==='ocr';return numberAt(lineTexts[i],e);};
   const qs=[];let cur=null,expect=null,pre=[],sec=0;
@@ -12877,12 +12896,15 @@ function segment(F,lineTexts,removed){
         cur={num:nm.n,lines:[i],skipLen:nm.len,gap:0,sec,title,opts:0};qs.push(cur);expect=nm.n+1;continue;
       }
     }
+    /* a number alone on a line, "(3)", when the same number is printed a few lines on as "3. (a) …":
+       the lone one is a part's marks or a stray, not the question */
+    if(accept&&nm.bare&&/^\s*\(\s*[0-9০-৯]{1,3}\s*\)\s*$/.test(t)){for(let j=i+1;j<L&&j<=i+8;j++){if(removed.has(j))continue;const n2=numAt(j,nm.n);if(n2&&!n2.bare&&!n2.ocr&&n2.n===nm.n){accept=false;break;}}}
     if(accept){
       cur={num:nm.n,lines:[i],skipLen:nm.len,gap,sec,opts:0};qs.push(cur);expect=nm.n+1;continue;
     }
     /* a question whose number the reader lost (a curved page edge, a shadow): after a question with all
        its options, a line that is not an option, followed by option lines, starts the next question */
-    if(!nm&&cur&&expect!=null&&(cur.opts||0)>=4){
+    if(!nm&&cur&&expect!=null&&(cur.opts||0)>=4&&_segTarget!=='wrt'){
       const tt=t.trim(),mk=findMarkers(t);
       /* "Which of the following is correct?" after numbered statements belongs to the same question */
       if(tt.length>=8&&(!mk.length||mk[0].start>2)&&!/(following|নিচের)\s+(is|are|কোনটি|কোনগুলো)\s+(correct|true|সঠিক)/i.test(tt)){
@@ -12892,6 +12914,25 @@ function segment(F,lineTexts,removed){
           const lead=/^[\s.,;:'"`|\-=_~]*/.exec(t)[0].length;
           cur={num:expect,lines:[i],skipLen:lead,gap:0,sec,opts:0,lost:true};qs.push(cur);expect++;continue;
         }
+      }
+    }
+    /* a written paper whose question number was not read (lost in a picture, or not printed): the part
+       letters start again at (a) / ক after a question that already reached (c) / গ. The new question begins
+       after the line where the last part ended with its marks. */
+    if(_segTarget==='wrt'&&cur&&expect!=null&&EFRead._written&&!nm){
+      const W=EFRead._written._t;if(W.isSol(t))cur.inSol=true;
+      const lb=cur.inSol?null:W.labelAt(t);
+      if(lb&&!lb.fuzzy){
+        if(lb.idx===0&&(cur.partMax||0)>=2&&lb.fam===cur.partFam){
+          let k=cur.lines.length-1;const marked=li=>{const x=lineTexts[li].replace(/\s+/g,' ').trim();const em=x&&W.endMarks(lineTexts[li],x,{typed:!(F.lines[li]&&F.lines[li].kind==='ocr')});return !!(em&&(em.how==='bn'||em.how==='bracket'||em.how==='gap'));};
+          while(k>0&&!marked(cur.lines[k]))k--;
+          const stem=cur.lines.slice(k+1);
+          if(k>0&&stem.some(li=>lineTexts[li].trim())){
+            cur.lines=cur.lines.slice(0,k+1);
+            cur={num:expect,lines:stem.concat([i]),skipLen:0,gap:0,sec,opts:0,lost:true,partMax:0,partFam:lb.fam};qs.push(cur);expect++;continue;}
+        }
+        if(cur.partFam==null){if(lb.idx<=1){cur.partFam=lb.fam;cur.partMax=lb.idx;}}
+        else if(cur.partFam===lb.fam&&lb.idx>(cur.partMax||0))cur.partMax=lb.idx;
       }
     }
     if(cur){cur.lines.push(i);cur.opts=(cur.opts||0)+findMarkers(t).filter(m=>m.fam!=='roman').length;}else pre.push(i);
@@ -13199,6 +13240,7 @@ EFRead.parse=function(read,opt){
     caAns[i]=am?letterIdx(/[ক-ঙ]/.test(am[1])?am[1]:am[1].toLowerCase()):-1;
     const [st,en]=lineRange[i];F.s=F.s.slice(0,st)+' '.repeat(en-st)+F.s.slice(en);
     lineTexts[i]='';});
+  _segTarget=opt.target||null;
   let {qs,pre}=segment(F,lineTexts,removed);
   const warnings=read.warnings?read.warnings.slice():[];
   const unplaced=[];
@@ -13229,7 +13271,7 @@ EFRead.parse=function(read,opt){
   const questions=[];let carry=null; /* shared passage/figure for the next questions */
   /* a passage printed before the first question ("Read the following passage and answer questions 1 to 5") */
   if(pre.length&&qs.length){
-    const pl=pre.filter(li=>li<qs[0].lines[0]);const si=pl.findIndex(li=>STIM.test(lineTexts[li]));
+    const pl=pre.filter(li=>li<qs[0].lines[0]);const si=pl.findIndex(li=>STIM.test(lineTexts[li])&&!PAPER_INSTR.test(lineTexts[li]));
     if(si>=0&&pl.length-si<=60){const use=pl.slice(si);const txt=clean(use.map(li=>F.s.slice(lineRange[li][0],lineRange[li][1])).join('\n'));
       const sm=STIM_RANGE.exec(lineTexts[pl[si]]);let until=qs[0].num+1;
       if(sm){const x=+toLatinDigits(sm[1]),y=sm[2]?+toLatinDigits(sm[2]):x;if(y>=qs[0].num)until=Math.max(x,y);}
@@ -13290,7 +13332,7 @@ EFRead.parse=function(read,opt){
       const optTexts=segs.map(g=>body.slice(g.s,g.e));
       const avg=optTexts.reduce((x,o)=>x+oneLine(o).length,0)/optTexts.length;
       const qMarks=optTexts.filter(o=>/\?\s*$/.test(oneLine(o))||MARKS_RE.test(oneLine(o))).length;
-      looksWritten=avg>90||qMarks>=2||opt.target==='wrt'&&(qMarks>=1||segs.length<=3);   /* a written paper's (a) (b) parts */
+      looksWritten=avg>90||qMarks>=2||opt.target==='wrt'; /* a written paper: lettered lines are its parts, never options */   /* a written paper's (a) (b) parts */
       if(!looksWritten||opt.target==='mcq'){
         Q.text=clean(ulText(F,body,a,0,ch.chain[0].start));
         const missingA=ch.chain[0].idx===1;
@@ -13315,12 +13357,20 @@ EFRead.parse=function(read,opt){
       {const m=/\n\s*(?:উত্তর|উঃ|উত্তরঃ|ans(?:wer)?|সমাধান|solution|sol\s*[nⁿ]?)\s*[:ঃ.\-–]/i.exec('\n'+Q.text);
         if(m&&m.index>8){Q.text=Q.text.slice(0,m.index-1).trim();Q.warnings.push('The answer printed under this question was left out, so students do not see it.');}}
       Q.options=[];
+      if(EFRead._written){
+        /* parts, marks, solutions, tables, pages: efread-written.js */
+        const wl=[];{let off=0;body.split('\n').forEach((t,k)=>{wl.push({raw:ulText(F,body,a,off,off+t.length),li:li0+k});off+=t.length+1;});}
+        Q.figs=rangeFigs(F,a,b);
+        EFRead._written.question(Q,wl,{F,read,opt});
+      } else {
       /* marks: "[5]", "(5 marks)" — added up over parts */
       let tot=0,found=0;clean(body).split('\n').forEach(l=>{const m=MARKS_RE.exec(l.trim());if(m){tot+=parseFloat(toLatinDigits(m[1]||m[2]||m[3]||m[4]||m[5]));found++;}});
       if(found)Q.marks=tot;
+      }
     }
     /* stimulus text goes first */
     if(Q.stim){Q.text=(Q.stim.text?Q.stim.text+'\n\n':'')+Q.text;}
+    if(Q.stim&&Q.kind==='written'&&Q.parts&&Q.parts.length&&Q.stim.text)Q.stem=Q.stim.text+(Q.stem?'\n\n'+Q.stem:'');
     /* pictures */
     const qfigs=rangeFigs(F,a,b);
     Q.figs=(Q.stim?Q.stim.figs:[]).concat(qfigs.filter(f=>!(carry&&carry.from===q.num+1&&carry.figs.includes(f))));
@@ -13403,7 +13453,9 @@ EFRead.parse=function(read,opt){
   }
   if(nSec>1)warnings.push('The paper has '+nSec+' sets of questions (the numbers start again). Each set is marked on its questions.');
   F.figs.forEach((f,i)=>{if(f.url&&!questions.some(q=>q.figs.includes(i))&&!unplaced.includes(i))unplaced.push(i);});
-  return {questions,figures:F.figs,unplaced,warnings,key,lang:read.lang};
+  const out={questions,figures:F.figs,unplaced,warnings,key,lang:read.lang};
+  if(EFRead._written&&questions.some(q=>q.kind==='written'))EFRead._written.paper(out,pre.map(li=>lineTexts[li]),{F,read,opt});
+  return out;
 };
 
 function splitByOptions(F,lineTexts,lineRange,removed){
@@ -13442,13 +13494,327 @@ function originCrop(F,read,lineIdx,lineRange,numW,cut){
 EFRead._parseInternals={buildFlow,extractKey,segment,findMarkers,bestChain,looksLikeKeyLine,numberAt,fixOcrWord};
 })();
 
+/* ExamFlow · Written questions: parts, marks, solutions, tables, figures, pages (v46).
+   Rule-based only (no AI, no API). Called by efread-parse.js for every written question,
+   and once for the whole paper. It never makes up text or marks: what is not printed is
+   left empty and reported, so the teacher fills it in the review step. */
+(function(){
+'use strict';
+const EFRead=window.EFRead=window.EFRead||{};
+const BD='০১২৩৪৫৬৭৮৯';
+const lat=s=>String(s).replace(/[০-৯]/g,d=>BD.indexOf(d));
+const FIG='￼';
+const LAT='abcdefghij',BNL='কখগঘঙচছজ';
+const ROMAN=/^(?:i{1,3}|iv|vi{0,3}|ix|x)$/i;
+const one=s=>String(s||'').replace(new RegExp(FIG,'g'),'').replace(/[\s ]+/g,' ').trim();
+const num=s=>{const v=parseFloat(lat(s));return isFinite(v)?v:null;};
+const fmt=v=>String(+(+v).toFixed(2));
+
+/* ── a printed solution under the question ("১নং প্রশ্নের সমাধান", "Solution:", "উত্তর:") ── */
+const SOLHEAD=/^\s*(?:[0-9০-৯]{1,3}\s*(?:নং|no\.?|নম্বর)\s*)?(?:প্রশ্নের\s*)?(?:সমাধান|উত্তর(?:মালা)?|উত্তরঃ|উঃ|solutions?|answers?|ans\.?|sol\s*[nⁿ]?\.?|model\s+answer)\s*(?:[:ঃ.\-–—]|$)/i;
+const SOLHEAD2=/^\s*[0-9০-৯]{1,3}\s*(?:নং|no\.?)\s*(?:প্রশ্নের|প্রশ্ন)\s*(?:সমাধান|উত্তর)/i;
+/* a section heading that ends up under the last part of a question ("খ বিভাগ : জ্যামিতি", "Part B : Composition") */
+const SECT=/^[\s✓✔•▸►*]*(?:[ক-ঘ]\s*[-–]?\s*বিভাগ|বিভাগ\s*[-–]?\s*[ক-ঘ]|(?:section|part|group)\s*[-–:]?\s*(?:[A-H]|[ivx]+|\d)\b|অংশ\s*[-–:]?\s*[ক-ঘ০-৯]|[ক-ঘ]\s*অংশ)/i;
+ /* where a question was set: "[কু.বো.'১৯]", "[Dhaka Board 2019]", "(রা. বো. ২০১৭)" */
+const SRCREF=/^\s*[\[(]\s*[^\[\]()]{0,40}(?:বো\s*\.|বোর্ড|board|কলেজ|স্কুল|school|college|ক্যাডেট|cadet|['’‘`][০-৯0-9]{2}|[০-৯0-9]{4})[^\[\]()]{0,20}[\])]\s*$/i;
+/* "Answer any two", "যেকোনো সাতটি প্রশ্নের উত্তর দাও" */
+const INSTR=/\b(?:answer|attempt)\b.{0,40}\b(?:any|all|following|questions?)\b|\bany\s+(?:one|two|three|four|five|six|seven|eight|\d+)\b|যেকোনো|যে\s*কোনো|প্রশ্নের\s+উত্তর\s+দাও|উত্তর\s+দাও|উত্তর\s+দিতে\s+হবে|সকল\s+প্রশ্নের/i;
+/* "(2 x 10 = 20)": each question is worth 10 */
+const HEADMARKS=/\(?\s*([0-9০-৯]{1,2})\s*[x×✕X*]\s*([0-9০-৯]{1,2}(?:\.[0-9০-৯])?)\s*=\s*([0-9০-৯]{1,3}(?:\.[0-9০-৯])?)\s*\)?/;
+
+/* ── marks printed at the end of a line ── */
+/* "a×b=T" with the × sometimes lost by the reader ("0.510=5" is 0.5×10=5, "110=10" is 1×10=10) */
+function multMarks(t){
+  const m=/(?:^|[\s(\[])((?:[0-9০-৯]+(?:[.\/][0-9০-৯]+)?|½)(?:\s*[x×✕X*]?\s*[0-9০-৯]+)?)\s*=\s*([0-9০-৯]{1,3}(?:\.[0-9০-৯]+)?)\s*[)\]]?\s*$/.exec(t);
+  if(!m)return null;const T=num(m[2]);if(!T||T>100)return null;
+  const lhs=lat(m[1]).replace(/½/g,'½').replace(/\s*[x×✕X*]\s*/g,'×').replace(/\s+/g,'×');
+  let pairs=[];
+  if(lhs.includes('×')){const [a,b]=lhs.split('×');pairs.push([a,b]);}
+  else for(let k=1;k<lhs.length;k++)pairs.push([lhs.slice(0,k),lhs.slice(k)]);
+  const val=v=>v==='½'?0.5:/\//.test(v)?(()=>{const [p,q]=v.split('/');return +q?+p/+q:NaN;})():+v;
+  for(const [a,b] of pairs){if(!a||!b||/^[.\/]/.test(b)||/[.\/]$/.test(a)||/\//.test(b))continue;const x=val(a),y=val(b);if(!isFinite(x)||!isFinite(y)||!x||!y)continue;
+    if(Math.abs(x*y-T)<1e-9)return {total:T,a:x,b:y,start:m.index+(/^[\s(\[]/.test(m[0])?1:0),how:'mult'};}
+  return null;
+}
+/* the marks token at the end of a line; returns {v,start} or null.
+   raw keeps the tabs of a typed file ("…  sentences.\t5"), t is the line on one line */
+function endMarks(raw,t,ctx){
+  let m;
+  /* the camera adds a speck after the mark: "Density, (03) r" */
+  if(ctx&&!ctx.typed&&(m=/([)\]])\s+[^\s()\[\]]{1,2}$/.exec(t))){const r=endMarks(raw,t.slice(0,m.index+1),{typed:false,noSpeck:true});if(r&&r.how==='bracket')return r;}
+  /* "(03)", "[3]", "(3 marks)", "(3.5)", "[5 |" (camera), "(03" (camera, the bracket lost at the edge) */
+  if((m=/[(\[{]\s*([0-9০-৯]{1,2}(?:[.·][05]0?)?)\s*(?:marks?|mark|নম্বর|নং)?\s*(?:[)\]}|lI]\s*)?[.,;]?\s*$/i.exec(t))){const v=num(m[1].replace('·','.'));if(v!=null&&v>0&&v<=50)return {v,start:m.index,how:'bracket'};}
+  /* "3]": the camera lost the opening bracket */
+  if((m=/(?:^|\s)([0-9]{1,2}(?:\.5)?)\s*\]\s*$/.exec(t))){const v=num(m[1]);if(v>0&&v<=50)return {v,start:m.index+(/^\s/.test(m[0])?1:0),how:'bracket'};}
+  if((m=/(?:^|\s)([0-9০-৯]{1,2}(?:\.5)?)\s*(?:marks?|নম্বর)\s*$/i.exec(t))){const v=num(m[1]);if(v>0&&v<=50)return {v,start:m.index,how:'word'};}
+  /* "… x এর মান নির্ণয় কর। ৪" — a Bangla digit at the end, after a space */
+  if((m=/(^|\s)([০-৯]{1,2}(?:\.[০-৯])?)\s*$/.exec(t))&&t.length>m[0].length+2){const v=num(m[2]);
+    /* not a number that belongs to the text: "… 2 ⁿ কে সমর্থন করে। ৪" ok; "সময় ৩" in a sentence is rare at a line end of a part */
+    if(v>0&&v<=30)return {v,start:m.index+m[1].length,how:'bn'};}
+  /* a Bangla page read by the camera: "… নির্ণয় কর। 8" is ৪ */
+  if(ctx&&ctx.bnOcr&&(m=/([\u0980-\u09FF।?.)])\s*(8)\s*$/.exec(t)))return {v:4,start:m.index+m[1].length,how:'bn'};
+  /* a typed file: the mark after a tab or a wide gap ("…\t5", "…      4") */
+  if((m=/(?:\t|\s{3,})\s*([0-9]{1,2}(?:\.5)?)\s*$/.exec(raw))){const v=num(m[1]);if(v>0&&v<=50){const k=t.lastIndexOf(m[1]);return {v,start:k>=0?k:t.length,how:'gap'};}}
+  /* "Choose the correct answers … (11x1 = 11)" is the heading of the next section, not this question's marks */
+  const mm=!INSTR.test(t)&&!/\bchoose\b|সঠিক\s+উত্তর/i.test(t)?multMarks(t):null;if(mm)return {v:mm.total,start:mm.start,how:'mult',mult:mm};
+  /* a typed paper: "… in the following text. 5", "(250 words) 12" — a whole number right after the end of a sentence */
+  if(ctx&&ctx.typed&&(m=/([.?!)"'”’:])\s+([0-9]{1,2})\s*$/.exec(t))){const v=num(m[2]);if(v>0&&v<=30)return {v,start:m.index+1,how:'gap'};}
+  return null;
+}
+/* a line that holds nothing but a mark: "(03)", "[4]", "৪" */
+function onlyMarks(t){
+  /* a Bangla page read by the camera: the mark ৪ comes out as "8" */
+  if(EC.bnOcr&&/^\s*8\s*$/.test(t))return 4;
+  const m=/^\s*[(\[{]?\s*([0-9০-৯]{1,2}(?:\.5)?)\s*(?:marks?|নম্বর)?\s*[)\]}]?\s*$/i.exec(t);if(!m)return null;
+  if(!/[(\[{)\]}]|marks?|নম্বর|[০-৯]/i.test(t))return null;const v=num(m[1]);return v>0&&v<=50?v:null;}
+
+/* ── part labels at the start of a line ── */
+function labelAt(t,want,fam){
+  let m;
+  /* "(a)", "a)", "a.", "[a]", "(A)" */
+  if((m=/^\s*\(\s*([a-jA-J])\s*\)\s*/.exec(t))||(m=/^\s*\[\s*([a-jA-J])\s*\]\s*/.exec(t))||(m=/^\s*([a-jA-J])\s*\)\s*/.exec(t))||(m=/^\s*([a-jA-J])\.\s+/.exec(t))){
+    const c=m[1];const f=c===c.toLowerCase()?'lat':'LAT';
+    if(m[0].trim()==='i)'||m[0].trim()==='(i)')return null; /* roman, not a letter */
+    return {fam:f,idx:LAT.indexOf(c.toLowerCase()),len:m[0].length,raw:m[0].trim()};}
+  /* "ক.", "ক)", "(ক)", "ক।" */
+  if((m=/^\s*\(?\s*([ক-ঙচছজ])\s*[).।:]\s*/.exec(t))||(m=/^\s*\(\s*([ক-ঙচছজ])\s*\)?\s*/.exec(t))){
+    if(!/^\s*\(/.test(m[0])&&!/[).।:]/.test(m[0]))return null;
+    return {fam:'bn',idx:BNL.indexOf(m[1]),len:m[0].length,raw:m[0].trim()};}
+  /* the camera blurred the expected letter: "Ab) The energy…", "(3) Calculate…" for "(d)" — only the letter expected next */
+  if(want!=null&&fam&&fam!=='bn'){
+    const L=fam==='LAT'?LAT.toUpperCase():LAT;
+    if((m=/^\s*[(\[{|]?\s*[A-Za-z]?([a-jA-J])\s*[)\]}]\s*/.exec(t))&&m[1].toLowerCase()===LAT[want])return {fam,idx:want,len:m[0].length,raw:m[0].trim(),fuzzy:true};
+    if((m=/^\s*\(\s*([^\s()]{1,2})\s*\)\s+/.exec(t))&&!ROMAN.test(m[1])&&!/^[a-j]$/i.test(m[1]))return {fam,idx:want,len:m[0].length,raw:m[0].trim(),fuzzy:'weak'};
+    /* a speck before the label: "0 (b) Write…", "qd (b) (i) …" */
+    if((m=/^\s*[^\s()]{1,2}\s+\(\s*([a-jA-J])\s*\)\s*/.exec(t))&&m[1].toLowerCase()===LAT[want])return {fam,idx:want,len:m[0].length,raw:m[0].trim(),fuzzy:true};
+  }
+  return null;
+}
+const dispLabel=(fam,idx)=>fam==='bn'?BNL[idx]+'.':'('+(fam==='LAT'?LAT[idx].toUpperCase():LAT[idx])+')';
+
+/* ── tables: two or more lines of the same number of cells ── */
+function rowCells(t){
+  const s=one(t);if(!s)return null;
+  const toks=s.split(' ');
+  /* the row label is the words before the first number ("প্রাপ্ত নম্বর 61-65 66-70 …", "Marks 10 20 30") */
+  let k=0;while(k<toks.length&&!/^[-–]?[0-9০-৯][0-9০-৯.,\-–/%]*$/.test(toks[k]))k++;
+  const cells=toks.slice(k);if(cells.length<3||!cells.every(c=>/^[-–]?[0-9০-৯][0-9০-৯.,\-–/%]*$/.test(c)))return null;
+  const label=toks.slice(0,k).join(' ');if(label.length>40)return null;
+  return label?[label].concat(cells):cells;
+}
+function findTables(lines){
+  const out=[];let run=[];
+  const flush=()=>{if(run.length>=2){const n=run.map(r=>r.cells.length);const mx=Math.max(...n),mn=Math.min(...n);if(mx-mn<=1)out.push({at:run.map(r=>r.k),rows:run.map(r=>r.cells)});}run=[];};
+  lines.forEach((l,k)=>{const c=l.fig?null:rowCells(l.t);if(c){run.push({k,cells:c});}else flush();});
+  flush();return out;
+}
+
+let EC={typed:false};
+/* a page heading of the next paper or set ("Rajshahi Board 2017", "Time : 3 hours … Subject Code :") */
+const PAPERHEAD=/^\s*(?:time|সময়)\s*[:ঃ\-–]|subject\s*code|বিষয়\s*কোড|full\s*marks|পূর্ণমান|\bboard\s*[-–,]?\s*(?:19|20)[0-9]{2}\b|বোর্ড\s*[-–,]?\s*(?:১৯|২০|19|20)[০-৯0-9]{2}/i;
+/* ── one written question ── */
+/* wl: the question's lines [{raw,li}], from the first line after its number to its last line.
+   F: the parser's flow (pages, kinds). Q is changed in place. */
+function question(Q,wl,ctx){
+  const F=ctx.F;
+  const L=wl.map(x=>({raw:x.raw,t:one(x.raw),li:x.li,fig:x.raw.includes(FIG),page:F.lines[x.li]?F.lines[x.li].page:0,ocr:F.lines[x.li]?F.lines[x.li].kind==='ocr':false}));
+  const W=Q.warnings;const ocr=L.some(l=>l.ocr);const ocrQ=ocr;
+  EC={typed:!ocr,bnOcr:ocr&&(L.map(l=>l.t).join(' ').match(/[\u0980-\u09FF]/g)||[]).length>=20};
+  /* 1. a printed solution or answer must not reach the students */
+  let cut=-1;for(let k=0;k<L.length;k++){const t=L[k].t;if(!t)continue;
+    if(SOLHEAD2.test(t)||(k>0&&SOLHEAD.test(t))){cut=k;break;}}
+  if(cut>=0){const dropped=L.splice(cut);Q.solutionCut=dropped.filter(l=>l.t).length;
+    W.push('A printed solution/answer under this question ('+Q.solutionCut+' line'+(Q.solutionCut===1?'':'s')+') was left out, so students do not see it.');}
+  /* 2. a section heading printed under the question belongs to the next ones */
+  const heads=[];
+  const prevMarked=k=>{for(let j=k-1;j>=0;j--){if(!L[j].t)continue;const em=endMarks(L[j].raw,L[j].t,EC);return !!(em&&(em.how==='bn'||em.how==='bracket'));}return false;};
+  while(L.length>1){const l=L[L.length-1];if(!l.t){L.pop();continue;}
+    if((SECT.test(l.t)&&l.t.length<=80)||(PAPERHEAD.test(l.t)&&l.t.length<=90)||(headingLike(l.t)&&prevMarked(L.length-1))){heads.unshift(l.t);L.pop();continue;}break;}
+  Q.headsAfter=heads;
+  /* parts written on one line: "(a) … (2)  (b) …" */
+  for(let k=0;k<L.length;k++){const t=L[k].t;
+    const m=/^(.*?(?:\(\s*[0-9০-৯]{1,2}(?:\.5)?\s*\)|\[\s*[0-9০-৯]{1,2}(?:\.5)?\s*\]|\s[০-৯]{1,2}))\s+(?=(?:\([b-h]\)|[খ-ঘ][.)।])\s+\S)/.exec(t);
+    if(m&&labelAt(t)){const a=m[1],b=t.slice(m[0].length);L.splice(k,1,{...L[k],raw:a,t:a},{...L[k],raw:b,t:b});}}
+  /* where the question was set ("[কু.বো.'১৯]"): kept, at the end of the stem */
+  const refs=[];for(let k=L.length-1;k>=0;k--){if(L[k].t&&SRCREF.test(L[k].t)&&k>0){refs.unshift(L[k].t);L.splice(k,1);}else if(L[k].t)break;}
+  /* 3. parts */
+  let fam=null,want=0;const starts=[];
+  for(let k=0;k<L.length;k++){
+    const lb=labelAt(L[k].t,fam?want:(ocrQ?1:null),fam||(ocrQ?'lat':null));if(!lb)continue;
+    if(!fam){
+      if(lb.idx===1&&k>0&&ocrQ){const before=L.slice(0,k).filter(l=>l.t);const last=before[before.length-1];
+        if(last&&(endMarks(last.raw,last.t,EC)||onlyMarks(last.t)!=null)&&before.map(l=>l.t).join(' ').length>=20){
+          fam=lb.fam;starts.push({k:L.indexOf(before[0]),idx:0,len:0,raw:'',fuzzy:'lost'});want=1;}}
+      if(!fam){if(lb.idx!==0||lb.fuzzy)continue;fam=lb.fam;}}
+    if(lb.fam!==fam&&!lb.fuzzy)continue;
+    if(lb.idx!==want){
+      /* a letter the reader lost: "(a) … (c)" — keep going, and say so */
+      if(lb.idx===want+1&&!lb.fuzzy){starts.push({k,idx:lb.idx,len:lb.len,raw:lb.raw,skipped:true});want=lb.idx+1;}
+      continue;}
+    if(lb.fuzzy==='weak'){ /* only when the part before ended with its mark and this one does too */
+      const prevEnd=starts.length?L.slice(starts[starts.length-1].k,k).reverse().find(l=>l.t):null;
+      const endsWithMark=l=>!!(l&&(endMarks(l.raw,l.t,EC)||onlyMarks(l.t)!=null));
+      const ownEnd=L.slice(k,k+3).find((l,j)=>j>0&&labelAt(l.t,want+1,fam))?null:L.slice(k,k+2).reverse().find(l=>l.t);
+      if(!(endsWithMark(prevEnd)&&endsWithMark(ownEnd||L[k])))continue;}
+    starts.push({k,idx:lb.idx,len:lb.len,raw:lb.raw,fuzzy:lb.fuzzy});want++;
+  }
+  /* a single "(a)" is not a list of parts */
+  if(starts.length===1){starts.length=0;fam=null;}
+  const stemLines=L.slice(0,starts.length?starts[0].k:L.length);
+  const parts=starts.map((s,j)=>{const e=j+1<starts.length?starts[j+1].k:L.length;const ls=L.slice(s.k,e).map((l,i)=>i===0?{...l,t:l.t.slice(s.len),raw:l.raw.replace(/^\s*/,'').slice(s.raw.length).replace(/^\s*/,'')}:l);
+    return {idx:s.idx,fuzzy:s.fuzzy,skipped:s.skipped,label:fam==='bn'?BNL[s.idx]:(fam==='LAT'?LAT[s.idx].toUpperCase():LAT[s.idx]),lines:ls,page:L[s.k].page};});
+  /* a part with two blocks that each end in a mark: the camera lost the next label */
+  if(ocrQ&&fam&&fam!=='bn')for(let j=0;j<parts.length;j++){const p=parts[j],ls=p.lines;
+    const nx=parts[j+1];if(nx&&!nx.fuzzy&&nx.idx===p.idx+1)continue;
+    const bm=l=>{const em=l.t&&endMarks(l.raw,l.t,EC);return !!(em&&em.how==='bracket')||(l.t&&onlyMarks(l.t)!=null);};
+    let cut=-1;for(let i=0;i<ls.length-1;i++){if(bm(ls[i])&&ls.slice(i+1).some(l=>l.t&&onlyMarks(l.t)==null)&&ls.slice(i+1).some(bm)){cut=i+1;break;}}
+    if(cut<0)continue;
+    const np={idx:p.idx+1,fuzzy:'lost',label:LAT[p.idx+1],lines:ls.splice(cut),page:p.page};
+    if(fam==='LAT')np.label=np.label.toUpperCase();
+    parts.splice(j+1,0,np);for(let q=j+2;q<parts.length;q++){parts[q].idx++;parts[q].label=fam==='LAT'?LAT[parts[q].idx].toUpperCase():LAT[parts[q].idx];}
+  }
+  /* 4. marks of each part */
+  const takeMarks=ls=>{ /* the last line with a mark; a line holding only the mark is dropped */
+    let skipped=0;
+    for(let i=ls.length-1;i>=0;i--){const l=ls[i];if(!l.t||l.ref)continue;
+      const om=onlyMarks(l.t);if(om!=null&&i>0&&!(skipped&&/^[0-9]+$/.test(l.t.trim()))){ls.splice(i,1);return {v:om,how:'line'};}
+      const em=endMarks(l.raw,l.t,EC);if(em&&!(skipped&&em.how!=='bn'&&em.how!=='bracket')){l.t=stripMark(l.t,em);return em;}
+      /* a typed PDF puts the lower line of a fraction ("1 - cos A") after the line that ends with the mark,
+         and a section heading can land there too: look past up to three such lines */
+      if(skipped<3&&i>0&&(isFrag(l.t)||SECT.test(l.t)||headingLike(l.t)||/^[^\p{L}\p{N}]{1,4}$/u.test(l.t))){skipped++;continue;}
+      return null;}
+    return null;};
+  parts.forEach(p=>{const m=takeMarks(p.lines);p.marks=m?m.v:null;p.marksHow=m?m.how:null;p.mult=m&&m.mult||null;});
+  /* the question's own total: at the end of its first line or of the stem ("… [10]", "1×10=10") */
+  let total=null,totalHow=null;
+  {const ls=stemLines;
+    for(let i=ls.length-1;i>=0;i--){const l=ls[i];if(!l.t)continue;
+      const om=onlyMarks(l.t);if(om!=null&&(parts.length||i>0)){total=om;totalHow='line';ls.splice(i,1);break;}
+      const em=endMarks(l.raw,l.t,EC);if(em&&(parts.length?true:(i===ls.length-1||ls.slice(i+1).every(x=>!x.t)))){
+        /* a stem's last line ending in a Bangla digit is usually text when the parts carry their own marks */
+        if(!(em.how==='bn'&&parts.length&&parts.every(p=>p.marks!=null))){total=em.v;totalHow=em.how;l.t=stripMark(l.t,em);if(em.mult)Q.multMarks=em.mult;}}
+      if(parts.length&&i===0)break; /* only the lines before the first part */
+      if(!parts.length)break;       /* a question without parts: only its last line */
+    }
+    /* typed papers print the total on the question's first line: "6. Change the sentences…  1×10=10" */
+    if(total==null&&ls.length&&ls[0].t){const em=endMarks(ls[0].raw,ls[0].t,EC);if(em&&em.how!=='bn'){total=em.v;totalHow=em.how;ls[0].t=stripMark(ls[0].t,em);if(em.mult)Q.multMarks=em.mult;}}
+    /* or at the very end, after the last part (an essay question: "…as early as possible.  10") */
+    if(total==null&&!parts.length){for(let i=ls.length-1;i>=0;i--){const l=ls[i];if(!l.t)continue;const em=endMarks(l.raw,l.t,EC);if(em){total=em.v;totalHow=em.how;l.t=stripMark(l.t,em);}break;}}
+  }
+  /* items worth the same printed mark each ("1×10=10" over ten parts (a)…(j)) */
+  if(parts.length&&Q.multMarks&&parts.every(p=>p.marks==null)){const mm=Q.multMarks;
+    const each=[[mm.a,mm.b],[mm.b,mm.a]].find(([e,n])=>n===parts.length);
+    if(each){parts.forEach(p=>{p.marks=each[0];p.marksHow='each';});}}
+  /* 5. the question's marks: never made up */
+  const pm=parts.map(p=>p.marks),allP=parts.length&&pm.every(v=>v!=null),sumP=allP?pm.reduce((a,b)=>a+b,0):null;
+  Q.marks=null;Q.marksSrc=null;
+  if(parts.length){
+    if(allP&&total!=null&&Math.abs(sumP-total)>1e-9){Q.marks=total;Q.marksSrc='printed';W.push('The parts add up to '+fmt(sumP)+' marks but the question shows '+fmt(total)+'. Check the marks.');}
+    else if(allP){Q.marks=sumP;Q.marksSrc='parts';}
+    else if(total!=null){Q.marks=total;Q.marksSrc='printed';const miss=parts.filter(p=>p.marks==null).map(p=>dispLabel(fam,p.idx));
+      if(miss.length<parts.length)W.push('No marks were found for part'+(miss.length>1?'s ':' ')+miss.join(', ')+'. Enter them, or leave the question total ('+fmt(total)+').');}
+    else{const miss=parts.filter(p=>p.marks==null).map(p=>dispLabel(fam,p.idx));
+      W.push('No marks were found for part'+(miss.length>1?'s ':' ')+miss.join(', ')+'. Enter the marks — ExamFlow does not guess them.');
+      if(pm.some(v=>v!=null)){Q.marks=null;}}
+  } else if(total!=null){Q.marks=total;Q.marksSrc='printed';}
+  /* 6. labels that were hard to read, letters missing */
+  parts.forEach(p=>{if(p.fuzzy==='lost')W.push('The label of part '+dispLabel(fam,p.idx)+' could not be read: ExamFlow placed it where the part before ends with its marks. Check it.');
+    else if(p.fuzzy)W.push('The label of part '+dispLabel(fam,p.idx)+' was hard to read. Check where it starts.');
+    if(p.skipped)W.push('Part '+dispLabel(fam,p.idx-1)+' was not found before part '+dispLabel(fam,p.idx)+'. Check the parts.');});
+  /* 7. tables, inside the stem or a part: kept as rows, cells joined by " | " */
+  const tabs=[];
+  const doTables=ls=>{findTables(ls).forEach(tb=>{tb.at.forEach((k,j)=>{ls[k].t=tb.rows[j].join(' | ');ls[k].table=true;});tabs.push(tb.rows);});};
+  doTables(stemLines);parts.forEach(p=>doTables(p.lines));
+  if(tabs.length){Q.table={rows:tabs[0],count:tabs.length,all:tabs};W.push('A table was read as '+tabs.map(r=>r.length+' rows × '+Math.max(...r.map(x=>x.length))+' columns').join(' and ')+'. Check it, or switch on the original picture.');}
+  /* 8. the text */
+  const join=ls=>ls.map(l=>l.t).filter((t,i,a)=>t||i).join('\n').replace(/\n{3,}/g,'\n\n').trim();
+  const stem=[join(stemLines)].concat(refs).filter(Boolean).join('\n');
+  parts.forEach(p=>{p.text=join(p.lines);});
+  Q.stem=stem;
+  Q.parts=parts.map(p=>({label:p.label,disp:dispLabel(fam,p.idx),text:p.text,marks:p.marks,marksSrc:p.marks==null?null:(p.marksHow==='each'?'each':'printed'),page:p.page+1}));
+  Q.partFam=fam;
+  Q.text=compose(Q);
+  if(!parts.length&&!stem)W.push('The question text is empty.');
+  parts.forEach(p=>{if(!p.text)W.push('Part '+dispLabel(fam,p.idx)+' is empty. Type it in.');});
+  /* 9. pages */
+  const pages=Array.from(new Set(L.filter(l=>l.t||l.fig).map(l=>l.page+1)));
+  Q.page=pages[0]||null;if(pages.length>1)Q.pages=pages;
+  /* 10. a figure mentioned with no picture found */
+  const FIGWORD=/(?:চিত্রে|চিত্রটি|চিত্রের|চিত্রানুযায়ী|উদ্দীপকের\s+চিত্র|নিচের\s+চিত্র|নিম্নের\s+চিত্র|পাশের\s+চিত্র|প্রদত্ত\s+চিত্র|ছবিতে|লেখচিত্রে|বর্তনীতে|in\s+the\s+(?:given\s+|following\s+|above\s+|adjoining\s+)?(?:figure|diagram|graph|circuit|picture)|(?:figure|diagram|graph|circuit)\s+(?:below|above|shown|given)|shown\s+in\s+(?:the\s+)?(?:figure|diagram|fig\.)|\bfig\.\s*[0-9])/i;
+  if(FIGWORD.test(Q.text)&&!(Q.figs&&Q.figs.length)&&!(Q.stim&&Q.stim.figs&&Q.stim.figs.length)){Q.figMention=true;
+    W.push('This question refers to a figure, but no picture was found for it. Switch on the original picture of the question, or add the figure.');}
+  /* 11. formulas read from a photo */
+  if(ocr&&/[=+×÷√π∠°^²³∫∑≤≥≠±]|\d\s*[-+*/x]\s*\d/.test(Q.text))Q.mathWarn=true;
+  return Q;
+}
+/* a line that is only a piece of a formula: no words, short ("1 + cos A", "2a + 1 3", "(B) . (AB)") */
+/* a short heading on its own line ("জ্যামিতি", "ত্রিকোণমিতি ও পরিমিতি", "Statistics") */
+function headingLike(t){t=one(t);return !!t&&t.length<=32&&!/[0-9০-৯=?।.:;,()\[\]]/.test(t)&&t.split(' ').length<=4;}
+function isFrag(t){t=one(t);if(!t||t.length>60)return false;if(/[\u0980-\u09FF]{2,}/.test(t))return false;
+  const words=(t.match(/[A-Za-z]{4,}/g)||[]).filter(w=>!/^(?:cosec|cot|sec|sin|cos|tan|log|sinh|cosh|tanh|lim)$/i.test(w));
+  return !words.length&&/[0-9A-Za-z]/.test(t);}
+/* the text before a mark, without a copy of the same mark printed twice ("… কর। ২    ২") */
+function stripMark(t,em){let r=t.slice(0,em.start).replace(/[\s,;]+$/,'');
+  if(em.how==='bn'||em.how==='gap'){const m=/(?:^|\s)([0-9০-৯]{1,2})$/.exec(r);if(m&&num(m[1])===em.v)r=r.slice(0,m.index).replace(/[\s,;]+$/,'');}
+  return r;}
+function compose(Q){
+  const ps=(Q.parts||[]).map(p=>(p.disp||('('+p.label+')'))+' '+(p.text||'')+(p.marks!=null?' ['+fmt(p.marks)+']':''));
+  return [Q.stem||''].concat(ps).filter(Boolean).join('\n').trim();
+}
+
+/* ── the whole paper ── */
+/* pre: text lines before the first question (and section titles); qs: the parsed questions */
+function paper(res,pre,ctx){
+  const qs=res.questions.filter(q=>q.kind==='written');
+  const instr=[];
+  const look=t=>{const s=one(t).replace(/([ক-ঘ])\)(?=বিভাগ)/g,'$1 ');if(!s||s.length>220)return;if(INSTR.test(s)||HEADMARKS.test(s))if(!instr.includes(s))instr.push(s);};
+  /* an instruction printed over two lines in brackets ("[দ্রষ্টব্য : … দুইটি," / "এবং ঘ বিভাগ … উত্তর দাও।]") is read as one */
+  {const ls=pre.map(one).filter(Boolean),used=new Set();
+    ls.forEach((t,k)=>{const pv=ls[k-1],nx=ls[k+1];
+      const opens=(a,b)=>/^\[/.test(a)&&!a.includes(']')&&/\]\s*$/.test(b);
+      if(pv&&opens(pv,t)&&(INSTR.test(t)||INSTR.test(pv))){look(pv+' '+t);used.add(k-1);used.add(k);}
+      else if(nx&&opens(t,nx)&&(INSTR.test(t)||INSTR.test(nx))){/* taken with the next line */}
+      else if(!used.has(k))look(t);});}
+  res.questions.forEach(q=>{if(q.sectionTitle)q.sectionTitle.split('\n').forEach(look);(q.headsAfter||[]).forEach(look);});
+  res.instructions=instr;
+  /* marks for every question from the heading: "(2 x 10 = 20)" when nothing is printed on the questions */
+  const hm=instr.map(s=>HEADMARKS.exec(s)).find(Boolean);
+  if(hm){const n=num(hm[1]),each=num(hm[2]),tot=num(hm[3]);
+    if(n&&each&&Math.abs(n*each-tot)<1e-9){res.headingMarks={answer:n,each,total:tot};
+      qs.forEach(q=>{if(q.marks==null&&!(q.parts&&q.parts.length&&q.parts.some(p=>p.marks!=null))){q.marks=each;q.marksSrc='heading';
+        q.warnings.push('Marks taken from the paper heading ('+n+' × '+fmt(each)+' = '+fmt(tot)+'). Check them.');}
+        else if(q.marks!=null&&Math.abs(q.marks-each)>1e-9&&q.marksSrc!=='heading')q.warnings.push('The heading gives '+fmt(each)+' marks a question, but this one adds up to '+fmt(q.marks)+'. Check the marks.');});
+      if(n<qs.length)res.warnings.push('The paper says students answer '+n+' of the '+qs.length+' written questions ("'+instr.find(s=>HEADMARKS.test(s))+'"). ExamFlow asks students every question you add: keep the ones you want, or write the choice in the exam instructions.');}}
+  else{const any=instr.find(s=>/\bany\b|যেকোনো|যে\s*কোনো|(?:একটি|দুইটি|তিনটি|চারটি|পাঁচটি|ছয়টি|সাতটি|আটটি)\s+প্রশ্নের|\b(?:one|two|three|four|five|six|seven|eight)\s+questions?\b/i.test(s));if(any)res.warnings.push('The paper says: "'+any+'". ExamFlow asks students every question you add: keep the ones you want, or write the choice in the exam instructions.');}
+  /* questions in order, none twice */
+  const bySec={};res.questions.forEach(q=>{(bySec[q.section||0]=bySec[q.section||0]||[]).push(q);});
+  Object.values(bySec).forEach(list=>{const seen={};list.forEach((q,i)=>{if(seen[q.num]){q.warnings.push('Question '+q.num+' appears twice. Check whether one is part of another question.');}seen[q.num]=1;
+    if(i>0&&q.num<list[i-1].num)q.warnings.push('Question '+q.num+' comes after question '+list[i-1].num+'. Check the order.');});});
+  /* a page of worked solutions rather than a question paper */
+  {const all=res.questions.map(q=>q.text).join('\n')+'\n'+pre.join('\n');
+    const lines=all.split('\n').filter(x=>x.trim());
+    const sol=lines.filter(t=>/সমাধান|দেওয়া\s*আছে|দেয়া\s*আছে|আমরা\s*জানি|∴|⸫|\bsolution\b|\bsolve\b|\bgiven\s*[,:]|\bwe\s+know\b|\bans(?:wer)?\s*[:：]/i.test(t)).length;
+    const cut=qs.reduce((a,q)=>a+(q.solutionCut||0),0);
+    const qlike=lines.filter(t=>/[?？]|নির্ণয়\s*কর|প্রমাণ\s*কর|দেখাও|ব্যাখ্যা\s*কর|লিখ|\b(?:find|derive|prove|show|explain|write|calculate|define|state|describe|discuss)\b/i.test(t)).length;
+    if((sol>=4&&sol>=qlike*0.8&&lines.length>=6)||(!res.questions.length&&sol>=2)){res.docKind='solutions';
+      res.warnings.unshift('This looks like a page of worked solutions or answers, not a question paper. Check before adding anything: solutions must not reach students.');}
+    else if(cut&&cut>lines.length)res.docKind='paper+solutions';
+    else res.docKind=res.docKind||'paper';}
+  /* formulas from photos */
+  const mw=qs.filter(q=>q.mathWarn).length;if(mw)res.warnings.push(mw+' written question'+(mw===1?' has':'s have')+' formulas read from a photo. Symbols, powers and fractions are often misread — check them against the paper, or switch on the original picture.');
+  qs.forEach(q=>{delete q.mathWarn;});
+  return res;
+}
+EFRead._written={question,paper,compose,_t:{endMarks,labelAt,multMarks,findTables,rowCells,onlyMarks,isSol:t=>SOLHEAD2.test(t)||SOLHEAD.test(t)}};
+})();
+
 /* ═══ READ A QUESTION PAPER (photo · PDF · Word) — review, edit, confirm, add ═══
    Works in all three Create forms. Pictures (diagrams, graphs, the original
    question) are stored once per exam in exam.qImages; questions keep only ids. */
 (function(){
 'use strict';
 window._efPendingImgs=window._efPendingImgs||{};
-const EFR={target:null,cards:[],figs:[],unplaced:[],busy:false,files:[],paperWarn:[]};
+const EFR={target:null,cards:[],figs:[],unplaced:[],busy:false,files:[],paperWarn:[],instructions:[]};
 window.EFR=EFR;
 const SRC={key:['From the answer key','ok'],inline:['From "Ans:" in the paper','ok'],tick:['Marked ✓ in the paper','ok'],style:['Bold / underlined / highlighted in your file','ok'],
   mark:['Marked in pen on the paper — please confirm','warn'],hand:['Written in the answer box on the paper — please confirm','warn'],calc:['Worked out by ExamFlow — please confirm','warn'],none:['Pick the correct answer','err'],teacher:['Chosen by you','ok']};
@@ -13563,7 +13929,7 @@ async function run(){
     if(EFR.cancel){EFR.busy=false;return;}
     const target=EFR.target==='mcq'?'mcq':(EFR.target==='wrt'?'wrt':'cb');
     const res=EFRead.parse(rd,{target});
-    EFR.figs=res.figures.map(f=>f.url);EFR.unplaced=res.unplaced.slice();EFR.paperWarn=res.warnings||[];
+    EFR.figs=res.figures.map(f=>f.url);EFR.unplaced=res.unplaced.slice();EFR.paperWarn=res.warnings||[];EFR.instructions=res.instructions||[];
     EFR.cards=res.questions.map(q=>toCard(q,res));
     if(EFR.target==='wrt')EFR.cards.forEach(c=>{if(c.kind==='mcq')mcqToWritten(c);});
     EFR.ms=Date.now()-t0;
@@ -13577,17 +13943,41 @@ async function run(){
 function toCard(q,res){
   const imgs=q.figs.map(i=>res.figures[i]&&res.figures[i].url).filter(Boolean);
   return {kind:q.kind,num:q.num,section:q.section||0,text:q.text,options:q.options.slice(),answer:q.answer,answerSrc:q.answerSrc,confirmed:!NEEDS_OK(q.answerSrc)&&q.answer>=0,
-    imgs,figInOrigin:(q.figInOrigin||[]).map(i=>res.figures[i]&&res.figures[i].url).filter(Boolean),origin:q.origin||'',showOrigin:!!q.showOrigin,marks:q.marks||null,warnings:q.warnings.slice(),lowConf:q.lowConf||[],conf:q.conf};
+    imgs,figInOrigin:(q.figInOrigin||[]).map(i=>res.figures[i]&&res.figures[i].url).filter(Boolean),origin:q.origin||'',showOrigin:!!q.showOrigin,marks:q.marks!=null&&q.marks>0?q.marks:null,warnings:q.warnings.slice(),lowConf:q.lowConf||[],conf:q.conf,
+    /* written: the stem and its parts, each with its own marks (never filled in by ExamFlow when not printed) */
+    ...(q.kind!=='mcq'&&q.parts&&q.parts.length?{text:q.stem||'',parts:q.parts.map(p=>({disp:p.disp,label:p.label,text:p.text||'',marks:p.marks!=null&&p.marks>0?p.marks:null})),partFam:q.partFam||'lat',
+      marks:q.parts.every(p=>p.marks!=null&&p.marks>0)?null:(q.marks!=null&&q.marks>0?q.marks:null)}:{parts:[]}),
+    marksSrc:q.marksSrc||null,page:q.page||null,pages:q.pages||null,table:q.table||null};
 }
-function blankCard(){return {kind:EFR.target==='wrt'||EFR.target==='cb-wrt'?'written':'mcq',num:EFR.cards.length+1,text:'',options:EFR.target==='wrt'?[]:['','','',''],answer:-1,answerSrc:'none',confirmed:false,imgs:[],origin:'',showOrigin:false,marks:null,warnings:[],lowConf:[],conf:100};}
+function writtenBlock(c,i){
+  const ps=c.parts||[];const all=ps.length&&ps.every(p=>p.marks!=null&&p.marks>0);
+  const parts=ps.length?`<div class="efr-parts">${ps.map((p,pi)=>`<div class="efr-part"><span class="efr-pl">${esc(p.disp)}</span><textarea class="ft efr-pta" data-c="${i}" data-f="ptext" data-p="${pi}" rows="${Math.min(6,Math.max(1,String(p.text).split('\n').length))}" aria-label="Part ${esc(p.disp)}">${esc(p.text)}</textarea><label class="efr-pm">Marks <input class="fi" type="number" min="0" step="0.5" data-c="${i}" data-f="pmarks" data-p="${pi}" value="${p.marks!=null?p.marks:''}" placeholder="—" aria-label="Marks for part ${esc(p.disp)}"></label><button type="button" class="efr-x" data-c="${i}" data-act="rmpart" data-p="${pi}" aria-label="Remove part ${esc(p.disp)}">&#10005;</button></div>`).join('')}</div>`:'';
+  const src=c.marksSrc==='heading'?' <span class="efr-msrc">from the paper heading — check</span>':'';
+  const tot=all?`<span>Total <b data-tot="${i}">${fmtM(wMarks(c))}</b> marks (the parts added up)</span>`
+    :`<label>${ps.length?'Question total':'Marks'} <input class="fi" type="number" min="0" step="0.5" data-c="${i}" data-f="marks" value="${c.marks!=null?c.marks:''}" placeholder="Enter"></label>${ps.length?' <span class="efr-msrc" data-tot="${i}">or give every part its marks</span>':''}`;
+  return parts+`<div class="efr-marks">${tot}${src}<button type="button" class="btn btnG sm efr-addp" data-c="${i}" data-act="addpart">+ Part</button></div>`;
+}
+function blankCard(){return {kind:EFR.target==='wrt'||EFR.target==='cb-wrt'?'written':'mcq',num:EFR.cards.length+1,text:'',options:EFR.target==='wrt'?[]:['','','',''],answer:-1,answerSrc:'none',confirmed:false,imgs:[],origin:'',showOrigin:false,marks:null,parts:[],warnings:[],lowConf:[],conf:100};}
+/* ── written questions: parts and marks ── */
+const PL={lat:'abcdefghijklmnop',bn:'কখগঘঙচছজঝঞ'};
+function partDisp(fam,k){return fam==='bn'?(PL.bn[k]||String(k+1))+'.':'('+(PL.lat[k]||String(k+1))+')';}
+function relabel(c){const fam=c.partFam||'lat';(c.parts||[]).forEach((p,k)=>{p.disp=partDisp(fam,k);p.label=fam==='bn'?PL.bn[k]:PL.lat[k];});}
+const fmtM=v=>String(+(+v).toFixed(2));
+/* the marks the question gets: the parts added up when every part has its marks, otherwise the total typed */
+function wMarks(c){const ps=c.parts||[];if(ps.length&&ps.every(p=>p.marks!=null&&p.marks>0))return ps.reduce((a,p)=>a+(+p.marks),0);return c.marks!=null&&c.marks>0?+c.marks:null;}
+/* the text students see: the stem, then each part with its marks */
+function wText(c){const ps=c.parts||[];const stem=String(c.text||'').trim();if(!ps.length)return stem;
+  return [stem].concat(ps.map(p=>p.disp+' '+String(p.text||'').trim()+(p.marks!=null&&p.marks>0?' ['+fmtM(p.marks)+']':''))).filter(Boolean).join('\n');}
+EFR.wMarks=c=>wMarks(c);EFR.wText=c=>wText(c);
+function flatten(c){if(c.parts&&c.parts.length){const m=wMarks(c);c.text=wText(c);c.parts=[];c.marks=m;}}
 function mcqToWritten(c){
-  if(c.kind!=='mcq')return;
+  if(c.kind!=='mcq')return;c.parts=c.parts||[];
   c.text=(c.text?c.text+'\n':'')+c.options.map((o,i)=>'('+'abcde'[i]+') '+o).join('\n');
   c.kind='written';c.options=[];c.answer=-1;c.answerSrc='none';c.confirmed=true;
 }
 function cardProblems(c){
   const p=[];
-  if(!String(c.text||'').trim()&&!c.imgs.length&&!(c.showOrigin&&c.origin))p.push('The question is empty.');
+  if(!String(c.text||'').trim()&&!(c.parts||[]).some(x=>String(x.text||'').trim())&&!c.imgs.length&&!(c.showOrigin&&c.origin))p.push('The question is empty.');
   if(c.kind==='mcq'){
     const filled=c.options.filter(o=>String(o).trim()).length;
     if(filled<2)p.push('An MCQ needs at least 2 options.');
@@ -13597,6 +13987,12 @@ function cardProblems(c){
     else if(!c.confirmed)p.push('Confirm the answer.');
     if(EFR.target==='wrt')p.length=0;
   } else if(EFR.target==='mcq')p.push('An MCQ exam only takes multiple-choice questions: add options or remove this one.');
+  else{
+    /* written: marks are never filled in for the teacher */
+    const ps=c.parts||[];
+    ps.forEach(x=>{if(!String(x.text||'').trim())p.push('Part '+x.disp+' is empty: type it in or remove it.');});
+    if(wMarks(c)==null)p.push(ps.length?'Enter the marks for every part, or the question total.':'Enter the marks for this question.');
+  }
   return p;
 }
 function renderCards(){
@@ -13606,6 +14002,7 @@ function renderCards(){
   const todo=EFR.cards.filter(c=>cardProblems(c).length||c.warnings.length||c.lowConf.length).length;
   el('efr-sum').innerHTML=`<div class="efr-sumrow"><span class="bx bK">${EFR.cards.length} question${EFR.cards.length===1?'':'s'} found</span>${nM&&nW?`<span class="bx bN">${nM} MCQ · ${nW} written</span>`:''}${EFR.figs.length?`<span class="bx bI">${EFR.figs.length} picture${EFR.figs.length===1?'':'s'}</span>`:''}${todo?`<span class="bx bW">${todo} to check</span>`:'<span class="bx bK">All look good</span>'}</div>`
     +(nM?`<div class="efr-sumtxt">Answers: ${[['key','from the answer key'],['inline','from “Ans:” notes'],['tick','marked ✓'],['style','bold/underlined in the file'],['mark','pen marks (confirm)'],['hand','answer boxes (confirm)'],['calc','worked out (confirm)'],['teacher','chosen by you'],['none','not found — pick them']].filter(([k])=>bySrc[k]).map(([k,t])=>bySrc[k]+' '+t).join(' · ')}.</div>`:'')
+    +(EFR.instructions&&EFR.instructions.length?`<div class="efr-sumtxt"><b>Instructions printed on the paper:</b> ${EFR.instructions.map(t=>esc(t)).join(' · ')}</div>`:'')
     +EFR.paperWarn.map(w=>`<div class="efr-warn">&#9888; ${esc(w)}</div>`).join('')
     +`<div class="efr-sumtxt" style="color:var(--ink3)">Read in ${Math.max(1,Math.round((EFR.ms||0)/1000))} s. Read every question once: photos can be misread, especially numbers and symbols. Where “Show the original picture” is on, students also see the question exactly as printed.</div>`;
   const cbMode=EFR.target==='cb-mcq'||EFR.target==='cb-wrt';
@@ -13616,13 +14013,13 @@ function renderCards(){
     const opts=c.kind==='mcq'?`<div class="efr-opts">${c.options.map((o,oi)=>`<div class="efr-opt${oi===c.answer?' on':''}"><label class="efr-radio" title="Correct answer"><input type="radio" name="efr-a-${i}" data-c="${i}" data-f="ans" value="${oi}" ${oi===c.answer?'checked':''}><span>${L[oi]||oi+1}</span></label><input class="fi" data-c="${i}" data-f="opt" data-o="${oi}" value="${esc(o)}" placeholder="Option ${L[oi]||oi+1}"><button type="button" class="efr-x" data-c="${i}" data-act="rmopt" data-o="${oi}" aria-label="Remove option">&#10005;</button></div>`).join('')}
       ${c.options.length<4?`<button type="button" class="btn btnG sm" data-c="${i}" data-act="addopt">+ Option</button>`:''}</div>
       <div class="efr-ans efr-${c.answer<0?'err':(c.confirmed?'ok':src[1])}">${c.answer<0?'&#9675; Pick the correct answer':(c.confirmed&&c.answerSrc!=='teacher'&&NEEDS_OK(c.answerSrc)?'&#10003; Confirmed by you':(c.answerSrc==='teacher'?'&#10003; Chosen by you':(NEEDS_OK(c.answerSrc)?'&#9888; '+esc(src[0]):'&#10003; '+esc(src[0]))))}${c.answer>=0&&!c.confirmed?` <button type="button" class="btn btnP sm" data-c="${i}" data-act="ok">${L[c.answer]} is correct</button>`:''}</div>`
-      :`<div class="efr-marks"><label>Marks <input class="fi" type="number" min="0" step="0.5" data-c="${i}" data-f="marks" value="${c.marks!=null?c.marks:''}" placeholder="10"></label></div>`;
+      :writtenBlock(c,i);
     const inOrig=u=>c.showOrigin&&c.origin&&(c.figInOrigin||[]).includes(u);
     const imgs=c.imgs.map((u,k)=>inOrig(u)?'':`<div class="efr-img"><img src="${_imgSrc(u)}" alt="Picture ${k+1}"><button type="button" class="efr-x" data-c="${i}" data-act="rmimg" data-k="${k}" aria-label="Remove picture">&#10005;</button></div>`).join('');
     const orig=c.origin?`<label class="efr-origt"><input type="checkbox" data-c="${i}" data-f="orig" ${c.showOrigin?'checked':''}> Show the original picture of this question to students${c.kind==='mcq'?' (options stay as buttons)':''}</label>${c.showOrigin?`<div class="efr-img efr-origimg"><img src="${_imgSrc(c.origin)}" alt="Original question"></div>`:''}`:'';
     const kindSel=cbMode?`<select class="fs efr-kind" data-c="${i}" data-f="kind"><option value="mcq" ${c.kind==='mcq'?'selected':''}>MCQ (part 1)</option><option value="written" ${c.kind==='written'?'selected':''}>Written (part 2)</option></select>`:'';
     return `<div class="card efr-card${flag?' efr-flag':''}" data-card="${i}">
-      <div class="efr-ch"><b>Q${i+1}</b>${c.conf<100?`<span class="efr-conf" title="How sure the reader was">${c.conf}% sure</span>`:''}${kindSel}<span style="flex:1"></span>
+      <div class="efr-ch"><b>Q${i+1}</b>${c.page?`<span class="efr-conf" title="Where it is in the file">Page ${esc((c.pages||[c.page]).join(', '))}</span>`:''}${c.conf<100?`<span class="efr-conf" title="How sure the reader was">${c.conf}% sure</span>`:''}${kindSel}<span style="flex:1"></span>
         ${i<EFR.cards.length-1?`<button type="button" class="btn btnG sm" data-c="${i}" data-act="merge" title="Join with the next question">Join next</button>`:''}
         <button type="button" class="efr-x" data-c="${i}" data-act="del" aria-label="Delete question">&#128465;</button></div>
       <textarea class="ft efr-ta" data-c="${i}" data-f="text" rows="${Math.min(8,Math.max(2,String(c.text).split('\n').length+1))}">${esc(c.text)}</textarea>
@@ -13650,7 +14047,11 @@ function onEdit(e){
   const t=e.target,i=+t.dataset.c,f=t.dataset.f;const c=EFR.cards[i];if(!c||!f)return;
   if(f==='text'){c.text=t.value;syncPv(i);return;}
   if(f==='opt'){c.options[+t.dataset.o]=t.value;syncPv(i);return;}
-  if(f==='marks'){c.marks=t.value===''?null:Math.max(0,+t.value);return;}
+  if(f==='marks'){c.marks=t.value===''?null:Math.max(0,+t.value);c.marksSrc='teacher';if(e.type==='change')renderCards();return;}
+  if(f==='ptext'){const p=(c.parts||[])[+t.dataset.p];if(p)p.text=t.value;return;}
+  if(f==='pmarks'){const p=(c.parts||[])[+t.dataset.p];if(!p)return;p.marks=t.value===''?null:Math.max(0,+t.value);c.marksSrc='teacher';
+    const tot=document.querySelector(`[data-tot="${i}"]`);const m=wMarks(c);const all=c.parts.every(x=>x.marks!=null&&x.marks>0);
+    if(e.type==='change')renderCards();else if(tot&&tot.tagName==='B'&&all)tot.textContent=fmtM(m);return;}
   if(f==='ans'&&e.type==='change'){c.answer=+t.value;c.answerSrc='teacher';c.confirmed=true;renderCards();return;}
   if(f==='orig'&&e.type==='change'){c.showOrigin=t.checked;renderCards();return;}
   if(f==='kind'&&e.type==='change'){if(t.value==='written'&&c.kind==='mcq')mcqToWritten(c);else if(t.value==='mcq'&&c.kind!=='mcq'){c.kind='mcq';c.options=['','','',''];c.answer=-1;c.answerSrc='none';c.confirmed=false;}renderCards();}
@@ -13660,10 +14061,12 @@ function onClick(e){
   const a=b.dataset.act;
   if(a==='ok'){c.confirmed=true;}
   else if(a==='del'){EFR.cards.splice(i,1);}
-  else if(a==='merge'){const n=EFR.cards[i+1];if(n){c.text=[c.text,c.kind==='mcq'&&c.options.length&&n.kind==='mcq'?'':null,n.text].filter(x=>x!=null&&x!=='').join('\n');
+  else if(a==='merge'){const n=EFR.cards[i+1];if(n){flatten(c);flatten(n);c.text=[c.text,c.kind==='mcq'&&c.options.length&&n.kind==='mcq'?'':null,n.text].filter(x=>x!=null&&x!=='').join('\n');
       if(n.kind==='mcq'&&n.options.length){if(c.kind!=='mcq'||!c.options.some(o=>String(o).trim())){c.kind='mcq';c.options=n.options;c.answer=n.answer;c.answerSrc=n.answerSrc;c.confirmed=n.confirmed;}}
       c.imgs=c.imgs.concat(n.imgs.filter(u=>!c.imgs.includes(u)));c.figInOrigin=(c.figInOrigin||[]).concat(n.figInOrigin||[]);c.warnings=Array.from(new Set(c.warnings.concat(n.warnings)));c.lowConf=c.lowConf.concat(n.lowConf).slice(0,10);
-      if(!c.origin)c.origin=n.origin;EFR.cards.splice(i+1,1);}}
+      if(!c.origin)c.origin=n.origin;if(c.kind!=='mcq'){const a1=c.marks,a2=n.marks;c.marks=a1!=null&&a2!=null?a1+a2:null;}EFR.cards.splice(i+1,1);}}
+  else if(a==='addpart'){c.parts=c.parts||[];if(!c.parts.length&&!c.partFam)c.partFam=/[\u0980-\u09FF]/.test(c.text||'')?'bn':'lat';c.parts.push({text:'',marks:null});relabel(c);}
+  else if(a==='rmpart'){(c.parts||[]).splice(+b.dataset.p,1);relabel(c);}
   else if(a==='rmopt'){const o=+b.dataset.o;c.options.splice(o,1);if(c.answer===o){c.answer=-1;c.answerSrc='none';c.confirmed=false;}else if(c.answer>o)c.answer--;}
   else if(a==='addopt'){c.options.push('');}
   else if(a==='rmimg'){c.imgs.splice(+b.dataset.k,1);}
@@ -13708,7 +14111,8 @@ async function commit(){
       if(t==='mcq')parsedQs.push(q);else cbParsedQs.push(q);nM++;
     } else if(c.kind!=='mcq'&&(t==='wrt'||t==='cb-mcq'||t==='cb-wrt')){
       const arr=t==='wrt'?S.wrtQs:cbWrtQs;
-      const q={id:'WQ-'+Date.now()+'-'+arr.length,text,marks:c.marks!=null&&c.marks>0?c.marks:10,hint:'',num:arr.length+1};if(ids.length)q.imgs=ids;
+      /* marks were checked above: never a made-up default */
+      const q={id:'WQ-'+Date.now()+'-'+arr.length,text:wText(c),marks:wMarks(c),hint:'',num:arr.length+1};if(ids.length)q.imgs=ids;
       arr.push(q);nW++;
     } else skipped++;
   });
@@ -14600,7 +15004,7 @@ const M=[
 
 {id:'t-wrt',who:'teacher',icon:'✍️',title:'Create a written exam',sum:'Written questions, marks, and how students answer.',body:()=>
  H('Settings')+UL(['Same course, time and student-list settings as an MCQ exam.','<b>Shuffle questions</b> changes the order for each student.'])+
- H('Adding questions')+UL(['Drop the paper into the upload box: each question, its parts (a), (b)… and its marks are read.','Or click <b>+ Add manually</b>: type the question and its marks. Add a picture or a drawn diagram if needed.'])+
+ H('Adding questions')+UL(['Drop the paper into the upload box: each question, its parts (a), (b)… or ক, খ… and each part\'s marks are read. Check them in the list; you can change any part\'s text or marks, add or remove a part. A question without marks can\'t be added until you enter them.','Or click <b>+ Add manually</b>: type the question and its marks. Add a picture or a drawn diagram if needed.'])+
  H('How students answer')+UL(['They type, upload several photos of their answer sheet, or take a photo with the phone camera.','Answers are saved as they go, so a refresh or a dropped connection loses nothing.'])+
  H('After the exam')+UL(['Grade in the monitor with the red pen — see '+LINK('t-grade','Grading, results and review links')+'.'])},
 
@@ -14619,6 +15023,7 @@ const M=[
  H('Where the correct answer comes from')+UL(['An <b>answer key or grid</b> on the paper (“53. d  54. a…”, “০১. খ”, a table of numbers and letters).','A <b>circled</b>, <b>ticked</b> (✓), <b>bold</b>, <b>underlined</b>, <b>shaded</b> or <b>coloured</b> option.','An <b>“Ans: B”</b> or <b>“উত্তর: (খ)”</b> line under the question, or “(গ) ✓” after the last option.','A pen mark on a printed paper.','For number questions with no key, a small exact calculator works the answer out and ticks the matching option — you confirm it.'])+
  H('What it also does')+UL(['Reads Bangla and English, and papers that mix both.','Reads two-column book pages one column at a time, and question numbers printed in the gap between the columns.','Reads option letters printed in rings: ⓚ ⓛ ⓜ ⓝ and Ⓐ Ⓑ Ⓒ Ⓓ.','Finds printed question numbers even when the page reader misreads them (“S3.” → 53), using a digit reader built from fonts inside your browser, and the fact that numbers count up.','Writes matrices and determinants as typed maths, and keeps diagrams, graphs and circuits as pictures attached to their question.','Leaves out watermarks, page numbers, headers and printed “Answer:” notes under written questions.'])+
  H('Checking the result')+UL(['Every answer shows where it came from (key, tick, bold…). Answers the reader is less sure of say <b>Confirm</b> — click the letter if it\'s right, or pick another.','If some options could not be read (usually formulas), the question keeps its answer and shows empty option boxes. Type them in; the question can\'t be added until they\'re filled.','A switch on each question shows the original picture of that question, so you can compare.','Pictures the reader could not place wait under <b>Pictures not placed in a question</b>.'])+
+ H('Written papers')+UL(['Each question comes with its parts — (a) (b) (c) or ক খ গ — and each part\'s marks as printed: “(03)”, “[3]”, “3.5”, a mark at the end of the line (“… নির্ণয় কর। ৪”), or “1×10=10”.','The question\'s marks are its parts added up. Where no marks are printed, the box stays empty and the question can\'t be added until you fill it in: ExamFlow never guesses marks.','A printed solution under a question (“১নং প্রশ্নের সমাধান”, “Solution:”, “উত্তর:”) is left out, and the question says so. A file that is all solutions is flagged.','Tables are kept row by row (cells separated by “|”). A question that mentions a figure with no picture found says so, so you can switch on the original picture or add it.','Each question shows the page it is on. Instructions such as “Answer any two” are shown at the top: ExamFlow asks students every question you add, so keep the ones you want.'])+
  H('Tips for good photos')+UL(['Hold the phone flat over the page, in good light, with no shadow across the text.','Fill the frame with the page. Press the book flat: words curling into the spine are lost.','One page per photo. Take the answer key page too.','A typed PDF or Word file is always more accurate than a photo of it.'])+
  NOTE('No reader is perfect. On test photos it found about 9 in 10 questions and got about 8 in 10 answers right from the key; typed PDFs and Word files do much better. Always look over the list before you create the exam.')},
 
@@ -14771,6 +15176,547 @@ css();
 /* camera cards built before this file loaded get their guide button now */
 function camHelp(){document.querySelectorAll('.efcam-cfg .efcam-cfg-d').forEach(d=>{if(!d.querySelector('.efm-help'))d.insertAdjacentHTML('beforeend',' '+window.efHelpBtn('t-cam','How it works'));});}
 camHelp();if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',camHelp);else setTimeout(camHelp,0);
+})();
+
+/* ExamFlow v46 — Admin Monitor → 🏛 Institutions (GHUM control plane).
+   Institutional packages, teacher allowlists, licences, server registration, audit.
+   Everything goes through /api/admin on the trusted server, which checks the admin's
+   Firebase sign-in on every call, uses its own clock for licence dates and signs
+   packages with a key the browser never sees. A success message appears only after
+   the server confirms; failures show the server's reason. Cloud teachers are not
+   affected: this only manages institution-hosted deployments. */
+(function () {
+  'use strict';
+  if (window.EF_INST) return; // institution servers don't get GHUM's control plane
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const TZ = 'Asia/Dhaka';
+  const fdate = ms => ms ? new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: TZ }) : '—';
+  const ftime = ms => ms ? new Date(ms).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: TZ }) : '—';
+  const ago = ms => { if (!ms) return 'never'; const s = Math.round((Date.now() - ms) / 1000); if (s < 90) return s + ' s ago'; if (s < 5400) return Math.round(s / 60) + ' min ago'; if (s < 172800) return Math.round(s / 3600) + ' h ago'; return Math.round(s / 86400) + ' days ago'; };
+  const opId = () => (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36)).replace(/[^A-Za-z0-9_-]/g, '');
+  const T = (m, k, ms) => { if (typeof toast === 'function') toast(m, k || 'ok', ms); };
+  const STATUS_CLS = { 'Active': 'bK', 'Expiring Soon': 'bW', 'Pending': 'bN', 'Expired': 'bE', 'Blocked': 'bE', 'Not set': 'bN' };
+  const pill = (st, extra) => `<span class="bx ${STATUS_CLS[st] || 'bN'}">${esc(st)}${extra ? ' · ' + esc(extra) : ''}</span>`;
+
+  /* ── API ── */
+  let busy = false;
+  async function api(action, body = {}, { raw } = {}) {
+    const u = (typeof auth !== 'undefined' && auth.currentUser) || null;
+    if (!u) throw new Error('Sign in as the ExamFlow admin first.');
+    const tok = await u.getIdToken();
+    let r;
+    try { r = await fetch('/api/admin', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + tok }, body: JSON.stringify({ action, ...body }) }); }
+    catch (e) { throw new Error('Could not reach the GHUM server. Check your connection; nothing was changed.'); }
+    if (raw && r.ok && (r.headers.get('content-type') || '').includes('zip')) return { blob: await r.blob(), name: (/filename="([^"]+)"/.exec(r.headers.get('content-disposition') || '') || [])[1], sha: r.headers.get('x-package-sha256') };
+    let j = null; try { j = await r.json(); } catch (e) {}
+    if (!j) throw new Error(r.status === 404 ? 'The control plane API is not deployed here (/api/admin not found). Deploy v46 to Vercel with the api folder.' : 'Unexpected answer from the server (HTTP ' + r.status + ').');
+    if (!j.ok) { const e = new Error(j.error || 'Failed.'); e.code = j.code; e.status = r.status; throw e; }
+    return j;
+  }
+  /* run an action with a button lock, so a double click can't submit twice */
+  async function run(btn, fn) {
+    if (busy) return; busy = true;
+    const label = btn ? btn.innerHTML : ''; if (btn) { btn.disabled = true; btn.innerHTML = 'Working…'; }
+    try { return await fn(); }
+    catch (e) { T(e.message, 'err', 9000); throw e; }
+    finally { busy = false; if (btn && btn.isConnected) { btn.disabled = false; btn.innerHTML = label; } }
+  }
+
+  /* ── modal ── */
+  function modal(title, bodyHtml, actions, wide) {
+    let m = document.getElementById('m-efia');
+    if (!m) { m = document.createElement('div'); m.className = 'mbd'; m.id = 'm-efia'; m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true'); document.body.appendChild(m); }
+    m.innerHTML = `<div class="mbx" style="max-width:${wide ? 860 : 560}px"><div class="mh"><h3>${esc(title)}</h3></div><div class="mb" style="max-height:70vh;overflow:auto">${bodyHtml}</div><div class="mf">${actions || ''}</div></div>`;
+    m.classList.add('open');
+    m.onclick = e => { if (e.target === m) closeModal(); };
+    m.onkeydown = e => { if (e.key === 'Escape') closeModal(); };
+    setTimeout(() => { const f = m.querySelector('input,select,textarea,button.btnP'); if (f) f.focus(); }, 30);
+    return m;
+  }
+  function closeModal() { const m = document.getElementById('m-efia'); if (m) m.classList.remove('open'); }
+  /** Confirmation with an optional required reason. Resolves with the reason (string) or null. */
+  function confirmBox({ title, html, okLabel, danger, reason, reasonLabel, typed }) {
+    return new Promise(res => {
+      const m = modal(title, `${html}${reason ? `<div class="fg" style="margin-top:12px"><label class="fl">${esc(reasonLabel || 'Reason')} <span>*</span></label><textarea class="fi" id="efia-reason" rows="3" maxlength="500"></textarea></div>` : ''}
+        ${typed ? `<div class="fg" style="margin-top:10px"><label class="fl">Type <b>${esc(typed)}</b> to confirm</label><input class="fi" id="efia-typed" autocomplete="off"></div>` : ''}`,
+        `<button class="btn btnG" data-x="cancel">Cancel</button><button class="btn ${danger ? 'btnD' : 'btnP'}" data-x="ok">${esc(okLabel || 'Confirm')}</button>`);
+      m.querySelector('[data-x=cancel]').onclick = () => { closeModal(); res(null); };
+      m.querySelector('[data-x=ok]').onclick = () => {
+        const r = reason ? m.querySelector('#efia-reason').value.trim() : '';
+        if (reason && !r) { T('Please give a reason.', 'warn'); return; }
+        if (typed && m.querySelector('#efia-typed').value.trim() !== typed) { T('Type the confirmation text exactly.', 'warn'); return; }
+        closeModal(); res(r || '');
+      };
+    });
+  }
+
+  /* ── state ── */
+  const S2 = { ov: null, err: null, q: '', fLic: '', fPkg: '', sort: 'name', page: 0, cur: null, detail: null, tab: 'setup', draft: null, csv: null };
+  const root = () => document.getElementById('adm-institutions');
+
+  async function loadOverview() {
+    S2.err = null;
+    try { S2.ov = await api('overview'); } catch (e) { S2.err = e; S2.ov = null; }
+  }
+  function show() { if (S2.cur) renderDetail(); else renderList(); }
+  async function open() {
+    const r = root(); if (!r) return;
+    r.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:var(--ink3)">Loading institutions…</div>';
+    if (S2.cur) { await loadDetail(S2.cur); } else await loadOverview();
+    show();
+  }
+  window.efInstAdmin = { open, state: S2 };
+
+  /* ───────────── list / dashboard ───────────── */
+  function pkgState(row) {
+    if (!row.latest) return row.teacherCount ? 'Draft' : 'Draft';
+    if (row.packageDraft) return 'Draft (changes not packaged)';
+    return row.latest.adminStatus;
+  }
+  function renderList() {
+    const r = root(); if (!r) return;
+    if (S2.err) {
+      r.innerHTML = `<div class="card" style="padding:22px"><h3 style="margin-bottom:6px">🏛 Institutions & licences</h3>
+        <p style="color:var(--err);font-size:.9rem;margin-bottom:8px"><b>Not connected.</b> ${esc(S2.err.message)}</p>
+        <p style="color:var(--ink3);font-size:.85rem">Nothing is shown until the GHUM control plane answers, so no status here is a guess. See the v46 README, "Setting up the control plane".</p>
+        <button class="btn btnS sm" style="margin-top:10px" onclick="efInstAdmin.open()">↻ Try again</button></div>`;
+      return;
+    }
+    const ov = S2.ov; const rows0 = ov.institutions;
+    const counts = {}; rows0.forEach(i => { const s = i.licenceState.status; counts[s] = (counts[s] || 0) + 1; });
+    let rows = rows0.filter(i => (!S2.q || (i.name + ' ' + i.id + ' ' + (i.latest ? i.latest.id : '')).toLowerCase().includes(S2.q.toLowerCase()))
+      && (!S2.fLic || i.licenceState.status === S2.fLic) && (!S2.fPkg || pkgState(i).startsWith(S2.fPkg)));
+    const sorters = { name: (a, b) => a.name.localeCompare(b.name), expiry: (a, b) => (a.licenceState.expiresAt || 9e15) - (b.licenceState.expiresAt || 9e15), updated: (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0) };
+    rows.sort(sorters[S2.sort] || sorters.name);
+    const per = 20, pages = Math.max(1, Math.ceil(rows.length / per)); S2.page = Math.min(S2.page, pages - 1);
+    const view = rows.slice(S2.page * per, S2.page * per + per);
+    const chip = (s) => counts[s] ? `<button class="btn btnS sm" style="gap:6px" onclick="efInstAdmin._f('${s}')">${pill(s)} ${counts[s]}</button>` : '';
+    r.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+        <div><h3 style="font-size:1.15rem">🏛 Institutional packages & licences</h3>
+          <p style="color:var(--ink3);font-size:.82rem;max-width:640px">Institution-hosted ExamFlow: each institution runs its own server and keeps its exams, students and results in its own database. Here you manage only the institution record, its approved teacher IDs, its licence and its installation package. Cloud teachers are not affected.</p></div>
+        <button class="btn btnP" onclick="efInstAdmin._create()">+ Create institution package</button>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${['Active', 'Expiring Soon', 'Pending', 'Expired', 'Blocked', 'Not set'].map(chip).join('')}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
+        <input class="fi" style="max-width:260px" placeholder="🔍 Name, institution ID or package ID" value="${esc(S2.q)}" oninput="efInstAdmin._q(this.value)" aria-label="Search institutions">
+        <select class="fs" style="max-width:190px" onchange="efInstAdmin._fl(this.value)" aria-label="Licence status"><option value="">All licence states</option>${['Active', 'Expiring Soon', 'Pending', 'Expired', 'Blocked', 'Not set'].map(s => `<option ${S2.fLic === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
+        <select class="fs" style="max-width:190px" onchange="efInstAdmin._fp(this.value)" aria-label="Package status"><option value="">All package states</option>${['Draft', 'Generated', 'Delivered', 'Superseded', 'Revoked'].map(s => `<option ${S2.fPkg === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
+        <select class="fs" style="max-width:170px" onchange="efInstAdmin._s(this.value)" aria-label="Sort"><option value="name" ${S2.sort === 'name' ? 'selected' : ''}>Sort: name</option><option value="expiry" ${S2.sort === 'expiry' ? 'selected' : ''}>Sort: expiry soonest</option><option value="updated" ${S2.sort === 'updated' ? 'selected' : ''}>Sort: recently changed</option></select>
+        <span style="font-size:.78rem;color:var(--ink3);margin-left:auto">GHUM signing key ${esc(ov.signingKey || 'not set')} · server time ${ftime(ov.serverTime)}</span>
+      </div>
+      ${!rows0.length ? `<div class="card" style="padding:30px;text-align:center"><p style="color:var(--ink3);margin-bottom:10px">No institutions yet.</p><button class="btn btnP" onclick="efInstAdmin._create()">+ Create the first institution package</button></div>`
+        : !rows.length ? `<div class="card" style="padding:24px;text-align:center;color:var(--ink3)">No institution matches these filters.</div>`
+        : `<div class="card" style="padding:0;overflow-x:auto"><table class="dt" style="width:100%;min-width:1100px"><thead><tr>
+          <th>Institution</th><th>Package</th><th>Teachers</th><th>Licence</th><th>Package status</th><th>Delivery</th><th>Installation</th><th>Server</th><th>Changed</th><th></th></tr></thead><tbody>
+          ${view.map(i => {
+            const L = i.licenceState, p = i.latest, srv = i.server;
+            return `<tr>
+              <td><b>${esc(i.name)}</b><br><span style="font-family:var(--fm);font-size:.72rem;color:var(--ink3)">${esc(i.id)}</span></td>
+              <td>${p ? `<span style="font-family:var(--fm);font-size:.75rem">${esc(p.id)}</span><br>v${esc(p.version)}` : '<span style="color:var(--ink3)">none yet</span>'}</td>
+              <td>${i.teacherCount}</td>
+              <td>${pill(L.status)}${L.expiresAt ? `<br><span style="font-size:.75rem;color:var(--ink3)">${L.status === 'Pending' ? 'starts ' + fdate(L.activatesAt) : 'until ' + fdate(L.expiresAt - 1)}${['Active', 'Expiring Soon'].includes(L.status) ? ' · ' + L.remainingDays + ' days left' : ''}</span>` : ''}</td>
+              <td>${esc(pkgState(i))}</td>
+              <td>${p ? (p.adminStatus === 'Delivered' ? 'Delivered' : p.adminStatus === 'Revoked' ? '—' : 'Not yet') : '—'}</td>
+              <td>${p ? (p.tech.status === 'Installed' ? '<span class="bx bK">Installed</span><br><span style="font-size:.72rem;color:var(--ink3)">confirmed by server</span>' : p.tech.status === 'Installation failed' ? '<span class="bx bE">Failed</span>' : '<span class="bx bN">Not installed</span>') : '—'}</td>
+              <td>${srv && srv.lastSeenAt ? `${srv.status === 'Healthy' ? '🟢' : '🟠'} ${esc(srv.serverVersion || '')}<br><span style="font-size:.72rem;color:var(--ink3)">seen ${ago(srv.lastSeenAt)}</span>` : srv && srv.serverId ? 'Registered, not seen' : '<span style="color:var(--ink3)">not registered</span>'}</td>
+              <td style="font-size:.78rem">${fdate(i.updatedAt)}</td>
+              <td><button class="btn btnS sm" onclick="efInstAdmin._open('${esc(i.id)}')">Manage →</button></td></tr>`;
+          }).join('')}</tbody></table></div>
+          ${pages > 1 ? `<div style="display:flex;gap:8px;justify-content:center;align-items:center;margin-top:10px"><button class="btn btnS sm" ${S2.page ? '' : 'disabled'} onclick="efInstAdmin._pg(-1)">← Previous</button><span style="font-size:.82rem">Page ${S2.page + 1} of ${pages}</span><button class="btn btnS sm" ${S2.page < pages - 1 ? '' : 'disabled'} onclick="efInstAdmin._pg(1)">Next →</button></div>` : ''}`}
+      <p style="font-size:.75rem;color:var(--ink3);margin-top:10px">"Installed" and server health come only from the institution server's own signed check-ins. Downloading or marking a package delivered never marks it installed.</p>`;
+  }
+  Object.assign(window.efInstAdmin, {
+    _q: v => { S2.q = v; S2.page = 0; renderList(); const i = root().querySelector('input'); if (i) { i.focus(); i.setSelectionRange(v.length, v.length); } },
+    _fl: v => { S2.fLic = v; S2.page = 0; renderList(); }, _fp: v => { S2.fPkg = v; S2.page = 0; renderList(); }, _s: v => { S2.sort = v; renderList(); },
+    _f: v => { S2.fLic = S2.fLic === v ? '' : v; S2.page = 0; renderList(); }, _pg: d => { S2.page += d; renderList(); },
+    _open: async id => { S2.cur = id; S2.tab = 'setup'; S2.draft = null; S2.csv = null; await open(); },
+    _back: async () => { S2.cur = null; S2.detail = null; await open(); }
+  });
+
+  /* create institution */
+  window.efInstAdmin._create = () => {
+    const m = modal('Create institution package — step 1 of 4: the institution', `
+      <p style="font-size:.84rem;color:var(--ink3);margin-bottom:10px">ExamFlow gives the institution a permanent ID. It never changes, even when you renew its licence, change its teachers or issue a new package.</p>
+      <div class="fg"><label class="fl">Institution name <span>*</span></label><input class="fi" id="efi-name" maxlength="160" placeholder="e.g. Independent University, Bangladesh"></div>
+      <div class="fg"><label class="fl">Deployment type</label><input class="fi" value="Institution-hosted (the institution's own server and database)" readonly></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="fg"><label class="fl">Contact name</label><input class="fi" id="efi-cn" maxlength="120"></div>
+        <div class="fg"><label class="fl">Contact email</label><input class="fi" id="efi-ce" type="email" maxlength="254"></div>
+        <div class="fg"><label class="fl">Contact phone</label><input class="fi" id="efi-cp" maxlength="40"></div>
+        <div class="fg"><label class="fl">IT / technical contact email</label><input class="fi" id="efi-te" type="email" maxlength="254"></div>
+      </div>
+      <div class="fg"><label class="fl">Notes (only you see these)</label><textarea class="fi" id="efi-notes" rows="2" maxlength="2000"></textarea></div>
+      <p style="font-size:.8rem;color:var(--ink3)">Next: ② approved teacher IDs → ③ licence → ④ generate the package.</p>`,
+      '<button class="btn btnG" onclick="document.getElementById(\'m-efia\').classList.remove(\'open\')">Cancel</button><button class="btn btnP" id="efi-go">Create institution →</button>');
+    m.querySelector('#efi-go').onclick = e => run(e.target, async () => {
+      const v = id => m.querySelector(id).value.trim();
+      if (!v('#efi-name')) { T('Enter the institution name.', 'warn'); return; }
+      const j = await api('inst.create', { name: v('#efi-name'), contactName: v('#efi-cn'), contactEmail: v('#efi-ce'), contactPhone: v('#efi-cp'), techEmail: v('#efi-te'), notes: v('#efi-notes') });
+      closeModal(); T('Institution created: ' + j.institution.id, 'ok', 5000);
+      S2.cur = j.institution.id; S2.tab = 'teachers'; await open();
+    }).catch(() => {});
+  };
+
+  /* ───────────── institution detail ───────────── */
+  async function loadDetail(id) {
+    try { S2.detail = await api('inst.get', { id }); S2.err = null; }
+    catch (e) { S2.detail = null; S2.err = e; }
+  }
+  const TABS = [['setup', 'Overview & setup'], ['teachers', 'Teacher IDs'], ['licence', 'Licence'], ['packages', 'Packages'], ['server', 'Server'], ['activity', 'Activity']];
+  function renderDetail() {
+    const r = root(); if (!r) return;
+    const d = S2.detail;
+    if (!d) { r.innerHTML = `<div class="card" style="padding:22px"><p style="color:var(--err)">${esc(S2.err ? S2.err.message : 'Not found')}</p><button class="btn btnS sm" onclick="efInstAdmin._back()">← All institutions</button></div>`; return; }
+    const i = d.institution, L = i.licenceState;
+    r.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;font-size:.82rem"><a href="#" onclick="efInstAdmin._back();return false" style="color:var(--ac)">Institutions</a> <span style="color:var(--ink3)">/</span> <b>${esc(i.name)}</b></div>
+      <div class="card" style="padding:14px 18px;margin-bottom:12px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+        <div><h3 style="font-size:1.1rem">${esc(i.name)}</h3><span style="font-family:var(--fm);font-size:.76rem;color:var(--ink3)">Institution ID ${esc(i.id)} · institution-hosted · created ${fdate(i.createdAt)}</span></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${pill(L.status)}${L.expiresAt ? `<span style="font-size:.8rem;color:var(--ink2)">${L.status === 'Pending' ? 'Starts ' + fdate(L.activatesAt) : 'Valid until ' + fdate(L.expiresAt - 1)}${['Active', 'Expiring Soon'].includes(L.status) ? ' · <b>' + L.remainingDays + '</b> days left' : ''}</span>` : ''}
+          <button class="btn btnG sm" onclick="efInstAdmin._reload()">↻ Refresh</button></div>
+      </div>
+      <div class="tnav" style="margin-bottom:12px;flex-wrap:wrap">${TABS.map(([k, l]) => `<button class="tb ${S2.tab === k ? 'on' : ''}" onclick="efInstAdmin._tab('${k}')">${l}</button>`).join('')}</div>
+      <div id="efia-body"></div>`;
+    ({ setup: tSetup, teachers: tTeachers, licence: tLicence, packages: tPackages, server: tServer, activity: tActivity })[S2.tab]();
+  }
+  Object.assign(window.efInstAdmin, {
+    _tab: k => { if (S2.draft && S2.tab === 'teachers' && k !== 'teachers' && !confirm('You have unsaved teacher list changes. Leave them?')) return; if (k !== 'teachers') { S2.draft = null; S2.csv = null; } S2.tab = k; renderDetail(); },
+    _reload: async () => { await loadDetail(S2.cur); renderDetail(); }
+  });
+  const body = () => document.getElementById('efia-body');
+  const card = (h, inner) => `<div class="card" style="padding:16px 18px;margin-bottom:12px">${h ? `<h4 style="margin-bottom:10px">${h}</h4>` : ''}${inner}</div>`;
+  const kv = rows => `<div style="display:grid;grid-template-columns:minmax(140px,max-content) 1fr;gap:6px 14px;font-size:.86rem">${rows.map(([k, v]) => `<span style="color:var(--ink3)">${esc(k)}</span><span>${v}</span>`).join('')}</div>`;
+
+  function tSetup() {
+    const d = S2.detail, i = d.institution, L = i.licenceState;
+    const latest = d.packages.find(p => p.adminStatus !== 'Revoked') || null;
+    const steps = [
+      ['Approved teacher IDs', d.allowlist.teachers.length ? `${d.allowlist.teachers.length} teachers (list version ${d.allowlist.version})` : 'None yet', !!d.allowlist.teachers.length, 'teachers'],
+      ['Licence', L.status === 'Not set' ? 'Not set' : `${L.status}${L.expiresAt ? ', until ' + fdate(L.expiresAt - 1) : ''}`, ['Active', 'Expiring Soon', 'Pending'].includes(L.status), 'licence'],
+      ['Package generated', latest ? `v${latest.version}${latest.allowlistVersion < d.allowlist.version ? ' — teacher list changed since; generate a new version' : ''}` : 'Not yet', !!latest && latest.allowlistVersion === d.allowlist.version, 'packages'],
+      ['Delivered to the IT team', latest && latest.adminStatus === 'Delivered' ? 'Delivered ' + fdate(latest.delivery[0] && latest.delivery[0].t) : 'Not marked yet', !!latest && latest.adminStatus === 'Delivered', 'packages'],
+      ['Server registered', i.server && i.server.serverId && !i.server.reset ? 'Registered ' + fdate(i.server.registeredAt) : 'Not yet (needs a registration code)', !!(i.server && i.server.serverId && !i.server.reset), 'server'],
+      ['Installed and healthy', latest && latest.tech.status === 'Installed' ? 'Confirmed by the server ' + ago(latest.tech.lastSeenAt) : 'Waiting for the server to check in', !!latest && latest.tech.status === 'Installed', 'server']
+    ];
+    body().innerHTML = card('Setup checklist', `<ol style="margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:8px">${steps.map(([t, s, done, tab], n) =>
+      `<li style="display:flex;gap:10px;align-items:center"><span style="width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;background:${done ? 'var(--okbg)' : 'var(--paper2)'};color:${done ? 'var(--ok)' : 'var(--ink3)'}">${done ? '✓' : n + 1}</span>
+        <span style="flex:1"><b>${esc(t)}</b><br><span style="font-size:.8rem;color:var(--ink3)">${esc(s)}</span></span><button class="btn btnS sm" onclick="efInstAdmin._tab('${tab}')">Open</button></li>`).join('')}</ol>`)
+      + card('Institution details', `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="fg"><label class="fl">Name</label><input class="fi" id="efe-name" value="${esc(i.name)}" maxlength="160"></div>
+          <div class="fg"><label class="fl">Institution ID (permanent)</label><input class="fi" value="${esc(i.id)}" readonly></div>
+          <div class="fg"><label class="fl">Contact name</label><input class="fi" id="efe-cn" value="${esc(i.contact && i.contact.name)}"></div>
+          <div class="fg"><label class="fl">Contact email</label><input class="fi" id="efe-ce" value="${esc(i.contact && i.contact.email)}"></div>
+          <div class="fg"><label class="fl">Contact phone</label><input class="fi" id="efe-cp" value="${esc(i.contact && i.contact.phone)}"></div>
+          <div class="fg"><label class="fl">IT / technical contact email</label><input class="fi" id="efe-te" value="${esc(i.technicalContact && i.technicalContact.email)}"></div></div>
+          <div class="fg"><label class="fl">Notes</label><textarea class="fi" id="efe-notes" rows="2">${esc(i.notes)}</textarea></div>
+          <button class="btn btnS sm" id="efe-save">Save details</button>
+          <p style="font-size:.76rem;color:var(--ink3);margin-top:6px">A name change appears in the next package you generate; an installed server keeps its current package until then.</p>`);
+    body().querySelector('#efe-save').onclick = e => run(e.target, async () => {
+      const v = id => body().querySelector(id).value.trim();
+      await api('inst.update', { id: i.id, name: v('#efe-name'), contactName: v('#efe-cn'), contactEmail: v('#efe-ce'), contactPhone: v('#efe-cp'), techName: '', techEmail: v('#efe-te'), notes: v('#efe-notes') });
+      T('Details saved.'); await loadDetail(i.id); renderDetail();
+    }).catch(() => {});
+  }
+
+  /* teacher allowlist */
+  function tTeachers() {
+    const d = S2.detail, i = d.institution, saved = d.allowlist;
+    const list = S2.draft || saved.teachers;
+    const savedIds = new Set(saved.teachers.map(t => t.teacherId)), listIds = new Set(list.map(t => t.teacherId));
+    const added = list.filter(t => !savedIds.has(t.teacherId)), removed = saved.teachers.filter(t => !listIds.has(t.teacherId));
+    const changed = list.filter(t => savedIds.has(t.teacherId) && saved.teachers.find(x => x.teacherId === t.teacherId).email !== t.email);
+    const dirty = !!S2.draft && (added.length || removed.length || changed.length);
+    const csv = S2.csv;
+    body().innerHTML =
+      card(`Approved teacher IDs for <span style="color:var(--ac)">${esc(i.name)}</span>`, `
+        <p style="font-size:.82rem;color:var(--ink3);margin-bottom:10px">A teacher ID only authorizes; it is not a login. Each teacher still signs in on the institution's server with the email listed here (an activation code from their IT team, or the institution's own sign-in). Saved list: version ${saved.version}, ${saved.teachers.length} teachers${saved.updatedAt ? ', changed ' + ftime(saved.updatedAt) : ''}.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
+          <div class="fg" style="margin:0"><label class="fl">Teacher ID</label><input class="fi" id="eft-id" placeholder="IUB-EEE-001" maxlength="64" style="width:170px"></div>
+          <div class="fg" style="margin:0"><label class="fl">Email they sign in with</label><input class="fi" id="eft-em" type="email" placeholder="name@iub.edu.bd" style="width:230px"></div>
+          <div class="fg" style="margin:0"><label class="fl">Name (optional)</label><input class="fi" id="eft-nm" maxlength="120" style="width:180px"></div>
+          <button class="btn btnS" id="eft-add">+ Add</button>
+          <span style="flex:1"></span>
+          <label class="btn btnS" style="cursor:pointer">⬆ Import CSV<input type="file" id="eft-csv" accept=".csv,text/csv" style="display:none"></label>
+          <button class="btn btnG sm" id="eft-tpl">Template</button>
+          <button class="btn btnG sm" id="eft-exp" ${saved.teachers.length ? '' : 'disabled'}>Export</button>
+        </div>
+        ${csv ? csvPreview(csv) : ''}
+        ${dirty ? `<div style="background:var(--warnbg);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:.85rem"><b>Unsaved changes</b> for ${esc(i.name)}: ${added.length} to add, ${removed.length} to remove${changed.length ? ', ' + changed.length + ' email changes' : ''}.
+            ${added.length ? '<br>+ ' + added.map(t => esc(t.teacherId)).join(', ') : ''}${removed.length ? '<br>− ' + removed.map(t => esc(t.teacherId)).join(', ') : ''}
+            <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btnP sm" id="eft-save">Review & save as version ${saved.version + 1}</button><button class="btn btnG sm" id="eft-discard">Discard changes</button></div></div>` : ''}
+        <input class="fi" id="eft-q" placeholder="🔍 Filter by ID, email or name" style="max-width:300px;margin-bottom:8px" aria-label="Filter teachers">
+        ${list.length ? `<div style="overflow-x:auto"><table class="dt" style="width:100%"><thead><tr><th>Teacher ID</th><th>Email</th><th>Name</th><th></th></tr></thead><tbody id="eft-rows">
+          ${list.map(t => `<tr data-k="${esc((t.teacherId + ' ' + t.email + ' ' + (t.name || '')).toLowerCase())}"><td style="font-family:var(--fm)">${esc(t.teacherId)}${!savedIds.has(t.teacherId) ? ' <span class="bx bW">new</span>' : ''}</td><td>${esc(t.email)}</td><td>${esc(t.name || '')}</td><td><button class="btn btnG sm" data-rm="${esc(t.teacherId)}" aria-label="Remove ${esc(t.teacherId)}">Remove</button></td></tr>`).join('')}
+          </tbody></table></div>` : '<p style="color:var(--ink3);font-size:.86rem">No teachers yet. Add them one by one or import a CSV.</p>'}`)
+      + (saved.imports && saved.imports.length ? card('Change history', `<div style="overflow-x:auto"><table class="dt" style="width:100%"><thead><tr><th>When</th><th>By</th><th>How</th><th>Result</th></tr></thead><tbody>${saved.imports.map(h => `<tr><td>${ftime(h.t)}</td><td>${esc(h.by)}</td><td>${h.kind === 'csv' ? 'CSV ' + esc(h.file || '') : 'Manual'}</td><td>${h.total} teachers (+${h.added} / −${h.removed})</td></tr>`).join('')}</tbody></table></div>`) : '');
+    const B = body();
+    const draft = () => (S2.draft = S2.draft || saved.teachers.map(t => ({ ...t })));
+    B.querySelector('#eft-add').onclick = e => run(e.target, async () => {
+      const t = { teacherId: B.querySelector('#eft-id').value.trim(), email: B.querySelector('#eft-em').value.trim(), name: B.querySelector('#eft-nm').value.trim() };
+      const v = await api('allowlist.validate', { id: i.id, teachers: [...draft(), t] });
+      const bad = v.invalid.filter(x => x.teacherId === t.teacherId || x.row === draft().length + 1);
+      if (bad.length) { T(bad.map(x => x.problems.join('; ')).join(' · '), 'err', 8000); return; }
+      draft().push(v.valid[v.valid.length - 1]); tTeachers();
+      if (v.alsoElsewhere.some(x => x.email === t.email.toLowerCase())) T('Note: this email is also approved at another institution.', 'warn', 6000);
+    }).catch(() => {});
+    B.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { S2.draft = draft().filter(t => t.teacherId !== b.dataset.rm); tTeachers(); });
+    B.querySelector('#eft-q').oninput = e => { const q = e.target.value.toLowerCase(); B.querySelectorAll('#eft-rows tr').forEach(r => r.style.display = r.dataset.k.includes(q) ? '' : 'none'); };
+    B.querySelector('#eft-tpl').onclick = () => dl('teacher-ids-template.csv', 'teacher_id,email,name\nIUB-EEE-001,teacher.one@iub.edu.bd,Teacher One\nIUB-CSE-001,teacher.two@iub.edu.bd,\n');
+    B.querySelector('#eft-exp').onclick = () => dl(`teacher-ids-${i.id}-v${saved.version}.csv`, 'teacher_id,email,name\n' + saved.teachers.map(t => [t.teacherId, t.email, t.name || ''].map(c => /[",\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c).join(',')).join('\n') + '\n');
+    B.querySelector('#eft-csv').onchange = e => {
+      const f = e.target.files[0]; if (!f) return;
+      if (f.size > 2e6) { T('That file is larger than 2 MB.', 'err'); return; }
+      const rd = new FileReader();
+      rd.onload = () => run(null, async () => { const v = await api('allowlist.validate', { id: i.id, csv: String(rd.result) }); S2.csv = { ...v, file: f.name, mode: 'replace' }; tTeachers(); }).catch(() => {});
+      rd.readAsText(f);
+    };
+    if (csv) wireCsv(B, draft);
+    const sv = B.querySelector('#eft-save');
+    if (sv) sv.onclick = async () => {
+      const ok = await confirmBox({ title: 'Save the teacher list', okLabel: `Save version ${saved.version + 1}`,
+        html: `<p style="font-size:.88rem">This list belongs to <b>${esc(i.name)}</b> (${esc(i.id)}).</p><ul style="font-size:.86rem;margin:8px 0 0 18px"><li>${added.length} added, ${removed.length} removed${changed.length ? ', ' + changed.length + ' email changes' : ''}; ${list.length} teachers in total.</li><li>An installed server keeps its current list until the institution installs a new package. Generate one from the Packages tab after saving.</li></ul>`,
+        typed: i.name });
+      if (ok === null) return;
+      run(null, async () => {
+        const j = await api('allowlist.save', { id: i.id, teachers: list, baseVersion: saved.version, confirmInstitution: i.id, source: S2.csvUsed ? 'csv' : 'manual', filename: S2.csvUsed || '' });
+        S2.draft = null; S2.csv = null; S2.csvUsed = null;
+        T(j.unchanged ? 'No changes to save.' : `Teacher list saved as version ${j.allowlist.version}.`, 'ok', 5000);
+        await loadDetail(i.id); renderDetail();
+      }).catch(() => {});
+    };
+    const ds = B.querySelector('#eft-discard'); if (ds) ds.onclick = () => { S2.draft = null; S2.csv = null; tTeachers(); };
+  }
+  function csvPreview(c) {
+    return `<div style="border:1.5px solid var(--paper3);border-radius:12px;padding:12px;margin-bottom:12px">
+      <b>CSV check — ${esc(c.file)}</b>: ${c.total} rows · <span style="color:var(--ok)">${c.valid.length} valid</span> · <span style="color:${c.invalid.length ? 'var(--err)' : 'var(--ink3)'}">${c.invalid.length} with problems</span>
+      ${c.alsoElsewhere.length ? `<br><span style="font-size:.8rem;color:var(--warn)">${c.alsoElsewhere.length} email(s) are also approved at another institution. That is allowed (a teacher may teach at two), but check it's intended.</span>` : ''}
+      ${c.invalid.length ? `<div style="overflow-x:auto;margin-top:8px"><table class="dt" style="width:100%"><thead><tr><th>Row</th><th>Teacher ID</th><th>Email</th><th>Problem</th><th></th></tr></thead><tbody>
+        ${c.invalid.map((x, n) => `<tr><td>${x.row}</td><td><input class="fi" data-fix-id="${n}" value="${esc(x.teacherId)}" style="min-width:120px"></td><td><input class="fi" data-fix-em="${n}" value="${esc(x.email)}" style="min-width:180px"></td><td style="color:var(--err);font-size:.8rem">${esc(x.problems.join('; '))}</td><td><button class="btn btnG sm" data-drop="${n}">Remove row</button></td></tr>`).join('')}
+        </tbody></table></div><button class="btn btnS sm" id="efc-recheck" style="margin-top:6px">Check corrected rows</button>` : ''}
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
+        <label style="font-size:.84rem"><input type="radio" name="efc-mode" value="replace" ${c.mode === 'replace' ? 'checked' : ''}> Replace the whole list with the file</label>
+        <label style="font-size:.84rem"><input type="radio" name="efc-mode" value="merge" ${c.mode === 'merge' ? 'checked' : ''}> Add the file's teachers to the list</label>
+        <button class="btn btnP sm" id="efc-use" ${c.invalid.length ? 'disabled title="Fix or remove the rows with problems first"' : ''}>Use these ${c.valid.length} teachers</button>
+        <button class="btn btnG sm" id="efc-cancel">Cancel import</button></div></div>`;
+  }
+  function wireCsv(B, draft) {
+    const c = S2.csv, i = S2.detail.institution;
+    B.querySelectorAll('input[name=efc-mode]').forEach(r => r.onchange = () => { c.mode = r.value; });
+    // keep what the admin typed in other rows when one row is removed or the list redraws
+    const sync = () => c.invalid.forEach((x, n) => { const a = B.querySelector(`[data-fix-id="${n}"]`), e = B.querySelector(`[data-fix-em="${n}"]`); if (a) x.teacherId = a.value.trim(); if (e) x.email = e.value.trim(); });
+    B.querySelectorAll('[data-fix-id],[data-fix-em]').forEach(inp => inp.oninput = sync);
+    B.querySelectorAll('[data-drop]').forEach(b => b.onclick = () => { sync(); c.invalid.splice(+b.dataset.drop, 1); c.total--; tTeachers(); });
+    const rc = B.querySelector('#efc-recheck');
+    if (rc) rc.onclick = e => run(e.target, async () => {
+      const fixed = c.invalid.map((x, n) => ({ teacherId: B.querySelector(`[data-fix-id="${n}"]`).value.trim(), email: B.querySelector(`[data-fix-em="${n}"]`).value.trim(), name: x.name || '' }));
+      const v = await api('allowlist.validate', { id: i.id, teachers: [...c.valid, ...fixed] });
+      S2.csv = { ...v, file: c.file, mode: c.mode, invalid: v.invalid.map(x => ({ ...x, row: x.row > c.valid.length ? c.invalid[x.row - c.valid.length - 1].row : x.row })) };
+      tTeachers();
+    }).catch(() => {});
+    B.querySelector('#efc-cancel').onclick = () => { S2.csv = null; tTeachers(); };
+    B.querySelector('#efc-use').onclick = e => run(e.target, async () => {
+      const next = c.mode === 'replace' ? c.valid : [...draft().filter(t => !c.valid.some(x => x.teacherId.toUpperCase() === t.teacherId.toUpperCase())), ...c.valid];
+      const v = await api('allowlist.validate', { id: i.id, teachers: next });
+      if (v.invalid.length) { T('Combining the file with the current list gives duplicates: ' + v.invalid.slice(0, 3).map(x => x.teacherId + ' (' + x.problems[0] + ')').join(', '), 'err', 9000); return; }
+      S2.draft = v.valid; S2.csvUsed = c.file; S2.csv = null; tTeachers();
+    }).catch(() => {});
+  }
+  function dl(name, text) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv' })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
+
+  /* licence */
+  const DUR = [['1m', '1 month'], ['2m', '2 months'], ['4m', '4 months'], ['1y', '1 year'], ['2y', '2 years'], ['days', 'Custom number of days'], ['until', 'Custom expiry date']];
+  function tLicence() {
+    const d = S2.detail, i = d.institution, L = i.licenceState, lic = i.licence;
+    const canSet = !lic || ['Not set', 'Pending'].includes(L.status);
+    const today = new Date(Date.now() + 6 * 3600e3).toISOString().slice(0, 10);
+    body().innerHTML =
+      card('Licence status', kv([
+        ['Status', pill(L.status) + (L.status === 'Blocked' && L.blockedReason ? ` <span style="font-size:.8rem;color:var(--ink3)">${esc(L.blockedReason)}</span>` : '')],
+        ['Activation date', L.activatesAt ? fdate(L.activatesAt) + ' (00:00 Dhaka)' : '—'],
+        ['Expiry', L.expiresAt ? fdate(L.expiresAt) + ' (00:00 Dhaka) — last full day ' + fdate(L.expiresAt - 1) : '—'],
+        ['Remaining', L.expiresAt ? (L.status === 'Expired' ? 'Expired' : L.status === 'Pending' ? `Starts in ${L.startsInDays} days` : L.remainingDays + ' days') : '—'],
+        ['Length', esc(L.durationLabel || '—')],
+        ['What it controls', 'With Active or Expiring Soon, listed teachers can create, edit and publish exams. Pending, Expired or Blocked pauses only that; existing exams, attempts, grading, results and exports keep working, and nothing is deleted.']
+      ]) + `<p style="font-size:.76rem;color:var(--ink3);margin-top:8px">Dates are worked out on GHUM's server with its own clock. The institution server learns the status at its next check-in (about every minute when online).</p>`)
+      + card(canSet ? 'Set validity' : 'Renew or extend', `
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${DUR.map(([k, l]) => `<label class="btn btnS sm" style="cursor:pointer"><input type="radio" name="efl-dur" value="${k}" ${k === '1y' ? 'checked' : ''} style="margin-right:6px">${l}</label>`).join('')}</div>
+        <div id="efl-custom" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px"></div>
+        <div class="fg"><label class="fl">${canSet ? 'Activation' : 'New term starts'}</label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            ${!canSet && L.status !== 'Expired' ? '<label style="font-size:.85rem"><input type="radio" name="efl-from" value="expiry" checked> From the current expiry (' + fdate(L.expiresAt) + ')</label>' : ''}
+            <label style="font-size:.85rem"><input type="radio" name="efl-from" value="today" ${canSet || L.status === 'Expired' ? 'checked' : ''}> Today (server time)</label>
+            <label style="font-size:.85rem"><input type="radio" name="efl-from" value="date"> On <input type="date" class="fi" id="efl-date" value="${today}" style="width:auto;display:inline-block;min-height:0;padding:4px 8px"></label></div></div>
+        <div id="efl-preview" style="font-size:.86rem;margin:8px 0"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btnS sm" id="efl-prev">Preview dates</button><button class="btn btnP sm" id="efl-go" disabled>${canSet ? 'Set validity…' : 'Renew…'}</button></div>
+        <p style="font-size:.76rem;color:var(--ink3);margin-top:8px">${canSet ? 'Use Set validity for a new or not-yet-started licence.' : 'Renewing keeps the institution ID, its teacher list and all its exam data. An expired licence renews from today or a chosen date.'} Renewing doesn't lift a block.</p>`)
+      + card('Block or unblock', L.status === 'Blocked'
+        ? `<p style="font-size:.86rem;margin-bottom:8px">Blocked ${ftime(lic && lic.blockedAt)} by ${esc(lic && lic.blockedBy)}: ${esc(lic && lic.blockedReason)}</p><button class="btn btnP sm" id="efl-unblock">Unblock after approval…</button>`
+        : `<p style="font-size:.86rem;margin-bottom:8px">Blocking pauses new exams at the institution as soon as its server checks in (about a minute when it's online). It does not delete anything, and you can unblock at any time.</p><button class="btn btnD sm" id="efl-block">Block this licence…</button>`)
+      + card('Licence history', d.licenceHistory.length ? `<div style="overflow-x:auto"><table class="dt" style="width:100%"><thead><tr><th>When</th><th>Change</th><th>By</th><th>Term after</th><th>Reason / note</th></tr></thead><tbody>${d.licenceHistory.map(e =>
+        `<tr><td>${ftime(e.t)}</td><td>${esc({ set: 'Validity set', renew: 'Renewed', block: 'Blocked', unblock: 'Unblocked' }[e.kind] || e.kind)}</td><td>${esc(e.by)}</td><td>${e.after && e.after.expiresAt ? fdate(e.after.activatesAt) + ' → ' + fdate(e.after.expiresAt) : '—'}</td><td>${esc(e.reason || '')}</td></tr>`).join('')}</tbody></table></div>` : '<p style="color:var(--ink3);font-size:.86rem">No changes yet.</p>');
+    const B = body();
+    const durOf = () => {
+      const k = B.querySelector('input[name=efl-dur]:checked').value;
+      if (k === 'days') return { kind: 'days', days: Number((B.querySelector('#efl-days') || {}).value) };
+      if (k === 'until') return { kind: 'until', date: (B.querySelector('#efl-until') || {}).value };
+      return { kind: k };
+    };
+    const req = () => { const from = B.querySelector('input[name=efl-from]:checked').value; return { id: i.id, mode: canSet ? 'set' : 'renew', duration: durOf(), from, activationDate: B.querySelector('#efl-date').value }; };
+    const custom = () => { const k = B.querySelector('input[name=efl-dur]:checked').value; B.querySelector('#efl-custom').innerHTML = k === 'days' ? '<div class="fg" style="margin:0"><label class="fl">Days</label><input class="fi" id="efl-days" type="number" min="1" max="1830" value="90" style="width:120px"></div>' : k === 'until' ? `<div class="fg" style="margin:0"><label class="fl">Expiry date</label><input class="fi" type="date" id="efl-until" value="${today}"></div>` : ''; reset(); };
+    let last = null;
+    const reset = () => { last = null; B.querySelector('#efl-go').disabled = true; B.querySelector('#efl-preview').innerHTML = ''; };
+    B.querySelectorAll('input[name=efl-dur]').forEach(x => x.onchange = custom);
+    B.querySelectorAll('input[name=efl-from],#efl-date').forEach(x => x.onchange = reset);
+    B.querySelector('#efl-custom').oninput = reset;
+    B.querySelector('#efl-prev').onclick = e => run(e.target, async () => {
+      const p = await api('licence.preview', req()); last = { req: req(), p };
+      B.querySelector('#efl-preview').innerHTML = `<div style="background:var(--paper2);border-radius:10px;padding:10px 12px">Activates <b>${fdate(p.activatesAt)}</b> · expires <b>${fdate(p.expiresAt)}</b> (last full day ${esc(p.lastFullDay)}) · ${esc(p.label)} · status after: ${pill(p.statusAfter)}${p.staysBlocked ? ' <b style="color:var(--err)">— stays Blocked until you unblock</b>' : ''}</div>`;
+      B.querySelector('#efl-go').disabled = false;
+    }).catch(() => {});
+    B.querySelector('#efl-go').onclick = async () => {
+      if (!last) return;
+      const p = last.p;
+      const ok = await confirmBox({ title: canSet ? 'Set licence validity' : 'Renew the licence', okLabel: canSet ? 'Set validity' : 'Renew',
+        html: `<p style="font-size:.88rem"><b>${esc(i.name)}</b> (${esc(i.id)})</p><ul style="font-size:.86rem;margin:8px 0 0 18px"><li>Term: ${fdate(p.activatesAt)} → ${fdate(p.expiresAt)} (${esc(p.label)})</li><li>Status after: ${esc(p.statusAfter)}${p.staysBlocked ? ' — still Blocked' : ''}</li><li>The institution ID, teacher list and exam data don't change.</li></ul>` });
+      if (ok === null) return;
+      run(null, async () => {
+        const j = await api(canSet ? 'licence.set' : 'licence.renew', { ...last.req, confirm: true, opId: opId() });
+        T(`Licence ${canSet ? 'set' : 'renewed'}: ${j.institution.licenceState.status}, until ${fdate(j.institution.licenceState.expiresAt - 1)}.`, 'ok', 6000);
+        await loadDetail(i.id); renderDetail();
+      }).catch(() => {});
+    };
+    const bb = B.querySelector('#efl-block');
+    if (bb) bb.onclick = async () => {
+      const reason = await confirmBox({ title: 'Block the licence', danger: true, okLabel: 'Block licence', reason: true, typed: i.name,
+        html: `<p style="font-size:.88rem">Blocking <b>${esc(i.name)}</b>:</p><ul style="font-size:.86rem;margin:8px 0 0 18px"><li>pauses creating, editing and publishing exams at the institution once its server checks in (about a minute if it's online; if it's offline, when it reconnects);</li><li>does <b>not</b> stop running exams, student attempts, grading, results or exports;</li><li>does not delete anything. You can unblock later.</li></ul>` });
+      if (reason === null) return;
+      run(null, async () => { await api('licence.block', { id: i.id, reason, confirm: true, opId: opId() }); T('Licence blocked. It takes effect at the server\'s next check-in.', 'warn', 7000); await loadDetail(i.id); renderDetail(); }).catch(() => {});
+    };
+    const ub = B.querySelector('#efl-unblock');
+    if (ub) ub.onclick = async () => {
+      const reason = await confirmBox({ title: 'Unblock the licence', okLabel: 'Unblock', reason: true, reasonLabel: 'Approval note (who approved it, and why)',
+        html: `<p style="font-size:.88rem">Unblocking <b>${esc(i.name)}</b> returns the licence to its term (${L.expiresAt ? fdate(L.activatesAt) + ' → ' + fdate(L.expiresAt) : 'no term set'}). If that term has ended it stays Expired until renewed.</p>` });
+      if (reason === null) return;
+      run(null, async () => { await api('licence.unblock', { id: i.id, reason, confirm: true, opId: opId() }); T('Licence unblocked.', 'ok'); await loadDetail(i.id); renderDetail(); }).catch(() => {});
+    };
+  }
+
+  /* packages */
+  function tPackages() {
+    const d = S2.detail, i = d.institution;
+    const P = { Generated: 'bN', Delivered: 'bK', Superseded: 'bN', Revoked: 'bE' };
+    body().innerHTML =
+      card('Generate an institution package', `<p style="font-size:.84rem;color:var(--ink3);margin-bottom:8px">A package is a signed folder for the institution's IT team: the ExamFlow institution server, the ExamFlow app, Docker files, the installation guide and this institution's approved teacher list (version ${d.allowlist.version}, ${d.allowlist.teachers.length} teachers). It never contains passwords, keys or Firebase credentials. Generating a new version doesn't change an installed server until its IT team installs it.</p>
+        <button class="btn btnP" id="efp-gen" ${d.allowlist.teachers.length ? '' : 'disabled title="Add teachers first"'}>Review & generate…</button>`)
+      + card('Packages', d.packages.length ? `<div style="overflow-x:auto"><table class="dt" style="width:100%;min-width:880px"><thead><tr><th>Version</th><th>Package ID</th><th>Created</th><th>Teachers</th><th>Status</th><th>Installation (from the server)</th><th>Delivery</th><th></th></tr></thead><tbody>
+        ${d.packages.map(p => `<tr><td><b>${esc(p.version)}</b><br><span style="font-size:.72rem;color:var(--ink3)">server ${esc(p.serverVersion)}</span></td><td style="font-family:var(--fm);font-size:.74rem">${esc(p.id)}</td><td style="font-size:.8rem">${ftime(p.createdAt)}<br>${esc(p.createdBy)}</td><td>${p.teacherCount} (list v${p.allowlistVersion})</td>
+          <td><span class="bx ${P[p.adminStatus] || 'bN'}">${esc(p.adminStatus)}</span>${p.revoked ? `<br><span style="font-size:.72rem;color:var(--ink3)">${esc(p.revoked.reason)}${p.revoked.confirmedAt ? '<br>server confirmed ' + ago(p.revoked.confirmedAt) : '<br>not yet confirmed by the server'}</span>` : ''}</td>
+          <td>${p.tech.status === 'Installed' ? `<span class="bx bK">Installed</span><br><span style="font-size:.72rem;color:var(--ink3)">since ${fdate(p.tech.confirmedAt)}, seen ${ago(p.tech.lastSeenAt)}</span>` : p.tech.status === 'Installation failed' ? `<span class="bx bE">Failed</span><br><span style="font-size:.72rem">${esc(p.tech.problem || '')}</span>` : '<span class="bx bN">Not installed</span>'}</td>
+          <td style="font-size:.78rem">${p.delivery && p.delivery.length ? p.delivery.map(x => ftime(x.t) + (x.note ? ' — ' + esc(x.note) : '')).join('<br>') : '—'}${p.downloads && p.downloads.length ? `<br><span style="color:var(--ink3)">${p.downloads.length} download(s)</span>` : ''}</td>
+          <td style="white-space:nowrap">${p.adminStatus !== 'Revoked' ? `<button class="btn btnS sm" data-dl="${esc(p.id)}">⬇ Download</button> ` : ''}${p.adminStatus === 'Generated' ? `<button class="btn btnS sm" data-dv="${esc(p.id)}">Mark delivered</button> ` : ''}${p.adminStatus !== 'Revoked' ? `<button class="btn btnG sm" data-rv="${esc(p.id)}">Revoke</button>` : ''} <button class="btn btnG sm" data-info="${esc(p.id)}">Details</button></td></tr>`).join('')}
+        </tbody></table></div>` : '<p style="color:var(--ink3);font-size:.86rem">No packages yet.</p>')
+      + card('For the institution\'s IT team (summary of INSTALL.md in the package)', `<ol style="font-size:.85rem;margin-left:18px;line-height:1.6">
+          <li>Unzip on a Linux server with Docker (or Node.js 22.13+). Check the package: <code>node server/src/cli.js check</code>.</li>
+          <li>Copy <code>.env.example</code> to <code>.env</code>; set <code>PUBLIC_URL</code>, sign-in mode and admins.</li>
+          <li>Register with GHUM using the one-time code from the Server tab: <code>node server/src/cli.js register --code …</code></li>
+          <li>Start: <code>docker compose up -d</code>. Put HTTPS in front (Caddyfile.example). Download the reading models: <code>fetch-models</code>.</li>
+          <li>Give teachers their activation codes (<code>teacher-codes</code>) or switch on the institution's own sign-in.</li>
+          <li>All exams, attempts and results are stored in the institution's own database volume. GHUM only receives the server's licence check-in.</li></ol>`);
+    const B = body();
+    B.querySelector('#efp-gen').onclick = e => run(e.target, async () => {
+      const p = await api('package.preview', { id: i.id });
+      const html = `<p style="font-size:.88rem">For <b>${esc(i.name)}</b> (${esc(i.id)})</p>
+        ${kv([['New version', esc(p.nextVersion)], ['Teacher list', `version ${p.allowlistVersion}, ${p.teacherCount} teachers`], ['Changes since the last package', p.previous ? `${p.added.length} added${p.added.length ? ' (' + p.added.map(esc).join(', ') + ')' : ''}, ${p.removed.length} removed${p.removed.length ? ' (' + p.removed.map(esc).join(', ') + ')' : ''}` : 'First package'],
+          ['Server software', `${esc(p.software.serverVersion)} · app ${esc(p.software.frontendVersion)}${p.previous ? (p.sameSoftware ? ' — <b>same as</b> v' + esc(p.previous.version) + ', only the list/settings change' : ' — <b>changed</b> since v' + esc(p.previous.version) + '; the IT team follows UPGRADE.md') : ''}`],
+          ['Licence', pill(p.institution.licenceState.status)], ['Previous package', p.previous ? `v${esc(p.previous.version)} will be marked Superseded` : '—']])}
+        ${p.warnings.length ? `<div style="background:var(--warnbg);border-radius:10px;padding:8px 12px;margin-top:10px;font-size:.84rem">${p.warnings.map(esc).join('<br>')}</div>` : ''}`;
+      const ok = await confirmBox({ title: 'Generate institution package', okLabel: 'Generate v' + p.nextVersion, html });
+      if (ok === null) return;
+      const j = await api('package.generate', { id: i.id, allowlistVersion: p.allowlistVersion, confirm: true, opId: opId() });
+      T(`Package v${j.package.version} generated and signed.`, 'ok', 6000); await loadDetail(i.id); renderDetail();
+    }).catch(() => {});
+    B.querySelectorAll('[data-dl]').forEach(b => b.onclick = e => run(e.target, async () => {
+      const r = await api('package.download', { packageId: b.dataset.dl }, { raw: true });
+      if (!r.blob) throw new Error('No file came back.');
+      const a = document.createElement('a'); a.href = URL.createObjectURL(r.blob); a.download = r.name || 'examflow-package.zip'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+      T('Downloaded ' + (r.name || '') + '. SHA-256 ' + (r.sha || '').slice(0, 16) + '…', 'ok', 7000);
+      await loadDetail(i.id); renderDetail();
+    }).catch(() => {}));
+    B.querySelectorAll('[data-dv]').forEach(b => b.onclick = async () => {
+      const m = modal('Mark as delivered', `<p style="font-size:.88rem">Confirm you gave package <b>${esc(b.dataset.dv)}</b> to ${esc(i.name)}'s IT team through an approved channel. This records delivery only; "Installed" appears when their server checks in.</p><div class="fg" style="margin-top:10px"><label class="fl">How / to whom (optional)</label><input class="fi" id="efd-note" maxlength="500" placeholder="e.g. USB drive to IT desk, 21 Oct"></div>`,
+        '<button class="btn btnG" data-x="c">Cancel</button><button class="btn btnP" data-x="o">Mark delivered</button>');
+      m.querySelector('[data-x=c]').onclick = closeModal;
+      m.querySelector('[data-x=o]').onclick = e => run(e.target, async () => { await api('package.deliver', { packageId: b.dataset.dv, note: m.querySelector('#efd-note').value.trim(), confirm: true }); closeModal(); T('Delivery recorded.'); await loadDetail(i.id); renderDetail(); }).catch(() => {});
+    });
+    B.querySelectorAll('[data-rv]').forEach(b => b.onclick = async () => {
+      const reason = await confirmBox({ title: 'Revoke package', danger: true, okLabel: 'Revoke', reason: true,
+        html: `<p style="font-size:.88rem">Revoke <b>${esc(b.dataset.rv)}</b> for ${esc(i.name)}?</p><ul style="font-size:.86rem;margin:8px 0 0 18px"><li>It can no longer be downloaded.</li><li>A server running it pauses new exams at its next check-in, and the server's confirmation appears here. Data is not deleted.</li><li>Send the IT team a replacement package (generate a new version).</li></ul>` });
+      if (reason === null) return;
+      run(null, async () => { await api('package.revoke', { packageId: b.dataset.rv, reason, confirm: true }); T('Package revoked.', 'warn'); await loadDetail(i.id); renderDetail(); }).catch(() => {});
+    });
+    B.querySelectorAll('[data-info]').forEach(b => b.onclick = () => {
+      const p = d.packages.find(x => x.id === b.dataset.info);
+      modal('Package ' + p.version, kv([['Package ID', esc(p.id)], ['Institution', esc(i.name) + ' · ' + esc(i.id)], ['Created', ftime(p.createdAt) + ' by ' + esc(p.createdBy)], ['Server software', esc(p.serverVersion)], ['ExamFlow app', esc(p.frontendVersion)],
+        ['Teacher list', `version ${p.allowlistVersion}, ${p.teacherCount} teachers`], ['Manifest SHA-256', `<span style="font-family:var(--fm);font-size:.74rem;word-break:break-all">${esc(p.manifestSha256)}</span>`],
+        ['Signing key', esc((S2.ov && S2.ov.signingKey) || '')], ['Control plane', esc(p.controlPlaneUrl)], ['Size', Math.round(p.zipBytes / 1024) + ' KB'], ['Supersedes', esc(p.supersedes || '—')]]), '<button class="btn btnP" onclick="document.getElementById(\'m-efia\').classList.remove(\'open\')">Close</button>');
+    });
+  }
+
+  /* server */
+  function tServer() {
+    const d = S2.detail, i = d.institution, s = i.server;
+    const reg = s && s.serverId && !s.reset;
+    body().innerHTML = card('Institution server', kv([
+      ['Registration', reg ? `Registered ${ftime(s.registeredAt)} as <span style="font-family:var(--fm)">${esc(s.serverId)}</span>` : s && s.reset ? 'Registration reset — waiting for a new registration' : 'Not registered'],
+      ['Last check-in', reg ? (s.lastSeenAt ? `${ftime(s.lastSeenAt)} (${ago(s.lastSeenAt)})` : 'Not yet') : '—'],
+      ['Health', reg && s.lastSeenAt ? (s.status === 'Healthy' ? '🟢 Healthy (database OK)' : '🟠 ' + esc(s.status)) : 'Unknown — no report'],
+      ['Server software', reg ? esc(s.serverVersion || '—') : '—'],
+      ['Package running', reg && s.packageId ? `${esc(s.packageId)} (v${esc(s.packageVersion)})${s.knownPackage ? '' : ' — <b style="color:var(--err)">not a package issued for this institution</b>'}` : '—'],
+      ['Teacher list on the server', reg && s.allowlistVersion != null ? 'version ' + esc(s.allowlistVersion) + (s.allowlistVersion < d.allowlist.version ? ` — <b>older than the saved list (v${d.allowlist.version})</b>; install a new package` : '') : '—']
+    ]) + `<p style="font-size:.76rem;color:var(--ink3);margin-top:8px">A missing check-in is not proof of an outage: the server may be offline or behind a firewall. It reports only technical details — never exams, questions, students or results.</p>`)
+      + card('Register a server', `<p style="font-size:.84rem;margin-bottom:8px">Make a one-time code (valid 7 days) and give it to the IT team with the package. Only one server can be registered per institution; a new code replaces any unused one.</p>
+        <button class="btn btnP sm" id="efs-code" ${reg ? 'disabled title="Reset the registration first"' : ''}>Create registration code</button> ${reg ? '<button class="btn btnG sm" id="efs-reset">Reset registration…</button>' : ''}
+        ${d.registrationCodes.length ? `<p style="font-size:.78rem;color:var(--ink3);margin-top:8px">Codes: ${d.registrationCodes.map(c => `${ftime(c.createdAt)} — ${c.used ? (c.used.serverId ? 'used by ' + esc(c.used.serverId) : 'replaced') : c.expiresAt < Date.now() ? 'expired' : 'unused, expires ' + fdate(c.expiresAt)}`).join(' · ')}</p>` : ''}`);
+    const B = body();
+    B.querySelector('#efs-code').onclick = e => run(e.target, async () => {
+      const j = await api('regcode.create', { id: i.id });
+      modal('Registration code', `<p style="font-size:.88rem">For <b>${esc(i.name)}</b>. It works once, until ${ftime(j.expiresAt)}. It is shown only now — copy it.</p>
+        <div style="font-family:var(--fm);font-size:1.4rem;letter-spacing:.08em;text-align:center;padding:14px;background:var(--paper2);border-radius:12px;margin:10px 0" id="efs-c">${esc(j.code)}</div>
+        <p style="font-size:.84rem">On the server: <code>node server/src/cli.js register --code ${esc(j.code)}</code></p>`,
+        `<button class="btn btnS" onclick="navigator.clipboard&&navigator.clipboard.writeText('${esc(j.code)}').then(()=>toast('Copied','ok'))">Copy</button><button class="btn btnP" onclick="document.getElementById('m-efia').classList.remove('open');efInstAdmin._reload()">Done</button>`);
+    }).catch(() => {});
+    const rs = B.querySelector('#efs-reset');
+    if (rs) rs.onclick = async () => {
+      const reason = await confirmBox({ title: 'Reset server registration', danger: true, okLabel: 'Reset', reason: true,
+        html: `<p style="font-size:.88rem">Use this only if ${esc(i.name)}'s server was rebuilt or replaced. The current server can no longer check in, so it pauses new exams after its offline grace period; a new server registers with a new code. No data is deleted.</p>` });
+      if (reason === null) return;
+      run(null, async () => { await api('server.reset', { id: i.id, reason, confirm: true }); T('Registration reset.', 'warn'); await loadDetail(i.id); renderDetail(); }).catch(() => {});
+    };
+  }
+
+  /* activity */
+  function tActivity() {
+    const a = S2.detail.audit;
+    const NAMES = { 'institution.create': 'Institution created', 'institution.update': 'Details changed', 'allowlist.save': 'Teacher list saved', 'package.generate': 'Package generated', 'package.download': 'Package downloaded', 'package.deliver': 'Marked delivered', 'package.revoke': 'Package revoked', 'licence.set': 'Licence set', 'licence.renew': 'Licence renewed', 'licence.block': 'Licence blocked', 'licence.unblock': 'Licence unblocked', 'server.regcode': 'Registration code created', 'server.register': 'Server registered', 'server.reset': 'Registration reset' };
+    const det = x => { const d = x.detail || {}; return esc([d.version && 'v' + d.version, d.reason, d.note, d.added && d.added.length ? '+' + d.added.join(', ') : '', d.removed && d.removed.length ? '−' + d.removed.join(', ') : ''].filter(Boolean).join(' · ')); };
+    body().innerHTML = card('Activity (audit log)', a.length ? `<div style="overflow-x:auto"><table class="dt" style="width:100%"><thead><tr><th>When</th><th>Who</th><th>What</th><th>Target</th><th>Result</th><th>Details</th></tr></thead><tbody>${a.map(x => `<tr><td style="font-size:.8rem">${ftime(x.t)}</td><td style="font-size:.8rem">${esc(x.actor)}</td><td>${esc(NAMES[x.action] || x.action)}</td><td style="font-family:var(--fm);font-size:.72rem">${esc(x.target)}</td><td>${esc(x.result)}</td><td style="font-size:.78rem">${det(x)}</td></tr>`).join('')}</tbody></table></div>
+      <p style="font-size:.76rem;color:var(--ink3);margin-top:8px">Written by the server only; the browser can't add, edit or delete entries.</p>` : '<p style="color:var(--ink3)">Nothing yet.</p>');
+  }
+
+  /* ── hook into the Admin Monitor ── */
+  function install() {
+    const tabs = document.getElementById('adm-tabs'); if (!tabs || document.querySelector('#adm-tabs [data-tab="institutions"]')) return;
+    tabs.insertAdjacentHTML('beforeend', '<button class="btn btnS sm" data-tab="institutions" onclick="_adminTab(\'institutions\')">🏛 Institutions</button>');
+    const last = document.getElementById('adm-feedback');
+    if (last) last.insertAdjacentHTML('afterend', '<div id="adm-institutions" class="adm-sec" style="display:none"></div>');
+    if (typeof window._adminTab === 'function' && !window._adminTab.__efia) {
+      const orig = window._adminTab;
+      const w = function (name) { const r = orig.apply(this, arguments); if (name === 'institutions') open(); return r; };
+      w.__efia = true; window._adminTab = w;
+    }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install); else install();
 })();
 
 </script>

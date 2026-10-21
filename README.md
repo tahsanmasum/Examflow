@@ -4,8 +4,10 @@
 
 <p>
 <a href="https://examflow-tahcreations.vercel.app"><img alt="Live site" src="https://img.shields.io/badge/live-examflow--tahcreations.vercel.app-c8401a?style=flat-square"></a>
-<img alt="Version v39" src="https://img.shields.io/badge/version-v39-0f0e0d?style=flat-square">
-<a href="#camera-monitoring"><img alt="New: camera monitoring" src="https://img.shields.io/badge/new-camera%20monitoring-c8401a?style=flat-square"></a>
+<img alt="Version v46" src="https://img.shields.io/badge/version-v46-0f0e0d?style=flat-square">
+<a href="docs/institutions.md"><img alt="New: institutions" src="https://img.shields.io/badge/new-institutions-c8401a?style=flat-square"></a>
+<a href="docs/paper-reader.md"><img alt="New: paper reader" src="https://img.shields.io/badge/new-paper%20reader-c8401a?style=flat-square"></a>
+<a href="#camera-monitoring"><img alt="Camera monitoring" src="https://img.shields.io/badge/camera-monitoring-c8401a?style=flat-square"></a>
 <img alt="Firebase Auth and Firestore" src="https://img.shields.io/badge/Firebase-Auth%20%2B%20Firestore-f5820d?style=flat-square&logo=firebase&logoColor=white">
 <img alt="Hosted on Vercel" src="https://img.shields.io/badge/hosted%20on-Vercel-000000?style=flat-square&logo=vercel">
 <img alt="No build step" src="https://img.shields.io/badge/build%20step-none-5c564c?style=flat-square">
@@ -17,9 +19,11 @@
 <a href="https://examflow-tahcreations.vercel.app"><b>Open the live site</b></a>
 &nbsp;·&nbsp; <a href="#how-an-exam-flows">How it works</a>
 &nbsp;·&nbsp; <a href="#camera-monitoring">Camera</a>
+&nbsp;·&nbsp; <a href="docs/paper-reader.md">Paper reader</a>
 &nbsp;·&nbsp; <a href="#a-look-inside">Screens</a>
 &nbsp;·&nbsp; <a href="#features">Features</a>
 &nbsp;·&nbsp; <a href="#admin-monitor">Admin</a>
+&nbsp;·&nbsp; <a href="#institutions">Institutions</a>
 &nbsp;·&nbsp; <a href="#run-your-own-copy">Run your own</a>
 &nbsp;·&nbsp; <a href="#faq">FAQ</a>
 &nbsp;·&nbsp; <a href="CHANGELOG.md">Changelog</a>
@@ -158,22 +162,25 @@ High and medium alerts go into the student's violation log exactly like a tab sw
 %%{init: {'theme':'base','themeVariables':{'primaryColor':'#faf9f6','primaryBorderColor':'#c8401a','primaryTextColor':'#0f0e0d','lineColor':'#8a8378','clusterBkg':'#f1ede6','clusterBorder':'#e4ded3','fontSize':'14px'}}}%%
 flowchart LR
   CAM[Student's camera<br/>640×480] --> F
-  subgraph B[Student's browser, three background workers]
+  subgraph B[Student's browser, four background workers]
     F[Face<br/>head angle, mouth,<br/>eyes, face count]
-    O[Objects<br/>phone, book, notes,<br/>hands, screens]
+    O[Objects<br/>phone, book,<br/>screens]
+    N[Notes and hands<br/>paper, held items]
     I[Identity<br/>same person?]
   end
   CAM --> O
+  CAM --> N
   CAM --> I
   F --> R{{Rules<br/>timing + allowed items}}
   O --> R
+  N --> R
   I --> R
   R -- alert + snapshot --> FS[(Firestore<br/>that student's attempt)]
   FS --> M([Teacher's Live Monitor])
 ```
 
 - **Models:** MediaPipe Face Landmarker, EfficientDet-Lite0 object detection, Hand Landmarker and an image classifier (phone vs calculator), plus face-api.js for the same-person check. All open source and free; they load from public CDNs only for camera exams.
-- **Smooth on any device:** detection runs in three Web Workers, so the exam page never waits for it. Each model uses the GPU or the CPU, whichever is faster on that device, and the check rate adapts to the device.
+- **Smooth on any device:** detection runs in four Web Workers at the same time, so the exam page never waits for it and no check waits for another. Each model uses the GPU or the CPU, whichever is faster on that device; a GPU that finds nothing or runs slow on the first real camera frames is swapped for the CPU. The check rate adapts to the device.
 - **Calibration:** the first 2 seconds learn the student's straight-ahead position, closed mouth, face and empty background, so posters, a bookshelf or a TV behind them aren't flagged. If no face is seen in 8 seconds, monitoring starts anyway and learns once the face appears.
 - **Data:** students download about 30 MB of models once; the browser caches it.
 
@@ -212,7 +219,7 @@ flowchart LR
 
 **Build**
 
-MCQ, written, or combined exams. Import questions from a CSV; a built-in prompt turns any question file into the right format with ChatGPT. Set marks per MCQ, a duration, and an opening and closing time.
+MCQ, written, or combined exams. Drop a photo, PDF, Word, CSV or JSON file into one upload box: ExamFlow reads the questions, options, answers and diagrams itself, in your browser. Written papers come in with their parts (a)/(b) or ক/খ/গ, each part's printed marks, tables and page numbers, and printed solutions left out. A maths &amp; science keyboard and a drawing pad for diagrams. Set marks per MCQ, a duration, and an opening and closing time.
 
 </td>
 <td width="33%" valign="top">
@@ -289,7 +296,10 @@ Camera alerts arrive with a small snapshot, the time and the question, filed und
 - **Violations per student:** each student's violations button opens a window with only theirs (browser and camera, with snapshots); the sidebar lists **Flagged students**.
 - **Grading safety:** if saving marks fails, you're told instead of seeing "Marks saved".
 - **Safe exports:** in CSV exports, spreadsheet formulas typed into student names are neutralised.
-- Teacher and student manuals, plus an in-app feedback form.
+- **Paper reader:** drop phone photos, scanned or typed PDFs, or Word files (`.doc`, `.docx`). Questions, options, the answer (from a key, a circled or ticked letter, bold or shaded options, or an "Ans:" line) and diagrams are read in the browser; nothing is uploaded and no AI service is used. You check every question before it is added. See [docs/paper-reader.md](docs/paper-reader.md).
+- **Question pictures:** upload, photograph, paste or draw a diagram for any question.
+- **Maths &amp; science keyboard:** fractions, powers, roots, integrals, matrices, Greek letters, chemistry and Bangla digits, with a live preview.
+- **Guides for every feature:** a searchable library for teachers and students, opened from the landing page, the avatar menu, and the ❔ buttons beside the camera switch, the upload box and the keyboard. Plus an in-app feedback form.
 
 </details>
 
@@ -310,7 +320,7 @@ Camera alerts arrive with a small snapshot, the time and the question, filed und
 
 ## Admin Monitor
 
-For the owner only: sign in with the admin email, then avatar menu → **Admin Monitor**.
+For the owner only: sign in with the admin email, **examflow.live@gmail.com**, then avatar menu → **Admin Monitor**.
 
 <img src="assets/screens/admin.webp" alt="Admin Monitor teachers tab with activity status and drop-off flags" width="100%">
 
@@ -321,6 +331,7 @@ For the owner only: sign in with the admin email, then avatar menu → **Admin M
 | **Exams** | Every exam with its owner, status and attempts; open its sessions, the owner's dashboard, or delete it |
 | **Live & sessions** | Every attempt across the platform |
 | **Feedback** | The inbox from the in-app form |
+| **🏛 Institutions** | Universities and schools that run ExamFlow on their own server: teacher lists, licences, packages, servers and the audit log ([below](#institutions)) |
 
 **Status** is **Active** (used in the last 14 days), **Cooling** (15–30), **Dormant** (31–60), **Churned** (over 60) or **Never used**. **Drop-off** marks teachers who ran 3–6 exams and then went quiet for over 30 days, and sorts them to the top: the people worth asking why they stopped.
 
@@ -343,6 +354,24 @@ For the owner only: sign in with the admin email, then avatar menu → **Admin M
 
 <br>
 
+## Institutions
+
+Added in **v46**. A university or school can run ExamFlow on **its own server**, with every exam, attempt and mark stored in **its own database**. Individual teachers keep using the public site and your Firebase project exactly as before.
+
+| | Where the data lives |
+|---|---|
+| Cloud teachers (the public site) | Your Firebase project, unchanged |
+| An institution's teachers | The institution's server (SQLite, on its disk) |
+| Institution administration (name, teacher IDs and emails, licence dates, packages, audit) | Your Firebase project, in `cp*` collections only the server functions can read |
+
+From **Admin Monitor → 🏛 Institutions** you create an institution, import its teacher list (CSV `teacher_id,email`), set a licence (1, 2 or 4 months, 1 or 2 years, or custom), generate a signed package for its IT team, and renew, block or unblock it later. Every change asks for confirmation and is written to an audit log. An expired or blocked licence stops **new** exams only; nothing is deleted, and published exams, grading, results and exports keep working.
+
+The package is a zip with a Docker setup (or plain Node.js 22), install guides and the teacher list, signed with your key. The institution's server checks in every few minutes with a signed request and receives a signed licence statement.
+
+Full guide: **[docs/institutions.md](docs/institutions.md)**.
+
+<br>
+
 ## Under the hood
 
 ```mermaid
@@ -361,7 +390,7 @@ flowchart LR
 
 - **One static file.** `index.html` holds all the markup, styles and scripts. No server of its own, no build step.
 - **Firebase** (compat SDK 10.7.1): Authentication (email/password and Google, with a redirect on phones) and Cloud Firestore.
-- **Libraries from CDNs:** GSAP 3.12.5 and three.js 0.160 for the landing page, plus libraries that load only when needed: jsPDF 2.5.1, qrcodejs 1.0.0, and for camera exams MediaPipe Tasks Vision 0.10.14 and face-api.js 1.7.15.
+- **Libraries from CDNs:** GSAP 3.12.5 and three.js 0.160 for the landing page, plus libraries that load only when needed: jsPDF 2.5.1, qrcodejs 1.0.0, KaTeX 0.16.22 for typed maths; for the paper reader Tesseract.js 7.0.0, pdf.js 3.11.174, JSZip 3.10.1 and rtf.js 3.0.9; for camera exams MediaPipe Tasks Vision 0.10.14 and face-api.js 1.7.15.
 - **Display scale:** on screens 1100 px and wider the site renders at 85%, like browser zoom at 85%; phones and tablets stay at 100%.
 - **Hosting:** Vercel, as a static site.
 
@@ -393,7 +422,9 @@ Exam sections live in each teacher's browser (localStorage). The browser cache n
 | `database.rules.json` | Realtime Database rules; the app doesn't use it, so they deny everything |
 | `firebase.json`, `.firebaserc` | Let the Firebase CLI deploy both rule files to project `examflow-195df` |
 | `assets/` | The images and animations in this README |
+| `tessdata/` | The Bangla + English and English reading models the paper reader uses |
 | `docs/camera-monitoring.md` | Camera monitoring in depth: timings, data, tuning, troubleshooting |
+| `docs/paper-reader.md` | The paper reader in depth: files, answer forms, how it reads photos, PDFs and Word files, limits |
 | `CHANGELOG.md` | Version comparison and the reason for every change |
 
 </details>
@@ -408,6 +439,7 @@ Exam sections live in each teacher's browser (localStorage). The browser cache n
 | Firebase Spark plan | Free. Past the daily limits (50,000 reads, 20,000 writes, 1 GB stored), requests pause until the next day instead of billing you |
 | AI or paid APIs | None. ExamFlow calls no AI service and has no email or payment integration |
 | Camera monitoring | Free. Open-source models (MediaPipe: Apache 2.0, face-api.js: MIT) run in each student's browser; there is no server, key or per-use fee |
+| Paper reader | Free. Tesseract (Apache 2.0) and ExamFlow's own readers run in the teacher's browser; nothing is uploaded |
 
 The biggest reader is the Admin Monitor, which reads every teacher, exam, attempt and feedback entry each time it opens. Camera monitoring adds only a few small writes per student: its status, its alerts and their snapshots.
 
@@ -424,6 +456,7 @@ The biggest reader is the Admin Monitor, which reads every teacher, exam, attemp
 5. **Publish the rules** (below). Camera monitoring needs no rule changes.
 6. **Deploy on Vercel.** Import this repository → framework preset **Other** → no build command → output directory is the repository root. Every push to `main` redeploys.
 7. **Hosting elsewhere?** Update the domain in `index.html`, `robots.txt` and `sitemap.xml`. The camera needs HTTPS (or `localhost`).
+8. **Institutions (optional).** Set `GHUM_SIGNING_PRIVATE_KEY` (from `node tools/make-signing-key.js`), `FIREBASE_SERVICE_ACCOUNT` and `PUBLIC_BASE_URL` in Vercel → Settings → Environment Variables, then redeploy. `package.json` installs `firebase-admin` for the two functions in `api/`; `vercel.json` ships the institution software with them. Without these, everything else works and the Institutions tab says it isn't set up. See [docs/institutions.md](docs/institutions.md#one-time-setup-on-vercel).
 
 <details>
 <summary><b>Publishing the security rules</b></summary>
@@ -528,7 +561,7 @@ Not on Vercel's Hobby plan and Firebase's Spark plan. There are no AI, email or 
 
 <div align="center">
 
-**ExamFlow v39** · Built by **TahCreations** · <a href="mailto:hellotahcreations@gmail.com">hellotahcreations@gmail.com</a>
+**ExamFlow v46** · Built by **GHUM** · Peace for you. No sleep for them. · <a href="mailto:examflow.live@gmail.com">examflow.live@gmail.com</a>
 
 <sub>Full history and the reason behind every change: <a href="CHANGELOG.md">CHANGELOG.md</a></sub>
 

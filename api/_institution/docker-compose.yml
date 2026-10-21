@@ -1,0 +1,22 @@
+# ExamFlow institution server — docker compose up -d
+# Data (database, backups, reading models, server identity) lives in the Docker volume
+# named exactly "examflow-data", on this server's disk. Every package version uses it. Back it up with your normal backup system too.
+services:
+  examflow:
+    build: .
+    image: examflow-institution:local
+    container_name: examflow
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PACKAGE_DIR: /app
+      DATA_DIR: /data
+    ports:
+      # Only reachable from this machine. Put your HTTPS reverse proxy (see Caddyfile.example) in front.
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - examflow-data:/data
+volumes:
+  examflow-data:
+    # A fixed name, so every package version (each unzips into its own folder) uses the SAME data.
+    name: examflow-data

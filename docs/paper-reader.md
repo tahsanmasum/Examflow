@@ -1,6 +1,6 @@
 # Paper reader: technical guide
 
-[← Back to README](../README.md) · Added in **v40** · rebuilt in **v44** and **v45**
+[← Back to README](../README.md) · Added in **v40** · rebuilt in **v44** and **v45** · written papers in **v46**
 
 The paper reader turns a question paper into exam questions: question text, options, the correct answer and diagrams. It reads phone photos, scanned PDFs, typed PDFs, Word files (`.doc` and `.docx`), CSV and JSON. Everything runs in the teacher's browser. Nothing is uploaded, no AI service is called, and nothing costs money.
 
@@ -16,6 +16,7 @@ The paper reader turns a question paper into exam questions: question text, opti
 - [How typed PDFs are read](#how-typed-pdfs-are-read)
 - [How Word files are read](#how-word-files-are-read)
 - [Pictures and diagrams](#pictures-and-diagrams)
+- [Written papers (v46)](#written-papers-v46)
 - [Accuracy](#accuracy)
 - [Limitations](#limitations)
 - [Troubleshooting](#troubleshooting)
@@ -108,9 +109,52 @@ flowchart LR
 - Pictures that can't be placed in a question wait under **Pictures not placed in a question**.
 - Matrices and determinants are written as typed maths (KaTeX), so students see them laid out.
 
+## Written papers (v46)
+
+When a paper is read into a **written** exam (or the written part of a combined exam), each question is split into its **stem** and its **parts**, and checked before anything is added. All of it is rules written for ExamFlow (`efread-written.js`); there is no AI and no service.
+
+| What | How it is read |
+|---|---|
+| Parts | `(a)` `a)` `a.` `[a]`, `ক.` `ক)` `(ক)`, in order. `(i)` `(ii)` inside a part stay in that part. A camera-blurred label (`Ab)`, `0 (b)`) is accepted only for the letter expected next, and a lost label is placed where the part before ends with its mark — both with a warning. |
+| Marks of a part | `(03)`, `[3]`, `(3.5)`, `3 marks`, a Bangla digit at the end of the line (`… নির্ণয় কর। ৪`), a mark after a tab or a sentence end in typed files, `1×10=10` / `0.5×10=5` / `1/2 ×10=5` (also when the × was lost: `110=10`). Lines that are only a piece of a formula (the lower half of a fraction) or a section heading are looked past. |
+| Marks of the question | The parts added up. When the paper prints a total that disagrees, the printed total is kept and the question says so. When nothing is printed, the box stays **empty** and the question can't be added until the teacher fills it in. Marks from a heading such as `(2 × 10 = 20)` are used only when nothing is printed on the questions, and say so. |
+| Printed solutions | `১নং প্রশ্নের সমাধান`, `Solution:`, `Answer:`, `উত্তর:` and everything after it is left out, with a note on the question. A file that is mostly worked solutions is flagged at the top of the review. |
+| Tables | Two or more lines with the same number of cells (a label and numbers) are kept row by row, cells separated by `|`, with a note. |
+| Figures | Drawings are attached as before. A question that refers to a figure (`চিত্রে`, `in the figure`, `shown below`…) with no picture found says so. |
+| Pages | Each question shows the page of the file it is on. |
+| Order | Questions out of order or twice are flagged. A written question whose number was lost (its parts start again at `(a)`/`ক` after another question's `(c)`/`গ`) is split off and marked for checking. |
+| Instructions | "Answer any two…", "[দ্রষ্টব্য : … সাতটি প্রশ্নের উত্তর দাও।]" are shown at the top of the review, with a reminder that students are asked every question that is added. |
+| Formulas from photos | A note on the review when written questions with formulas were read by the camera reader. |
+
+**The review step** shows the stem, then every part with its own text box and marks box; the total follows the parts. Parts can be edited, added and removed. A question cannot be added while it is empty, a part is empty, or it has no marks. What students get is the stem followed by each part with its marks, e.g. `ক. … [2]`.
+
+**Measured** on test files with known answers (questions, parts and marks typed in by hand). "Before" is v45 on the same files.
+
+| Test set | Measure | v45 | v46 |
+|---|---|---|---|
+| Typed Bangla maths board papers, 12 pages, 132 questions (used while improving) | questions found | 76.5% | **100%** |
+| | parts exactly right | 0% | **100%** |
+| | part marks right (396) | 0% | **99.5%** |
+| **Same kind of paper, 32 pages never used while improving** (352 questions) | questions found | 89.5% (29 spurious) | **98.3%** (2 spurious) |
+| | question marks right | 0% | **95.7%** |
+| | parts exactly right | 0% | **99.1%** |
+| | part marks right (1,038) | 0% | **98.7%** |
+| Creative questions (Word, Bijoy), 44 questions with a printed solution after each | solutions leaking into questions | 44 of 44 | **0** |
+| | part marks right (132) | 0% | **100%** |
+| English board papers (Word), 24 papers, 360 questions | questions found | 69.2% | **100%** |
+| | marks right | 0% | **100%** |
+| Typed / photographed test paper (3 files) | parts and part marks right | 0% | **100%** |
+| Physics papers, phone photos (5 photos, 18 questions) | questions found · part marks right (44) | 78% · 0% | 83% · **57%** |
+| | text similarity to the paper | 74.9% | **86.6%** |
+| Maths pages, scans and phone photos (8 images, 88 questions) | questions found · part marks right | 68% · 0% | 80% · **55%** |
+| Worked-solution PDF (scanned) | flagged as solutions | no | **yes** |
+
+No marks were made up in any test: every mark in the output is printed on the paper.
+
 ## Accuracy
 
-Measured on the same files with v44 and v45:
+
+Multiple-choice reading, measured on the same files with v44 and v45. v46 does not change it: from the same reading, the v46 parser gives exactly the same questions, options and answers as v45 on all 13 MCQ files of the regression set, 3 more Bangla/Bijoy files and 15 of 19 physics photos. The 4 that differ are photos of *written* physics papers read as MCQ, where v46 no longer pastes the "Answer any two…" heading into the first question and starts a question at its real number instead of at a stray "(3)".
 
 | Test | v44 | v45 |
 |---|---|---|
@@ -122,6 +166,11 @@ Measured on the same files with v44 and v45:
 | `.docx` (237 files): answers agreeing with the file's "Answer:" line | 83% | **97%** |
 
 ## Limitations
+
+- **Written papers from phone photos** are still much weaker than typed files: about half the part marks are read, and pages where the camera reader mixes the two columns lose questions. Marks that are not found stay empty for the teacher; they are never guessed.
+- **Formulas in photos** (powers, fractions, Greek letters) are often misread. Switch on the original picture of the question for students when it matters.
+- Tables in photos are rarely recognised as tables; their text is kept as lines.
+- A two-line fraction in a typed PDF is kept as two lines of text.
 
 - **Not 100%.** On the test photos it found 9 of every 10 questions and got about 8 of every 10 answers right from the key. Every answer it is unsure of is marked for the teacher to check.
 - Pages photographed while curled into the book's spine can lose the edge of the column.

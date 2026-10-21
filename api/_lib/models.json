@@ -1,0 +1,14 @@
+[
+ {
+  "name": "ben.traineddata.gz",
+  "path": "tessdata/ben.traineddata.gz",
+  "sha256": "ef74fe5d397560a1c4942d5a087015251e3072c6da0d393b201da9736b9b2169",
+  "size": 1482371
+ },
+ {
+  "name": "eng.traineddata.gz",
+  "path": "tessdata/eng.traineddata.gz",
+  "sha256": "21592cd4f70a131af4806387602bc7871b6ff4f8daf6c5f9dcc83fbbc6cd88be",
+  "size": 2783506
+ }
+]
