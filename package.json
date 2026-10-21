@@ -1,8 +1,8 @@
 {
   "name": "examflow",
-  "version": "46.0.0",
+  "version": "47.0.0",
   "private": true,
-  "description": "ExamFlow site (static) plus the institution control plane (/api/admin, /api/inst) on Vercel.",
+  "description": "ExamFlow site (static) plus the institution control plane (/api/admin, /api/inst, /api/me, /api/public) on Vercel.",
   "engines": { "node": ">=20" },
   "dependencies": {
     "firebase-admin": "^12.7.0"

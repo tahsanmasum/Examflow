@@ -198,8 +198,8 @@ function scrub(v, depth = 0) {
   return v;
 }
 
-for (const m of ['./mod-admins', './mod-users', './mod-plans', './mod-features', './mod-settings', './mod-comms', './mod-ops']) {
-  const mod = require(m);
+/* Plain require() calls (not a loop over names) so Vercel's bundler includes every module. */
+for (const mod of [require('./mod-admins'), require('./mod-users'), require('./mod-plans'), require('./mod-features'), require('./mod-settings'), require('./mod-comms'), require('./mod-ops')]) {
   for (const [k, fn] of Object.entries(mod.methods || {})) AdminConsole.prototype[k] = fn;
 }
 
