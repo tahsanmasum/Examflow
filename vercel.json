@@ -1,6 +1,8 @@
 {
   "functions": {
     "api/admin.js": { "includeFiles": "api/_institution/**", "maxDuration": 30 },
-    "api/inst.js": { "maxDuration": 15 }
+    "api/inst.js": { "maxDuration": 15 },
+    "api/me.js": { "maxDuration": 10 },
+    "api/public.js": { "maxDuration": 5 }
   }
 }

@@ -8,13 +8,13 @@
      short report (server version, package, teacher-list version, health — no
      exam or student data) and gets back a licence statement signed by GHUM.
    · The statement is verified with GHUM's public key from the package. The
-     status (Pending, Active, Expiring Soon, Expired, Blocked) is worked out by
+     status (Pending, Active, Expiring Soon, Grace Period, Expired, Suspended, Revoked) is worked out by
      GHUM's clock; between check-ins this server advances that time with its own
      monotonic clock, so moving the system clock back does not extend a licence.
    · Offline: the last statement stays valid for its offline grace period
      (default 7 days). After that the licence counts as "Unverified" and new
      exams are paused until the server reaches GHUM again. Data is never deleted.
-   · Creating, editing and publishing exams needs Active or Expiring Soon.
+   · Creating, editing and publishing exams needs Active, Expiring Soon or Grace Period.
      Existing exams, student attempts, grading, results and exports always work. */
 const fs = require('node:fs');
 const path = require('node:path');
@@ -56,8 +56,9 @@ class Licence {
     let dbOk = true; try { this.db.getMeta('schema_version'); } catch (e) { dbOk = false; }
     return {
       serverVersion: SERVER_VERSION, packageId: this.pkg.manifest.packageId, packageVersion: this.pkg.manifest.packageVersion,
-      allowlistVersion: Number(this.db.getMeta('allowlist_version') || 0),
-      health: { db: dbOk ? 'ok' : 'error', node: process.version }
+      allowlistVersion: Number(this.db.getMeta('allowlist_version') || 0), interval: this.config.licenceCheckSec,
+      health: { db: dbOk ? 'ok' : 'error', node: process.version },
+      ...(this.sync ? { sync: this.sync.report() } : {})
     };
   }
   async call(body) {
@@ -81,6 +82,8 @@ class Licence {
     this.last = { statement: j.statement, sig: j.sig, verifiedAt: Date.now(), mono: performance.now() };
     this.db.setMeta('licence_statement', JSON.stringify({ statement: j.statement, sig: j.sig, verifiedAt: this.last.verifiedAt }));
     this.lastError = null;
+    // Tell GHUM soon that a new configuration was applied (or failed), instead of waiting a full interval.
+    if (this.sync && this.sync.apply(j.statement) && !this.followUp) { this.followUp = setTimeout(() => { this.followUp = null; this.refresh().catch(() => {}); }, 1500); if (this.followUp.unref) this.followUp.unref(); }
   }
 
   async register(code) {

@@ -1,6 +1,6 @@
 {
   "name": "examflow-institution-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "ExamFlow server for institution-hosted deployments (GHUM). Keeps exams, attempts and results in the institution's own database.",
   "private": true,
   "license": "UNLICENSED",

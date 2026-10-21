@@ -16,10 +16,16 @@ const WARN_DAYS_DEFAULT = 30;
 const DURATIONS = {
   '1m': { months: 1, label: '1 month' },
   '2m': { months: 2, label: '2 months' },
+  '3m': { months: 3, label: '3 months' },
   '4m': { months: 4, label: '4 months' },
+  '6m': { months: 6, label: '6 months' },
   '1y': { months: 12, label: '1 year' },
   '2y': { months: 24, label: '2 years' }
 };
+const DEFAULT_DURATION = '1y';
+const WARN_SCHEDULE_DEFAULT = [30, 7, 1];
+/* Status names, in the order they win. */
+const STATUSES = ['Revoked', 'Suspended', 'Not set', 'Pending', 'Grace Period', 'Expired', 'Expiring Soon', 'Active'];
 
 /** 'YYYY-MM-DD' → UTC ms of 00:00 Asia/Dhaka on that date. */
 function dhakaDateToMs(s) {
@@ -76,25 +82,37 @@ function computeTerm(duration, startMs) {
 }
 
 /**
- * The licence status at time nowMs. lic: { activatesAt, expiresAt, blocked } or null.
- * Returns { status, remainingDays, canCreateExams }.
- *   Blocked        an administrator blocked it (overrides everything)
+ * The licence status at time nowMs. lic: { activatesAt, expiresAt, suspended|blocked, revoked, graceDays } or null.
+ * Returns { status, remainingDays, canCreateExams, graceEndsAt? }.
+ *   Revoked        withdrawn by an administrator; only a reactivation brings it back
+ *   Suspended      paused by an administrator (v46 called this "Blocked")
  *   Not set        no licence has been configured yet
  *   Pending        configured, but the activation date is still ahead
  *   Active         in its term
  *   Expiring Soon  in its term, with warnDays or fewer left
- *   Expired        the term has ended
+ *   Grace Period   the term has ended, but the agreed grace days have not (new exams still allowed)
+ *   Expired        the term and any grace period have ended
+ * Only Active, Expiring Soon and Grace Period allow new exams. No status ever deletes data.
  */
 function licenceStatus(lic, nowMs, warnDays = WARN_DAYS_DEFAULT) {
+  const suspended = !!(lic && (lic.suspended || lic.blocked));
+  const revoked = !!(lic && lic.revoked);
   if (!lic || !Number.isFinite(lic.activatesAt) || !Number.isFinite(lic.expiresAt)) {
-    return { status: lic && lic.blocked ? 'Blocked' : 'Not set', remainingDays: null, canCreateExams: false };
+    return { status: revoked ? 'Revoked' : suspended ? 'Suspended' : 'Not set', remainingDays: null, canCreateExams: false };
   }
   const remainingDays = Math.max(0, Math.ceil((lic.expiresAt - nowMs) / DAY));
-  if (lic.blocked) return { status: 'Blocked', remainingDays, canCreateExams: false };
+  if (revoked) return { status: 'Revoked', remainingDays, canCreateExams: false };
+  if (suspended) return { status: 'Suspended', remainingDays, canCreateExams: false };
   if (nowMs < lic.activatesAt) return { status: 'Pending', remainingDays, startsInDays: Math.ceil((lic.activatesAt - nowMs) / DAY), canCreateExams: false };
-  if (nowMs >= lic.expiresAt) return { status: 'Expired', remainingDays: 0, canCreateExams: false };
-  if (remainingDays <= warnDays) return { status: 'Expiring Soon', remainingDays, canCreateExams: true };
+  if (nowMs >= lic.expiresAt) {
+    const g = Math.max(0, Math.min(90, Math.floor(Number(lic.graceDays) || 0)));
+    const graceEndsAt = lic.expiresAt + g * DAY;
+    if (g && nowMs < graceEndsAt) return { status: 'Grace Period', remainingDays: 0, graceDaysLeft: Math.ceil((graceEndsAt - nowMs) / DAY), graceEndsAt, canCreateExams: true };
+    return { status: 'Expired', remainingDays: 0, canCreateExams: false };
+  }
+  const wd = Number.isFinite(lic.warnDays) ? lic.warnDays : warnDays;
+  if (remainingDays <= wd) return { status: 'Expiring Soon', remainingDays, canCreateExams: true };
   return { status: 'Active', remainingDays, canCreateExams: true };
 }
 
-module.exports = { DURATIONS, DAY, TZ_OFFSET_MS, WARN_DAYS_DEFAULT, dhakaDateToMs, msToDhakaDate, dhakaToday, addMonths, computeTerm, licenceStatus };
+module.exports = { DURATIONS, DEFAULT_DURATION, WARN_SCHEDULE_DEFAULT, STATUSES, DAY, TZ_OFFSET_MS, WARN_DAYS_DEFAULT, dhakaDateToMs, msToDhakaDate, dhakaToday, addMonths, computeTerm, licenceStatus };

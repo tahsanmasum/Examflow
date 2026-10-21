@@ -1,5 +1,5 @@
 'use strict';
-// POST /api/admin — Admin Monitor → Institutions & Licences. Admin-only (Firebase ID token).
+// POST /api/admin — the Admin Monitor. Every action is checked against the caller's admin role (see _lib/rbac.js).
 const { adminHandler } = require('./_lib/http');
-const { cp, verifyAdmin } = require('./_lib/prod');
-module.exports = adminHandler({ cp, verifyAdmin });
+const { con, verifyToken } = require('./_lib/prod');
+module.exports = adminHandler({ con, verifyToken });

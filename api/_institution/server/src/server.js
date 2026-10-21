@@ -11,6 +11,7 @@ const { readPackage, applyPackage } = require('./package');
 const { Auth } = require('./auth');
 const { Licence, SERVER_VERSION } = require('./licence');
 const { Rules, Denied } = require('./rules');
+const { Sync } = require('./sync');
 const { randomId } = require('./util');
 
 const log = (...a) => console.log(new Date().toISOString(), ...a);
@@ -40,9 +41,11 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '
 
 function createApp({ config, pkg, db, fetchImpl }) {
   const auth = new Auth({ db, config, fetchImpl });
-  const licence = new Licence({ db, config, pkg, fetchImpl, log });
-  const rules = new Rules({ db, config, auth, licence });
   const instId = pkg.manifest.institution.id;
+  const sync = new Sync({ db, log, instId });
+  const licence = new Licence({ db, config, pkg, fetchImpl, log });
+  licence.sync = sync;
+  const rules = new Rules({ db, config, auth, licence, sync });
   const secure = req => config.publicUrl.startsWith('https://') || (config.trustProxy && req.headers['x-forwarded-proto'] === 'https');
   const ipOf = req => (config.trustProxy && String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()) || req.socket.remoteAddress || '?';
   const cookie = (req, token, maxAgeSec) =>
@@ -104,6 +107,13 @@ function createApp({ config, pkg, db, fetchImpl }) {
       return send(res, 200, { user: meJson(r.user) }, { 'set-cookie': cookie(req, auth.createLogin(r.uid), config.sessionDays * 86400) });
     }
     if (p === '/api/db' && req.method === 'POST') return send(res, 200, await dbOp(req, body));
+    // v47: features, limits, settings, announcements and (for a signed-in teacher) their messages from GHUM
+    if (p === '/api/sync') { const u = userOf(req); return send(res, 200, sync.forUser(u ? u.email : null)); }
+    if (p === '/api/inbox' && req.method === 'POST') {
+      const u = userOf(req); if (!u) return send(res, 401, { error: 'Sign in first.' });
+      if (!['read', 'archive', 'unarchive'].includes(body.action)) return send(res, 400, { error: 'Unknown action.' });
+      return send(res, sync.mark(u.email, String(body.id || ''), body.action) ? 200 : 404, { ok: true });
+    }
     return send(res, 404, { error: 'Not found' });
   }
 
@@ -188,7 +198,7 @@ function createApp({ config, pkg, db, fetchImpl }) {
     if (!st.isFile()) return send(res, 404, 'Not found');
     return send(res, 200, fs.readFileSync(p), { 'content-type': TYPES[path.extname(p)] || 'application/octet-stream', 'cache-control': cache ? 'public, max-age=86400' : 'no-cache' });
   }
-  return { handle, auth, licence, rules, db, config, pkg };
+  return { handle, auth, licence, rules, db, config, pkg, sync };
 }
 
 /** Full start-up: settings → package check → database → teacher list → licence → listen. */

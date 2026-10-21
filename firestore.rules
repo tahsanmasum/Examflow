@@ -19,8 +19,16 @@ rules_version = '2';
 //      So /sessions and single-exam reads must stay open; every rule that
 //      could be tightened has been, and the ones that can't say why.
 //
-//  ⚠️ The admin list below must match const ADMIN_EMAILS in index.html.
-//     Adding a second admin = edit both, publish these rules, redeploy the site.
+//  ⚠️ The admin list below must match const ADMIN_EMAILS in index.html and
+//     the ADMIN_EMAILS environment variable on Vercel (the platform owners).
+//     Other Admin Monitor team members (v47) never need to be listed here:
+//     their actions go through the server (/api/admin), which checks their role.
+//
+//  v47 feature switches — marker: ef-features-v1
+//     The Admin Monitor publishes meta/features = { v, off: {feature: true}, kill: {feature: true} }
+//     and per-account overrides in featureUsers/{uid} = { on: {...}, off: {...} }
+//     (both written only by the server). The exam and feedback rules below refuse
+//     NEWLY using a switched-off feature. Exams that already use it keep working.
 // ═══════════════════════════════════════════════════════════════════════
 
 service cloud.firestore {
@@ -49,6 +57,48 @@ service cloud.firestore {
     function shortStr(v, max) {
       return v is string && v.size() <= max;
     }
+    // ── v47 feature switches (ef-features-v1) ─────────────────────────
+    // Missing documents mean "everything on", so these rules never block
+    // anything until an administrator switches a feature off.
+    function featCfg() {
+      return exists(/databases/$(database)/documents/meta/features)
+        ? get(/databases/$(database)/documents/meta/features).data
+        : {};
+    }
+    function featUser() {
+      return signedIn() && exists(/databases/$(database)/documents/featureUsers/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/featureUsers/$(request.auth.uid)).data
+        : {};
+    }
+    // kill switch → per-account override → global default
+    function featAllowed(k) {
+      return featCfg().get('kill', {}).get(k, false) != true
+        && (featUser().get('on', {}).get(k, false) == true
+            || (featUser().get('off', {}).get(k, false) != true
+                && featCfg().get('off', {}).get(k, false) != true));
+    }
+    function examTypeKey(d) {
+      return d.get('type', 'mcq') == 'written' ? 'exam.written'
+        : (d.get('type', 'mcq') == 'combined' ? 'exam.combined' : 'exam.mcq');
+    }
+    function usesCamera(d) {
+      return d.get('camMon', null) is map && d.get('camMon', {}).get('on', false) == true;
+    }
+    function usesPictures(d) {
+      return d.get('qImages', null) is map && d.get('qImages', {}).size() > 0;
+    }
+    function examFeaturesOk(d) {
+      return featAllowed(examTypeKey(d))
+        && (!usesCamera(d) || featAllowed('camera.monitoring'))
+        && (!usesPictures(d) || featAllowed('questions.images'));
+    }
+    // An edit may keep what the exam already used; only newly used features are checked.
+    function examChangeOk(d, prev) {
+      return (examTypeKey(d) == examTypeKey(prev) || featAllowed(examTypeKey(d)))
+        && (!usesCamera(d) || usesCamera(prev) || featAllowed('camera.monitoring'))
+        && (!usesPictures(d) || usesPictures(prev) || featAllowed('questions.images'));
+    }
+
     // True when the signed-in caller owns the exam with this token.
     function examOwner(tok) {
       return signedIn()
@@ -93,12 +143,14 @@ service cloud.firestore {
                   || (signedIn() && resource.data.teacherUid == request.auth.uid);
 
       allow create: if signedIn()
-                    && incoming().get('teacherUid', '') == request.auth.uid;
+                    && incoming().get('teacherUid', '') == request.auth.uid
+                    && examFeaturesOk(incoming());
 
       allow update: if isAdmin()
                     || (signedIn()
                         && existing().get('teacherUid', '') == request.auth.uid
-                        && incoming().get('teacherUid', '') == request.auth.uid);
+                        && incoming().get('teacherUid', '') == request.auth.uid
+                        && examChangeOk(incoming(), existing()));
 
       allow delete: if isAdmin()
                     || (signedIn() && existing().get('teacherUid', '') == request.auth.uid);
@@ -150,7 +202,8 @@ service cloud.firestore {
     // Anyone may submit; only the admin can read the inbox.
     match /feedback/{id} {
       allow get, list: if isAdmin();
-      allow create: if shortStr(incoming().get('name', ''), 120)
+      allow create: if featCfg().get('off', {}).get('feedback.form', false) != true
+                    && shortStr(incoming().get('name', ''), 120)
                     && shortStr(incoming().get('message', ''), 5000)
                     && incoming().get('message', '').size() > 0
                     && shortStr(incoming().get('type', 'other'), 40)
@@ -170,6 +223,15 @@ service cloud.firestore {
     match /meta/{doc} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+
+    // ── /featureUsers/{uid}: per-account feature overrides (v47) ──────
+    // Written only by the Admin Monitor's server. The account itself may
+    // read its own overrides; the rules above read them too.
+    match /featureUsers/{uid} {
+      allow get: if isUser(uid) || isAdmin();
+      allow list, write: if false;
     }
 
 

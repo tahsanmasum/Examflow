@@ -83,6 +83,14 @@ function validateTeachers(input) {
 }
 
 function nextVersion(seq) { return `1.${seq}.0`; }
+/** Grace days (0–30) and the warning threshold (1–120 days) given with a licence change, else the current ones, else the defaults. */
+function policy(b, cur) {
+  const g = b.graceDays !== undefined ? Number(b.graceDays) : (cur && Number.isFinite(cur.graceDays) ? cur.graceDays : Number(b._defaultGraceDays) || 0);
+  const w = b.warnDays !== undefined ? Number(b.warnDays) : (cur && Number.isFinite(cur.warnDays) ? cur.warnDays : Number(b._defaultWarnDays) || WARN_DAYS_DEFAULT);
+  if (!Number.isInteger(g) || g < 0 || g > 30) bad('Grace period must be a whole number of days from 0 to 30.');
+  if (!Number.isInteger(w) || w < 1 || w > 120) bad('The warning threshold must be a whole number of days from 1 to 120.');
+  return { graceDays: g, warnDays: w };
+}
 
 class ControlPlane {
   /**
@@ -97,7 +105,8 @@ class ControlPlane {
   sw() { return this.software || softwareFiles(); }
 
   async audit(actor, action, target, result, detail) {
-    await this.store.add(C.audit, { t: this.now(), actor: actor || null, action, institutionId: target && target.inst || null,
+    if (this.auditHook) return this.auditHook(actor, action, target, result, detail);
+    await this.store.add(C.audit, { t: this.now(), actor: (actor && actor.email) || actor || null, action, institutionId: target && target.inst || null,
       target: target && target.id || null, result, detail: detail || null });
   }
   /** Same opId → same answer, so a retried request after a timeout never runs twice. */
@@ -117,7 +126,10 @@ class ControlPlane {
     return { ...inst, licenceState: { ...st, activatesAt: lic ? lic.activatesAt : null, expiresAt: lic ? lic.expiresAt : null,
       activationDate: lic && Number.isFinite(lic.activatesAt) ? msToDhakaDate(lic.activatesAt) : null,
       expiryDate: lic && Number.isFinite(lic.expiresAt) ? msToDhakaDate(lic.expiresAt) : null,
-      blocked: !!(lic && lic.blocked), blockedReason: lic && lic.blockedReason || null, durationLabel: lic && lic.durationLabel || null } };
+      suspended: !!(lic && (lic.suspended || lic.blocked)), blocked: !!(lic && (lic.suspended || lic.blocked)), suspendedReason: lic && (lic.suspendedReason || lic.blockedReason) || null,
+      blockedReason: lic && (lic.suspendedReason || lic.blockedReason) || null, revoked: lic && lic.revoked || null,
+      graceDays: lic && lic.graceDays || 0, warnDays: lic && Number.isFinite(lic.warnDays) ? lic.warnDays : WARN_DAYS_DEFAULT,
+      durationLabel: lic && lic.durationLabel || null } };
   }
   async instOr404(id) { const i = await this.store.get(C.inst, String(id || '')); if (!i) bad('Institution not found.', 404, 'not_found'); return i; }
 
@@ -163,7 +175,7 @@ class ControlPlane {
     for (const e of [inst.contact.email, inst.technicalContact.email]) if (e && !EMAIL_RE.test(e)) bad('A contact email is not valid: ' + e);
     await this.store.set(C.inst, id, inst);
     await this.store.set(C.allow, id, { institutionId: id, version: 0, teachers: [], updatedAt: now, imports: [] });
-    await this.audit(admin.email, 'institution.create', { inst: id, id }, 'ok', { name });
+    await this.audit(admin, 'institution.create', { inst: id, id }, 'ok', { name });
     return { institution: this.view(inst) };
   }
   async a_inst_get(admin, b) {
@@ -188,7 +200,7 @@ class ControlPlane {
     for (const e of [patch.contact && patch.contact.email, patch.technicalContact && patch.technicalContact.email]) if (e && !EMAIL_RE.test(e)) bad('A contact email is not valid: ' + e);
     const next = { ...inst, ...patch, updatedAt: this.now() };
     await this.store.set(C.inst, inst.id, next);
-    await this.audit(admin.email, 'institution.update', { inst: inst.id, id: inst.id }, 'ok', { before, after: patch });
+    await this.audit(admin, 'institution.update', { inst: inst.id, id: inst.id }, 'ok', { before, after: patch });
     return { institution: this.view(next) };
   }
 
@@ -221,7 +233,7 @@ class ControlPlane {
       t.set(C.inst, inst.id, { ...instNow, allowlistVersion: next.version, allowlistCount: r.valid.length, updatedAt: now });
       return { allowlist: next, added, removed, changedEmail };
     }).then(async res => {
-      if (!res.unchanged) await this.audit(admin.email, 'allowlist.save', { inst: inst.id, id: inst.id }, 'ok', { version: res.allowlist.version, added: res.added, removed: res.removed, changedEmail: res.changedEmail, source: b.source || 'manual' });
+      if (!res.unchanged) await this.audit(admin, 'allowlist.save', { inst: inst.id, id: inst.id }, 'ok', { version: res.allowlist.version, added: res.added, removed: res.removed, changedEmail: res.changedEmail, source: b.source || 'manual' });
       return res;
     });
   }
@@ -248,6 +260,7 @@ class ControlPlane {
   async a_package_generate(admin, b) {
     if (b.confirm !== true) bad('Confirm before generating a package.', 400, 'confirm');
     if (!this.keys.privatePem) bad('Package signing is not set up: GHUM_SIGNING_PRIVATE_KEY is missing on the server. See the v46 README.', 503, 'no_signing_key');
+    if (!this.env.publicBaseUrl) bad('PUBLIC_BASE_URL is not set on Vercel, so a package would not know where to check in. Set it and redeploy.', 503, 'no_base_url');
     return this.once(b.opId, 'package.generate:' + b.id, async () => {
       const inst = await this.instOr404(b.id);
       const allow = await this.store.get(C.allow, inst.id);
@@ -278,7 +291,7 @@ class ControlPlane {
         for (const p of all) if (p.adminStatus === 'Generated' || p.adminStatus === 'Delivered') t.set(C.pkg, p.id, { ...p, adminStatus: 'Superseded', supersededBy: packageId, supersededAt: now });
         t.set(C.inst, inst.id, { ...cur, packageSeq: seq, latestPackageId: packageId, latestPackageVersion: version, updatedAt: now });
       });
-      await this.audit(admin.email, 'package.generate', { inst: inst.id, id: packageId }, 'ok', { version, allowlistVersion: allow.version, teachers: curIds.length, serverVersion: info.serverVersion, manifestSha256: built.manifestSha256 });
+      await this.audit(admin, 'package.generate', { inst: inst.id, id: packageId }, 'ok', { version, allowlistVersion: allow.version, teachers: curIds.length, serverVersion: info.serverVersion, manifestSha256: built.manifestSha256 });
       const { manifest, allowlistSnapshot, ...summary } = rec;
       return { package: summary };
     });
@@ -295,7 +308,7 @@ class ControlPlane {
     const rebuilt = await this.rebuildExact(p, inst, sw);
     p.downloads = [{ t: this.now(), by: admin.email }, ...(p.downloads || [])].slice(0, 50);
     await this.store.set(C.pkg, p.id, p);
-    await this.audit(admin.email, 'package.download', { inst: inst.id, id: p.id }, 'ok', { version: p.version });
+    await this.audit(admin, 'package.download', { inst: inst.id, id: p.id }, 'ok', { version: p.version });
     return { zip: rebuilt.zip, filename: rebuilt.folder + '.zip', sha256: sha256(rebuilt.zip) };
   }
   async rebuildExact(p, inst, sw) {
@@ -316,7 +329,7 @@ class ControlPlane {
     const ev = { t: this.now(), by: admin.email, note: str(b.note, 500, 'Delivery note') || null };
     p.adminStatus = 'Delivered'; p.delivery = [ev, ...(p.delivery || [])];
     await this.store.set(C.pkg, p.id, p);
-    await this.audit(admin.email, 'package.deliver', { inst: p.institutionId, id: p.id }, 'ok', { note: ev.note });
+    await this.audit(admin, 'package.deliver', { inst: p.institutionId, id: p.id }, 'ok', { note: ev.note });
     const { manifest, allowlistSnapshot, ...s } = p; return { package: s };
   }
   async a_package_revoke(admin, b) {
@@ -326,14 +339,14 @@ class ControlPlane {
     if (p.adminStatus === 'Revoked') bad('Already revoked.', 409, 'state');
     p.revoked = { t: this.now(), by: admin.email, reason, previousStatus: p.adminStatus }; p.adminStatus = 'Revoked';
     await this.store.set(C.pkg, p.id, p);
-    await this.audit(admin.email, 'package.revoke', { inst: p.institutionId, id: p.id }, 'ok', { reason });
+    await this.audit(admin, 'package.revoke', { inst: p.institutionId, id: p.id }, 'ok', { reason });
     const { manifest, allowlistSnapshot, ...s } = p; return { package: s };
   }
 
   /* licences */
   term(b, inst, now) {
     const dur = b.duration || {};
-    if (!['1m', '2m', '4m', '1y', '2y', 'days', 'until'].includes(dur.kind)) bad('Choose a licence length.');
+    if (!['1m', '2m', '3m', '4m', '6m', '1y', '2y', 'days', 'until'].includes(dur.kind)) bad('Choose a licence length.');
     let start;
     const mode = b.from || 'date';
     const lic = inst.licence;
@@ -361,7 +374,8 @@ class ControlPlane {
     const st = licenceStatus(after, now);
     return { activatesAt: t.activatesAt, expiresAt: t.expiresAt, activationDate: msToDhakaDate(t.activatesAt), expiryDate: msToDhakaDate(t.expiresAt),
       lastFullDay: msToDhakaDate(t.expiresAt - 1), label: t.label, statusAfter: st.status, remainingDaysAfter: st.remainingDays, serverTime: now,
-      current: this.view(inst, now).licenceState, staysBlocked: !!(inst.licence && inst.licence.blocked) };
+      current: this.view(inst, now).licenceState, staysBlocked: !!(inst.licence && (inst.licence.suspended || inst.licence.blocked || inst.licence.revoked)),
+      staysSuspended: !!(inst.licence && (inst.licence.suspended || inst.licence.blocked)), staysRevoked: !!(inst.licence && inst.licence.revoked) };
   }
   async licenceChange(admin, b, kind, mutate, detailFn) {
     return this.once(b.opId, 'licence.' + kind + ':' + b.id, async () => {
@@ -376,7 +390,7 @@ class ControlPlane {
         t.set(C.lic, 'le_' + randomId('', 14), ev);
         return { inst: next, ev };
       });
-      await this.audit(admin.email, 'licence.' + kind, { inst: out.inst.id, id: out.inst.id }, 'ok', { reason: b.reason || null, before: out.ev.before, after: out.ev.after });
+      await this.audit(admin, 'licence.' + kind, { inst: out.inst.id, id: out.inst.id }, 'ok', { reason: b.reason || null, before: out.ev.before, after: out.ev.after });
       return { institution: this.view(out.inst, now), event: out.ev };
     });
   }
@@ -384,35 +398,63 @@ class ControlPlane {
     if (b.confirm !== true) bad('Confirm the licence first.', 400, 'confirm');
     const inst = await this.instOr404(b.id); const now = this.now();
     const st = licenceStatus(inst.licence, now);
-    if (inst.licence && !['Not set', 'Pending'].includes(st.status) && !(st.status === 'Blocked' && !Number.isFinite(inst.licence.expiresAt)))
+    if (inst.licence && !['Not set', 'Pending'].includes(st.status) && !(['Suspended', 'Revoked'].includes(st.status) && !Number.isFinite(inst.licence.expiresAt)))
       bad(`The licence is ${st.status}. Use Renew to change an existing term.`, 409, 'use_renew');
     const t = this.term({ ...b, mode: 'set' }, inst, now);
+    const pol = policy(b, inst.licence);
     return this.licenceChange(admin, b, 'set', (i, n, before) => ({ activatesAt: t.activatesAt, expiresAt: t.expiresAt, duration: t.duration, durationLabel: t.label,
-      blocked: !!(before && before.blocked), blockedReason: before && before.blockedReason || null, blockedAt: before && before.blockedAt || null, blockedBy: before && before.blockedBy || null,
-      warnDays: WARN_DAYS_DEFAULT, setAt: n, setBy: admin.email }));
+      suspended: !!(before && (before.suspended || before.blocked)), suspendedReason: before && (before.suspendedReason || before.blockedReason) || null,
+      suspendedAt: before && (before.suspendedAt || before.blockedAt) || null, suspendedBy: before && (before.suspendedBy || before.blockedBy) || null,
+      revoked: before && before.revoked || null, ...pol, activation: { method: 'manual', by: admin.email, at: n, note: 'Manual administrative activation (no payment involved).' },
+      setAt: n, setBy: admin.email }));
   }
   async a_licence_renew(admin, b) {
     if (b.confirm !== true) bad('Confirm the renewal first.', 400, 'confirm');
     const inst = await this.instOr404(b.id); const now = this.now();
     if (!inst.licence || !Number.isFinite(inst.licence.expiresAt)) bad('There is no licence to renew yet. Use Set validity.', 409, 'use_set');
     const t = this.term({ ...b, mode: 'renew' }, inst, now);
-    return this.licenceChange(admin, b, 'renew', (i, n, before) => ({ ...before, activatesAt: b.from === 'expiry' ? before.activatesAt : t.activatesAt, expiresAt: t.expiresAt,
+    if (inst.licence.revoked) bad('A revoked licence can\'t be renewed. Reactivate it first (needs the licences.revoke permission).', 409, 'revoked');
+    const pol = policy(b, inst.licence);
+    return this.licenceChange(admin, b, 'renew', (i, n, before) => ({ ...before, ...pol, activatesAt: b.from === 'expiry' ? before.activatesAt : t.activatesAt, expiresAt: t.expiresAt,
       duration: t.duration, durationLabel: t.label, renewedAt: n, renewedBy: admin.email,
       renewals: [{ t: n, by: admin.email, from: b.from || 'date', termStart: t.activatesAt, expiresAt: t.expiresAt, label: t.label }, ...(before.renewals || [])].slice(0, 50) }));
   }
-  async a_licence_block(admin, b) {
-    if (b.confirm !== true) bad('Confirm the block first.', 400, 'confirm');
+  /* Suspend: a pause (v46 "Block"). Reactivate: back to what the dates say. Revoke: withdrawn; only a
+     reactivation by someone with licences.revoke brings it back. None of them touch any data. */
+  async a_licence_suspend(admin, b) {
+    if (b.confirm !== true) bad('Confirm the suspension first.', 400, 'confirm');
     str(b.reason, 500, 'Reason', true);
     const inst = await this.instOr404(b.id);
-    if (inst.licence && inst.licence.blocked) bad('The licence is already blocked.', 409, 'state');
-    return this.licenceChange(admin, b, 'block', (i, n, before) => ({ ...(before || {}), blocked: true, blockedAt: n, blockedBy: admin.email, blockedReason: b.reason.trim() }));
+    if (inst.licence && inst.licence.revoked) bad('The licence is revoked. Reactivate it first.', 409, 'state');
+    if (inst.licence && (inst.licence.suspended || inst.licence.blocked)) bad('The licence is already suspended.', 409, 'state');
+    return this.licenceChange(admin, b, 'suspend', (i, n, before) => ({ ...(before || {}), suspended: true, blocked: false, suspendedAt: n, suspendedBy: admin.email, suspendedReason: b.reason.trim() }));
   }
-  async a_licence_unblock(admin, b) {
-    if (b.confirm !== true) bad('Confirm the unblock first.', 400, 'confirm');
+  async a_licence_block(admin, b) { return this.a_licence_suspend(admin, b); }
+  async a_licence_reactivate(admin, b) {
+    if (b.confirm !== true) bad('Confirm the reactivation first.', 400, 'confirm');
     str(b.reason, 500, 'Approval note', true);
     const inst = await this.instOr404(b.id);
-    if (!inst.licence || !inst.licence.blocked) bad('The licence is not blocked.', 409, 'state');
-    return this.licenceChange(admin, b, 'unblock', (i, n, before) => ({ ...before, blocked: false, unblockedAt: n, unblockedBy: admin.email, unblockNote: b.reason.trim(), blockedReason: null }));
+    const L = inst.licence;
+    if (!L || !(L.suspended || L.blocked || L.revoked)) bad('The licence is not suspended or revoked.', 409, 'state');
+    if (L.revoked && !b._mayUnrevoke) bad('Reactivating a revoked licence needs the licences.revoke permission.', 403, 'forbidden');
+    return this.licenceChange(admin, b, L.revoked ? 'unrevoke' : 'reactivate', (i, n, before) => ({ ...before, suspended: false, blocked: false, revoked: null,
+      reactivatedAt: n, reactivatedBy: admin.email, reactivationNote: b.reason.trim(), suspendedReason: null, blockedReason: null }));
+  }
+  async a_licence_unblock(admin, b) { return this.a_licence_reactivate(admin, b); }
+  async a_licence_revoke(admin, b) {
+    if (b.confirm !== true) bad('Confirm the revocation first.', 400, 'confirm');
+    str(b.reason, 500, 'Reason', true);
+    const inst = await this.instOr404(b.id);
+    if (inst.licence && inst.licence.revoked) bad('The licence is already revoked.', 409, 'state');
+    return this.licenceChange(admin, b, 'revoke', (i, n, before) => ({ ...(before || {}), revoked: { t: n, by: admin.email, reason: b.reason.trim() } }));
+  }
+  /** Grace days and the "Expiring Soon" threshold for one institution. */
+  async a_licence_policy(admin, b) {
+    if (b.confirm !== true) bad('Confirm the change first.', 400, 'confirm');
+    const inst = await this.instOr404(b.id);
+    if (!inst.licence) bad('Set the licence first.', 409, 'use_set');
+    const pol = policy(b, inst.licence);
+    return this.licenceChange(admin, b, 'policy', (i, n, before) => ({ ...before, ...pol }));
   }
 
   /* server registration (admin side) */
@@ -423,7 +465,7 @@ class ControlPlane {
     for (const c of await this.store.where(C.reg, 'institutionId', inst.id)) if (!c.used) await this.store.set(C.reg, c.id, { ...c, used: { t: now, by: 'replaced' } });
     const id = hashCode(code);
     await this.store.set(C.reg, id, { id, institutionId: inst.id, createdAt: now, createdBy: admin.email, expiresAt: now + 7 * DAY, used: null });
-    await this.audit(admin.email, 'server.regcode', { inst: inst.id, id: inst.id }, 'ok', { expiresAt: now + 7 * DAY });
+    await this.audit(admin, 'server.regcode', { inst: inst.id, id: inst.id }, 'ok', { expiresAt: now + 7 * DAY });
     return { code, expiresAt: now + 7 * DAY };
   }
   async a_server_reset(admin, b) {
@@ -434,7 +476,7 @@ class ControlPlane {
     const sid = inst.server.serverId;
     const srv = await this.store.get(C.srv, sid); if (srv) await this.store.set(C.srv, sid, { ...srv, active: false, resetAt: this.now(), resetBy: admin.email });
     await this.store.set(C.inst, inst.id, { ...inst, server: { ...inst.server, reset: true, resetAt: this.now(), status: 'Registration reset' }, updatedAt: this.now() });
-    await this.audit(admin.email, 'server.reset', { inst: inst.id, id: sid }, 'ok', { reason });
+    await this.audit(admin, 'server.reset', { inst: inst.id, id: sid }, 'ok', { reason });
     return { ok: true };
   }
   async a_audit_list(admin, b) {
@@ -445,19 +487,22 @@ class ControlPlane {
   }
 
   /* ───────────── institution servers (no admin login; signed requests) ───────────── */
-  statement(inst, srv, pkgRec, nonce) {
+  statement(inst, srv, pkgRec, nonce, sync) {
     const now = this.now();
     const lic = inst.licence || null;
     const s = { v: 1, institutionId: inst.id, institutionName: inst.name, serverId: srv.id, issuedAt: now, nonce: typeof nonce === 'string' ? nonce.slice(0, 64) : null,
-      licence: lic ? { activatesAt: lic.activatesAt ?? null, expiresAt: lic.expiresAt ?? null, blocked: !!lic.blocked } : null,
+      licence: lic ? { activatesAt: lic.activatesAt ?? null, expiresAt: lic.expiresAt ?? null, suspended: !!(lic.suspended || lic.blocked), revoked: !!lic.revoked,
+        graceDays: lic.graceDays || 0, warnDays: Number.isFinite(lic.warnDays) ? lic.warnDays : WARN_DAYS_DEFAULT } : null,
       warnDays: (lic && lic.warnDays) || WARN_DAYS_DEFAULT,
       status: licenceStatus(lic, now).status,
       latestPackage: inst.latestPackageId ? { id: inst.latestPackageId, version: inst.latestPackageVersion } : null,
-      packageRevoked: !!(pkgRec && pkgRec.adminStatus === 'Revoked') };
+      packageRevoked: !!(pkgRec && pkgRec.adminStatus === 'Revoked'),
+      ...(sync ? { sync } : {}) };
     const sig = require('./util').signEd25519(this.keys.privatePem, Buffer.from(canonical(s)));
     return { statement: s, sig };
   }
   async recordReport(inst, srv, report, kind) {
+    inst = (await this.store.get(C.inst, inst.id)) || inst;   // never overwrite an admin change made a moment ago
     const now = this.now();
     const rep = sanitizeReport(report);
     const pkgRec = rep.packageId ? await this.store.get(C.pkg, rep.packageId) : null;
@@ -471,9 +516,21 @@ class ControlPlane {
       await this.store.set(C.pkg, pkgRec.id, upd);
     }
     await this.store.set(C.srv, srv.id, { ...srv, lastSeenAt: now, lastReport: rep, lastKind: kind });
-    await this.store.set(C.inst, inst.id, { ...inst, server: { serverId: srv.id, registeredAt: srv.registeredAt, lastSeenAt: now,
-      serverVersion: rep.serverVersion || null, packageId: rep.packageId || null, packageVersion: rep.packageVersion || null,
-      allowlistVersion: rep.allowlistVersion ?? null, health: rep.health || null, knownPackage: !!pkgOk, status: healthy ? 'Healthy' : 'Degraded' } });
+    const status = healthy && !(rep.sync && rep.sync.error) ? 'Healthy' : 'Degraded';
+    const prevStatus = inst.server && inst.server.status;
+    const syncState = { ...(inst.sync || {}) };
+    if (rep.sync) {
+      syncState.appliedVersion = rep.sync.appliedVersion || syncState.appliedVersion || null;
+      syncState.appliedAt = rep.sync.appliedAt || syncState.appliedAt || null;
+      syncState.error = rep.sync.error || null;
+      syncState.reportedAt = now;
+      if (syncState.appliedVersion && syncState.appliedVersion === syncState.currentVersion) syncState.pendingSince = null;
+      if (rep.sync.receipts) syncState.receipts = rep.sync.receipts;
+    }
+    await this.store.set(C.inst, inst.id, { ...inst, sync: syncState, server: { serverId: srv.id, registeredAt: srv.registeredAt, lastSeenAt: now,
+      serverVersion: rep.serverVersion || null, packageId: rep.packageId || null, packageVersion: rep.packageVersion || null, interval: rep.interval || null,
+      allowlistVersion: rep.allowlistVersion ?? null, health: rep.health || null, knownPackage: !!pkgOk, status, statusSince: prevStatus === status ? (inst.server && inst.server.statusSince) || now : now } });
+    if (this.onServerReport) await this.onServerReport(inst, { prevStatus, status, kind, rep });
     return pkgRec;
   }
   async inst(body, ip) {
@@ -503,7 +560,8 @@ class ControlPlane {
     const pkgRec = await this.recordReport(inst, res.srv, b.report, 'register');
     await this.audit('server:' + res.srv.id, 'server.register', { inst: inst.id, id: res.srv.id }, 'ok', { fingerprint: res.srv.fingerprint });
     const inst2 = await this.store.get(C.inst, res.instId);
-    return { serverId: res.srv.id, ...this.statement(inst2, res.srv, pkgRec, b.nonce) };
+    const sync = this.syncFor ? await this.syncFor(inst2) : null;
+    return { serverId: res.srv.id, ...this.statement(inst2, res.srv, pkgRec, b.nonce, sync) };
   }
   async checkin(b) {
     if (!this.keys.privatePem) bad('GHUM licensing is not configured yet.', 503, 'not_configured');
@@ -519,16 +577,27 @@ class ControlPlane {
     const inst = await this.store.get(C.inst, srv.institutionId);
     const pkgRec = await this.recordReport(inst, { ...srv, lastTs: Number(b.ts) }, b.report, 'checkin');
     const inst2 = await this.store.get(C.inst, srv.institutionId);
-    return this.statement(inst2, srv, pkgRec, b.nonce);
+    const sync = this.syncFor ? await this.syncFor(inst2) : null;
+    return this.statement(inst2, srv, pkgRec, b.nonce, sync);
   }
 }
 
 function sanitizeReport(r) {
   r = r && typeof r === 'object' ? r : {};
   const s = (v, n) => typeof v === 'string' ? v.slice(0, n) : null;
+  let sync = null;
+  if (r.sync && typeof r.sync === 'object') {
+    const rc = {};
+    if (r.sync.receipts && typeof r.sync.receipts === 'object') for (const [k, v] of Object.entries(r.sync.receipts).slice(0, 200)) {
+      if (!/^[A-Za-z0-9_-]{4,40}$/.test(k) || !v || typeof v !== 'object') continue;
+      const n = x => Number.isInteger(x) && x >= 0 && x < 1e6 ? x : 0;
+      rc[k] = { recipients: n(v.recipients), delivered: n(v.delivered), read: n(v.read) };
+    }
+    sync = { appliedVersion: s(r.sync.appliedVersion, 80), appliedAt: Number.isFinite(r.sync.appliedAt) ? r.sync.appliedAt : null, error: s(r.sync.error, 300), receipts: rc };
+  }
   return { serverVersion: s(r.serverVersion, 40), packageId: s(r.packageId, 40), packageVersion: s(r.packageVersion, 20),
-    allowlistVersion: Number.isFinite(r.allowlistVersion) ? r.allowlistVersion : null,
-    health: r.health && typeof r.health === 'object' ? { db: s(r.health.db, 20), node: s(r.health.node, 20) } : null };
+    allowlistVersion: Number.isFinite(r.allowlistVersion) ? r.allowlistVersion : null, interval: Number.isInteger(r.interval) && r.interval > 0 && r.interval < 100000 ? r.interval : null,
+    health: r.health && typeof r.health === 'object' ? { db: s(r.health.db, 20), node: s(r.health.node, 20) } : null, sync };
 }
 
 module.exports = { ControlPlane, CPError, validateTeachers, parseCsv, C };

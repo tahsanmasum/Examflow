@@ -29,7 +29,9 @@ const MIGRATIONS = [
    CREATE TABLE allowlist_history (n INTEGER PRIMARY KEY AUTOINCREMENT, t INTEGER NOT NULL, package_id TEXT, package_version TEXT, list_version INTEGER, added INTEGER, removed INTEGER, total INTEGER);
    CREATE TABLE audit (n INTEGER PRIMARY KEY AUTOINCREMENT, t INTEGER NOT NULL, actor TEXT, action TEXT NOT NULL, target TEXT, result TEXT NOT NULL, detail TEXT);
    CREATE TRIGGER audit_no_update BEFORE UPDATE ON audit BEGIN SELECT RAISE(ABORT, 'the audit log is append-only'); END;
-   CREATE TRIGGER audit_no_delete BEFORE DELETE ON audit BEGIN SELECT RAISE(ABORT, 'the audit log is append-only'); END;`
+   CREATE TRIGGER audit_no_delete BEFORE DELETE ON audit BEGIN SELECT RAISE(ABORT, 'the audit log is append-only'); END;`,
+  // 2 (v47): dashboard messages from GHUM, per teacher: when each was delivered, read or archived
+  `CREATE TABLE inbox (msg_id TEXT NOT NULL, email TEXT NOT NULL, delivered_at INTEGER, read_at INTEGER, archived_at INTEGER, PRIMARY KEY (msg_id, email));`
 ];
 
 class DB {

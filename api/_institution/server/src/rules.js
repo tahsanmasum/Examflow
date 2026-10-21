@@ -16,6 +16,7 @@
      switch code (never the whole table) unless you are the institution admin,
      and a new attempt must point at an exam that exists. */
 
+const { BY_KEY, examNeeds } = require('./features-core');
 const MAX_DOC = 1048576; // same 1 MiB limit as Firestore, so the app's own size checks still fit
 const ID_RE = /^[^/\u0000-\u001f]{1,300}$/;
 const FIELD_RE = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
@@ -57,7 +58,22 @@ function changedFields(a, b) {
 }
 
 class Rules {
-  constructor({ db, config, auth, licence }) { this.db = db; this.config = config; this.auth = auth; this.licence = licence; }
+  constructor({ db, config, auth, licence, sync }) { this.db = db; this.config = config; this.auth = auth; this.licence = licence; this.sync = sync; }
+  /* v47: features and limits GHUM set for this institution (its package, overrides and kill switches). */
+  needFeatures(next, prev) {
+    if (!this.sync) return;
+    const on = this.sync.features(); const had = new Set(prev ? examNeeds(prev) : []);
+    for (const k of examNeeds(next)) if (!had.has(k) && on[k] === false) {
+      const f = BY_KEY[k]; deny(`${f ? f.name : k} ${f && /s$/.test(f.name) ? 'are' : 'is'} not available at this institution (set by GHUM in its ExamFlow package or switched off). Ask your exam office.`, 403, 'feature_off');
+    }
+  }
+  needActiveSlot(id) {
+    if (!this.sync) return;
+    const max = this.sync.limits().maxActiveExams; if (!max) return;
+    const now = Date.now();
+    const n = this.db.query('exams', [], 100000).filter(d => d.id !== id && !d.data._trashed && !d.data._draft && (Number(d.data.endTime) > now || d.data.reopened === true)).length;
+    if (n >= max) deny(`This institution's ExamFlow package allows ${max} open or upcoming exams at a time, and ${n} are open or scheduled. End or delete one first, or ask your exam office.`, 403, 'limit_active_exams');
+  }
 
   ctx(user) {
     const email = user ? user.email : null;
@@ -129,6 +145,8 @@ class Rules {
       this.needTeacher(c, 'create exams');
       if (next.teacherUid !== c.uid) deny('A new exam must belong to you.', 403, 'owner_mismatch');
       await this.needLicence('create new exams');
+      this.needFeatures(next, null);
+      if (!next._draft) this.needActiveSlot(id);
       return;
     }
     if (!c.admin) {
@@ -142,6 +160,8 @@ class Rules {
       return; // ending early / trash / restore never need a licence
     }
     await this.needLicence('edit, publish or reopen exams');
+    this.needFeatures(next, ex);
+    if ((ex._draft && !next._draft) || (next.reopened === true && ex.reopened !== true)) this.needActiveSlot(id);
   }
   async w_sessions(c, id, op, ex, next) {
     if (op === 'delete') {
