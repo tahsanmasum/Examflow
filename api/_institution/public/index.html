@@ -1264,6 +1264,8 @@ body.efmk-open .mbd.open .mbx{max-height:calc(100vh - min(48vh,430px) - 36px);ov
 .efa-tog input:checked{background:var(--ok)}.efa-tog input:checked::after{left:19px}
 .efa-tog input:disabled{opacity:.5;cursor:not-allowed}
 .efa-tog input:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.efa-danger{border-color:#f0c4bd}
+.efa-danger h3{color:var(--err)}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
 @media (max-width:980px){
   .efa-side{position:fixed;left:0;top:0;bottom:0;height:auto;transform:translateX(-100%);transition:transform .2s ease;box-shadow:var(--shl)}
@@ -15545,7 +15547,24 @@ camHelp();if(document.readyState==='loading')document.addEventListener('DOMConte
 
   /* ───────── API ───────── */
   async function token(force) { const u = (typeof auth !== 'undefined' && auth.currentUser) || null; if (!u) throw new Error('Sign in as an ExamFlow admin first.'); return u.getIdToken(!!force); }
+  /* Reads are kept for 30 s and shared while in flight, so moving between pages (and back) is instant;
+     any change clears them, and ↻ Refresh always asks the server again. */
+  const READS = /^(overview|overview\.metrics|notifications|search|users\.(list|get)|admins\.list|inst\.(get|readiness)|plans\.(list|get)|licence\.list|features\.list|settings\.get|ann\.list|msg\.(list|get)|health\.get|security\.get|audit\.list|activity\.get|reports\.run)$/;
+  const NOCLEAR = /^(console\.bootstrap|whoami|.*\.preview|.*\.assignPreview|allowlist\.validate|msg\.recipients|users\.(inviteSent|recoverSent))$/;
+  const cache = new Map(); const TTL = 30000;
+  const cloneJ = v => v == null ? v : JSON.parse(JSON.stringify(v));
   async function api(action, body = {}, opts = {}) {
+    if (opts.raw || !READS.test(action)) {
+      try { return await apiNet(action, body, opts); } finally { if (!NOCLEAR.test(action)) cache.clear(); }
+    }
+    const key = action + '|' + JSON.stringify(body);
+    const e = cache.get(key);
+    if (e && !opts.fresh && (e.pending || Date.now() - e.t < TTL)) return cloneJ(await e.p);
+    const ent = { t: Date.now(), pending: true, p: apiNet(action, body, opts) }; cache.set(key, ent);
+    ent.p.then(() => { ent.pending = false; ent.t = Date.now(); }, () => { if (cache.get(key) === ent) cache.delete(key); });
+    return cloneJ(await ent.p);
+  }
+  async function apiNet(action, body = {}, opts = {}) {
     let r;
     try { r = await fetch('/api/admin', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + await token(opts.fresh), 'x-ef-session': sid }, body: JSON.stringify({ action, ...body }) }); }
     catch (e) { if (e.message && /Sign in/.test(e.message)) throw e; throw new Error('Could not reach the ExamFlow server. Check your connection; nothing was changed.'); }
@@ -15553,7 +15572,7 @@ camHelp();if(document.readyState==='loading')document.addEventListener('DOMConte
     let j = null; try { j = await r.json(); } catch (e) {}
     if (!j) throw new Error(r.status === 404 ? 'The Admin Monitor API is not deployed here (/api/admin not found). Deploy the api folder to Vercel.' : 'Unexpected answer from the server (HTTP ' + r.status + ').');
     if (!j.ok) {
-      if (j.code === 'reauth' && !opts.retried) { if (await reauth()) return api(action, body, { ...opts, retried: true, fresh: true }); }
+      if (j.code === 'reauth' && !opts.retried) { if (await reauth()) return apiNet(action, body, { ...opts, retried: true, fresh: true }); }
       if (j.code === 'session_revoked') { setTimeout(() => { try { auth.signOut(); } catch (e) {} }, 1500); }
       const e = new Error(j.error || 'Failed.'); e.code = j.code; e.status = r.status; e.requestId = j.requestId; throw e;
     }
@@ -15688,8 +15707,12 @@ camHelp();if(document.readyState==='loading')document.addEventListener('DOMConte
     q.onkeydown = e => { if (e.key === 'Escape') qr.classList.remove('open'); };
     document.addEventListener('click', e => { if (!e.target.closest || !e.target.closest('.efa-search')) qr.classList.remove('open'); if (!e.target.closest || !e.target.closest('.efa-bell')) { const p = document.getElementById('efa-bellp'); if (p) p.classList.remove('open'); } });
     document.getElementById('efa-bellb').onclick = () => { const p = document.getElementById('efa-bellp'); p.classList.toggle('open'); if (p.classList.contains('open')) bell(); };
-    bell(true);
+    setTimeout(() => bell(true), 1500);
+    pg.querySelectorAll('.efa-link').forEach(b => { const pre = () => EFA.prefetch(b.dataset.p); b.addEventListener('mouseenter', pre); b.addEventListener('focus', pre); b.addEventListener('touchstart', pre, { passive: true }); });
   }
+  /** Starts loading a page's data before it's opened (hover / touch on its menu item). */
+  EFA.pre = {};
+  EFA.prefetch = page => { const f = EFA.pre[page]; if (f && EFA.me) { try { quiet(f()); } catch (e) {} } };
   async function bell(countOnly) {
     try {
       const r = await api('notifications'); const n = document.getElementById('efa-belln'); if (!n) return;
@@ -15717,7 +15740,7 @@ camHelp();if(document.readyState==='loading')document.addEventListener('DOMConte
     try { history.replaceState(null, '', '#admin/' + page + (sub ? '/' + encodeURIComponent(sub) : '')); } catch (e) {}
     b.focus({ preventScroll: true }); window.scrollTo(0, 0);
   };
-  EFA.reload = () => EFA.go(EFA.page, EFA.sub);
+  EFA.reload = () => { cache.clear(); return EFA.go(EFA.page, EFA.sub); };
   EFA.exit = () => { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} showPage('pg-dash'); };
 
   /** Replaces the v45 openAdmin: loads who you are, then the control center. */
@@ -15725,21 +15748,41 @@ camHelp();if(document.readyState==='loading')document.addEventListener('DOMConte
     const pg = document.getElementById('pg-admin'); if (!pg) return;
     showPage('pg-admin');
     pg.classList.add('efa-on');
-    pg.innerHTML = loading('Opening the Admin Monitor…');
-    try { EFA.me = await api('console.bootstrap'); }
+    const who = (auth.currentUser && auth.currentUser.email || '').toLowerCase();
+    let saved = null; try { saved = JSON.parse(sessionStorage.getItem('ef_adm_me') || 'null'); } catch (e) {}
+    if (saved && saved.email !== who) saved = null;
+    const m = /^#admin\/([a-z]+)(?:\/(.+))?$/.exec(location.hash || '');
+    const landing = me => { const want = m && TITLES[m[1]] ? m[1] : (me.prefs && me.prefs.landing) || 'overview';
+      const ok = NAV.flatMap(g => g.items).find(i => i[0] === want && (!i[3] || me.perms.includes(i[3])));
+      return ok ? want : (me.perms.includes('overview.view') ? 'overview' : 'me'); };
+    const boot = api('console.bootstrap');
+    let shown = null;
+    if (saved) {           // seen this session: draw the console at once while the server confirms who you are
+      EFA.me = saved; shell(); shown = landing(saved); EFA.go(shown, m && m[2] ? decodeURIComponent(m[2]) : null);
+    } else {
+      pg.innerHTML = loading('Opening the Admin Monitor…');
+      if (!m || m[1] === 'overview') quiet(api('overview.metrics', { days: 30 }));   // usually the first page: fetch it alongside
+    }
+    let me;
+    try { me = await boot; }
     catch (e) {
+      try { sessionStorage.removeItem('ef_adm_me'); } catch (x) {}
+      EFA.me = null;
       pg.innerHTML = `<div class="efa-body" style="margin:0 auto"><div class="efa-err"><b>The Admin Monitor could not open.</b> ${esc(e.message)}</div><p class="efa-note">If you are the platform owner, check that the api folder is deployed and that FIREBASE_SERVICE_ACCOUNT is set on Vercel (docs/institutions.md).</p><button class="btn btnS sm" onclick="openAdmin()">↻ Try again</button> <button class="btn btnG sm" onclick="showPage('pg-dash')">← Dashboard</button></div>`;
       return;
     }
-    shell();
-    const m = /^#admin\/([a-z]+)(?:\/(.+))?$/.exec(location.hash || '');
-    const want = m && TITLES[m[1]] ? m[1] : (EFA.me.prefs && EFA.me.prefs.landing) || 'overview';
-    const allowed = NAV.flatMap(g => g.items).find(i => i[0] === want && EFA.can(i[3]));
-    EFA.go(allowed ? want : (EFA.can('overview.view') ? 'overview' : 'me'), m && m[2] ? decodeURIComponent(m[2]) : null);
+    try { sessionStorage.setItem('ef_adm_me', JSON.stringify(me)); } catch (e) {}
+    const changed = !saved || saved.role !== me.role || saved.perms.join() !== me.perms.join();
+    EFA.me = me;
+    if (changed) { shell(); EFA.go(landing(me), m && m[2] ? decodeURIComponent(m[2]) : null); }
+    else { const w = document.querySelector('.efa-who'); if (w) w.innerHTML = `<b>${esc(me.email)}</b>${esc(me.roleName)} · times in ${esc(me.timeZone || 'Asia/Dhaka')}`; }
   };
 
   /* ═══════════ OVERVIEW ═══════════ */
   EFA.ov = { days: 30, from: '', to: '' };
+  EFA.pre.overview = () => api('overview.metrics', EFA.ov.from ? { from: EFA.ov.from, to: EFA.ov.to } : { days: EFA.ov.days });
+  EFA.pre.users = () => api('users.list', { ...EFA.us, pageSize: (EFA.me.prefs && EFA.me.prefs.pageSize) || 20 });
+  EFA.pre.admins = () => api('admins.list');
   EFA.pages.overview = async b => {
     const f = EFA.ov;
     const r = await api('overview.metrics', f.from ? { from: f.from, to: f.to } : { days: f.days });
@@ -15964,7 +16007,7 @@ camHelp();if(document.readyState==='loading')document.addEventListener('DOMConte
         <div class="fg"><label class="fl" for="mp-s">Rows per page</label><select class="fs" id="mp-s">${[10, 20, 50, 100].map(n => `<option ${(p.pageSize || 20) === n ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
         <button class="btn btnP sm" id="mp-go">Save preferences</button>`)}
       ${panel('Security', `<p style="font-size:.86rem;margin-bottom:10px">Sign out of ExamFlow on every device and end every Admin Monitor session of yours.</p><button class="btn btnD sm" id="mp-out">Sign out everywhere</button>`)}`;
-    b.querySelector('#mp-go').onclick = e => quiet(run(e.target, async () => { const j = await api('admin.prefs', { prefs: { landing: b.querySelector('#mp-l').value, pageSize: Number(b.querySelector('#mp-s').value) } }); EFA.me.prefs = j.prefs; T('Preferences saved.'); }));
+    b.querySelector('#mp-go').onclick = e => quiet(run(e.target, async () => { const j = await api('admin.prefs', { prefs: { landing: b.querySelector('#mp-l').value, pageSize: Number(b.querySelector('#mp-s').value) } }); EFA.me.prefs = j.prefs; try { sessionStorage.setItem('ef_adm_me', JSON.stringify(EFA.me)); } catch (e) {} T('Preferences saved.'); }));
     b.querySelector('#mp-out').onclick = async () => { if (await confirmBox({ title: 'Sign out everywhere', danger: true, okLabel: 'Sign out', html: '<p style="font-size:.88rem">You will need to sign in again on every device.</p>' }) !== null) quiet(run(null, async () => { await api('admin.signoutAll'); T('Signed out everywhere.'); setTimeout(() => auth.signOut(), 800); })); };
   };
 })();
@@ -16016,12 +16059,16 @@ camHelp();if(document.readyState==='loading')document.addEventListener('DOMConte
             <td>${dot(i.health.state)} ${esc(i.health.state)}${i.server && i.server.serverVersion ? `<br><span style="font-size:.74rem;color:var(--ink3)">${esc(i.server.serverVersion)}</span>` : ''}</td>
             <td>${!i.server || !i.server.serverId ? '—' : i.sync && i.sync.pending ? pill('pending') : pill('applied')}</td>
             <td>${p ? 'v' + esc(p.version) + ' · ' + esc(p.adminStatus) + (p.tech && p.tech.status === 'Installed' ? '<br><span class="bx bK">Installed</span>' : '') : '<span style="color:var(--ink3)">none</span>'}</td>
-            <td>${fdate(i.updatedAt)}</td><td><button class="btn btnS sm" onclick="EFA.insOpen('${esc(i.id)}')">Manage →</button></td></tr>`; }), { min: 1100, empty: 'No institution matches these filters.' })}
+            <td>${fdate(i.updatedAt)}</td><td style="white-space:nowrap"><button class="btn btnS sm" onclick="EFA.insOpen('${esc(i.id)}')">Manage →</button>${manage ? ` <button class="btn btnG sm" onclick="EFA.insDelete('${esc(i.id)}')" aria-label="Delete ${esc(i.name)}" title="Delete">🗑</button>` : ''}</td></tr>`; }), { min: 1150, empty: 'No institution matches these filters.' })}
       ${E.pager(rows.length, S.page, size, 'EFA.insPage')}
       <p class="efa-note">Server health and "Installed" come only from each institution server's own signed check-ins. "Config pending" means a change is saved here but their server hasn't confirmed applying it yet.</p>`;
     const q = b.querySelector('#efa-iq'); let tm; q.oninput = () => { clearTimeout(tm); tm = setTimeout(() => { S.q = q.value; S.page = 1; E.go('institutions'); }, 300); };
   };
+  E.pre.institutions = () => api('overview');
+  E.pre.packages = () => api('plans.list');
+  E.pre.licences = () => api('licence.list');
   E.insSet = (k, v) => { S[k] = S[k] === v && k !== 'sort' ? '' : v; S.page = 1; E.go('institutions'); };
+  E.insDelete = async id => { S.tab = 'setup'; S.draft = null; S.csv = null; await E.go('institutions', id); const x = document.getElementById('ie-del'); if (x) { x.scrollIntoView({ block: 'center' }); x.click(); } };
   E.insPage = p => { S.page = p; E.go('institutions'); };
   E.insOpen = (id, tab) => { S.tab = tab || 'setup'; S.draft = null; S.csv = null; E.go('institutions', id); };
 
@@ -16131,7 +16178,15 @@ camHelp();if(document.readyState==='loading')document.addEventListener('DOMConte
           <div class="fg"><label class="fl" for="ie-cp">Contact phone</label><input class="fi" id="ie-cp" value="${esc(i.contact && i.contact.phone)}" ${manage ? '' : 'disabled'}></div>
           <div class="fg"><label class="fl" for="ie-te">IT / technical contact email</label><input class="fi" id="ie-te" value="${esc(i.technicalContact && i.technicalContact.email)}" ${manage ? '' : 'disabled'}></div></div>
         <div class="fg"><label class="fl" for="ie-no">Internal notes</label><textarea class="fi" id="ie-no" rows="2" ${manage ? '' : 'disabled'}>${esc(i.notes)}</textarea></div>
-        ${manage ? '<button class="btn btnS sm" id="ie-go">Save details</button><p class="efa-note">A name change appears in the next install package; an installed server keeps its current one until then.</p>' : ''}`)}`;
+        ${manage ? '<button class="btn btnS sm" id="ie-go">Save details</button><p class="efa-note">A name change appears in the next install package; an installed server keeps its current one until then.</p>' : ''}`)}
+      ${manage ? `<section class="efa-panel efa-danger"><h3>Delete this institution</h3><p style="font-size:.86rem;margin-bottom:10px">Removes ${esc(i.name)} from GHUM: its record, roster, licence, install packages, registration codes and server registration. The audit log keeps a record of the deletion. ${d.health.state === 'Not connected' ? 'No server is registered, so nothing else is affected.' : '<b>Its server is registered:</b> it can no longer check in, and after its offline grace period it pauses new exams. Its exams and results stay on its own server; GHUM never had them.'} This can't be undone — to work with them again you'd create a new institution.</p><button class="btn btnD sm" id="ie-del">Delete institution…</button></section>` : ''}`;
+    const dl = IB().querySelector('#ie-del');
+    if (dl) dl.onclick = async () => {
+      const reason = await confirmBox({ title: 'Delete ' + i.name, danger: true, okLabel: 'Delete institution', reason: true, typed: i.name,
+        html: `<p style="font-size:.88rem">This permanently removes <b>${esc(i.name)}</b> (<span class="efa-mono">${esc(i.id)}</span>) from GHUM, with its roster (${d.allowlist.teachers.length} teachers), licence, ${d.packages.length} install package(s) and server registration. You may be asked to sign in again.</p>` });
+      if (reason === null) return;
+      quiet(run(null, async () => { const j = await api('inst.delete', { id: i.id, confirmName: i.name, reason, confirm: true }); T(j.note, 'ok', 8000); S.d = null; E.go('institutions'); }));
+    };
     const g = IB().querySelector('#ie-go');
     if (g) g.onclick = e => quiet(run(e.target, async () => { const v = s => IB().querySelector(s).value.trim();
       await api('inst.update', { id: i.id, name: v('#ie-n'), contactName: v('#ie-cn'), contactEmail: v('#ie-ce'), contactPhone: v('#ie-cp'), techName: '', techEmail: v('#ie-te'), notes: v('#ie-no') }); T('Details saved.'); refresh(); }));
@@ -16531,6 +16586,9 @@ camHelp();if(document.readyState==='loading')document.addEventListener('DOMConte
   const toLocalInput = ms => { if (!ms) return ''; const d = new Date(ms - new Date(ms).getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); };
   const fromLocalInput = v => v ? new Date(v).getTime() : null;
 
+  Object.assign(E.pre, { features: () => api('features.list'), settings: () => api('settings.get'), announcements: () => api('ann.list'), messages: () => api('msg.list'),
+    health: () => api('health.get'), security: () => api('security.get'), audit: () => api('audit.list', { ...E.au, pageSize: Math.max((E.me.prefs && E.me.prefs.pageSize) || 50, 20) }),
+    teachers: () => act(), exams: () => act(), sessions: () => act(), feedback: () => act() });
   /* ═══════════ FEATURE CONTROLS ═══════════ */
   E.pages.features = async b => {
     const r = await api('features.list'); const manage = E.can('features.manage'), kill = E.can('features.emergency');
@@ -16792,7 +16850,7 @@ camHelp();if(document.readyState==='loading')document.addEventListener('DOMConte
     const open = r.alerts.filter(a => !a.acked);
     b.innerHTML = `<div class="efa-h"><div><h2>Security Center</h2><p>Who has admin access, how they sign in, active Admin Monitor sessions, refused attempts and high-risk changes. Every Admin Monitor request is checked on the server against the admin's role.</p></div></div>
       ${panel(`Alerts <small>${open.length} open</small>`, table(['When', 'Level', 'Alert', ''], r.alerts.map(a => `<tr><td>${ftime(a.t)}</td><td>${pill(a.level)}</td><td class="wrap"><b>${esc(a.kind)}</b><br>${esc(a.text)}</td><td>${a.acked ? 'Resolved by ' + esc(a.ackedBy) : manage ? `<button class="btn btnS sm" data-ack="${esc(a.id)}">Mark resolved</button>` : ''}</td></tr>`), { empty: 'No alerts in the last 24 hours.' }))}
-      ${panel('Security review', table(['Check', 'Result', 'Detail'], r.review.map(x => `<tr><td>${esc(x.item)}</td><td>${x.ok === true ? pill('ok') : x.ok === false ? pill('failed', 'action needed') : pill('Unknown')}</td><td class="wrap" style="font-size:.8rem">${esc(x.detail)}</td></tr>`)))}
+      ${panel('Security review', table(['Check', 'Result', 'Detail'], r.review.map(x => `<tr><td>${esc(x.item)}</td><td>${x.ok === true ? pill('ok') : x.ok === false ? pill('failed', 'action needed') : pill(x.state || 'Unknown')}</td><td class="wrap" style="font-size:.8rem">${esc(x.detail)}</td></tr>`)))}
       <div class="efa-grid2">${panel('Admin sign-in methods', table(['Admin', 'Role', 'Verified', 'Second factor'], r.mfa.map(m => `<tr><td>${esc(m.email)}</td><td>${esc(m.role)}</td><td>${m.verified == null ? '—' : m.verified ? 'Yes' : '<b style="color:var(--err)">No</b>'}</td><td class="wrap" style="font-size:.78rem">${esc(m.note)}</td></tr>`)))}
         ${panel('Admin Monitor sessions <small>last 30 days</small>', table(['Admin', 'Address', 'Started', 'Last active', ''], r.sessions.map(s => `<tr><td>${esc(s.email)}</td><td class="efa-mono">${esc(s.ip || '—')}</td><td>${ftime(s.startedAt)}</td><td>${ago(s.lastAt)}</td><td>${s.revokedAt ? 'Signed out ' + ago(s.revokedAt) : manage && s.email !== E.me.email ? `<button class="btn btnG sm" data-rs="${esc(s.id)}">Sign out</button>` : ''}</td></tr>`), { empty: 'No sessions.' }))}</div>
       <div class="efa-grid2">${panel('Refused Admin Monitor attempts <small>7 days</small>', table(['Who', 'Address', 'Attempts', 'Last', 'Why'], r.failedAuth.map(f => `<tr><td>${esc(f.who || '—')}</td><td class="efa-mono">${esc(f.ip || '—')}</td><td>${f.n}</td><td>${ago(f.last)}</td><td style="font-size:.76rem">${esc(Object.keys(f.codes).join(', '))}</td></tr>`), { empty: 'None.' }))}
@@ -16975,7 +17033,8 @@ camHelp();if(document.readyState==='loading')document.addEventListener('DOMConte
         if (C.me) { C.inbox = C.me.inbox || []; C.unread = C.me.unread || 0; }
         else { C.inbox = []; C.unread = 0; }
         const ua = document.getElementById('um-admin');
-        if (ua && C.me && C.me.admin) ua.style.display = 'flex';
+        if (ua && C.me && C.me.admin) { ua.style.display = 'flex';
+          if (!C.warmed) { C.warmed = true; try { fetch('/api/admin?warm=1', { keepalive: true }).catch(() => {}); } catch (e) {} } }   // wakes the Admin Monitor's server before it's opened
       }
       C.loaded = true; apply();
     })().catch(() => {}).finally(() => { setTimeout(() => { loading = null; }, 0); });

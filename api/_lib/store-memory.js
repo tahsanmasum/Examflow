@@ -24,6 +24,8 @@ function memoryStore(seed) {
     async add(c, d) { const id = 'auto' + (++n); col(c).set(id, clone(check(d, c))); return id; },
     async where(c, f, v) { return [...col(c).values()].filter(x => x && x[f] === v).map(clone); },
     async all(c) { return [...col(c).values()].map(clone); },
+    async recent(c, f, since, limit) { return [...col(c).values()].filter(x => x && typeof x[f] === 'number' && x[f] >= since).sort((a, b) => b[f] - a[f]).slice(0, limit).map(clone); },
+    async del(c, i) { col(c).delete(i); },
     tx(fn) {
       const run = async () => {
         const writes = []; let wrote = false;

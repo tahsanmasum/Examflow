@@ -28,10 +28,11 @@ const ipOf = req => String(req.headers['x-forwarded-for'] || req.socket && req.s
 const newRequestId = () => 'req_' + require('node:crypto').randomBytes(9).toString('base64url');
 
 /** /api/admin: verifyToken(idToken) → decoded Firebase token; con(): the AdminConsole. */
-function adminHandler({ con, verifyToken }) {
+function adminHandler({ con, verifyToken, warm }) {
   return async (req, res) => {
     const requestId = newRequestId();
     try {
+      if (req.method === 'GET' && /[?&]warm=1\b/.test(req.url || '') && warm) { try { await warm(); } catch (e) { /* not configured yet */ } return sendJson(res, 200, { ok: true, warm: true }); }
       if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'Use POST.' });
       const ip = ipOf(req);
       if (limited('a:' + ip, 300, 60000)) return sendJson(res, 429, { ok: false, error: 'Too many requests. Wait a minute.', requestId });

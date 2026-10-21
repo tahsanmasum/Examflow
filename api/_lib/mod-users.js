@@ -76,15 +76,16 @@ const methods = {
       const t = al && (al.teachers || []).find(x => x.teacherId === teacherId); if (!inst || !t) bad('Not found.', 404, 'not_found');
       return { user: { uid, accountType: 'institution', email: t.email, name: t.name || '', teacherId, institutionId: inst.id, institutionName: inst.name, status: 'Managed by institution' },
         note: 'This teacher\'s account lives on ' + inst.name + '\'s own ExamFlow server. Add or remove them on the institution\'s Teachers roster; their sign-in, exams and results stay on that server.',
-        history: (await this.store.all(C.audit)).filter(a => a.target === uid).sort((x, y) => y.t - x.t).slice(0, 50) };
+        history: (await this.store.where(C.audit, 'target', uid)).sort((x, y) => y.t - x.t).slice(0, 50) };
     }
-    const u = await this.platform.getUser(uid); if (!u) bad('User not found.', 404, 'not_found');
-    const rows = await this.userRows(); const row = rows.find(r => r.uid === uid);
-    const meta = await this.store.get(K.users, uid) || {};
-    const exams = (await this.platform.exams()).filter(e => e.teacherUid === uid).sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0)).slice(0, 50)
+    const [u, rows, meta0, allExams, invites0, hist] = await Promise.all([this.platform.getUser(uid), this.userRows(), this.store.get(K.users, uid), this.platform.exams(),
+      this.store.where(K.invites, 'uid', uid), this.store.where(C.audit, 'target', uid)]);
+    if (!u) bad('User not found.', 404, 'not_found');
+    const row = rows.find(r => r.uid === uid); const meta = meta0 || {};
+    const exams = allExams.filter(e => e.teacherUid === uid).sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0)).slice(0, 50)
       .map(e => ({ token: e.token, course: e.course, section: e.section, type: e.type, createdAt: e.createdAt, startTime: e.startTime, endTime: e.endTime, trashed: e.trashed, camOn: e.camOn }));
-    const invites = (await this.store.where(K.invites, 'uid', uid)).sort((x, y) => y.createdAt - x.createdAt);
-    const history = (await this.store.all(C.audit)).filter(a => a.target === uid).sort((x, y) => y.t - x.t).slice(0, 100);
+    const invites = invites0.sort((x, y) => y.createdAt - x.createdAt);
+    const history = hist.sort((x, y) => y.t - x.t).slice(0, 100);
     return { user: { ...row, emailVerified: u.emailVerified, disabled: u.disabled, tokensValidAfter: u.tokensValidAfter, providers: u.providers, mfaFactors: u.mfaFactors },
       meta: { status: meta.status || null, reason: meta.reason || null, note: meta.note || '', institutionId: meta.institutionId || null, statusHistory: meta.statusHistory || [] },
       exams, invites, history, canViewDashboard: admin.owner };

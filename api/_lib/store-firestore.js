@@ -11,6 +11,8 @@ function firestoreStore(db) {
     async add(c, d) { const r = await db.collection(c).add(d); return r.id; },
     async where(c, f, v) { const s = await db.collection(c).where(f, '==', v).get(); return s.docs.map(x => x.data()); },
     async all(c) { const s = await db.collection(c).get(); return s.docs.map(x => x.data()); },
+    async recent(c, f, since, limit) { const s = await db.collection(c).where(f, '>=', since).orderBy(f, 'desc').limit(limit).get(); return s.docs.map(x => x.data()); },
+    async del(c, i) { await ref(c, i).delete(); },
     async tx(fn) {
       return db.runTransaction(async t => fn({
         get: async (c, i) => { const s = await t.get(ref(c, i)); return s.exists ? s.data() : null; },

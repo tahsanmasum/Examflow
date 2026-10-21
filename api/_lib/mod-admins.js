@@ -13,9 +13,8 @@ const bad = (m, s, c) => { throw new CPError(m, s, c); };
 
 const methods = {
   async x_admins_list(admin) {
-    const roles = await this.customRoles();
-    const rows = (await this.store.all(K.admins)).filter(a => a.status !== 'owner-prefs' && !String(a.email || '').startsWith('__owner__') && a.email);
-    const sessions = await this.store.all(K.sessions);
+    const [roles, all, sessions] = await Promise.all([this.customRoles(), this.store.all(K.admins), this.store.recent(K.sessions, 'lastAt', this.now() - 180 * 86400000, 2000)]);
+    const rows = all.filter(a => a.status !== 'owner-prefs' && !String(a.email || '').startsWith('__owner__') && a.email);
     const last = e => Math.max(0, ...sessions.filter(s => s.email === e).map(s => s.lastAt || 0)) || null;
     const owners = this.owners.map(e => ({ email: e, role: 'owner', roleName: 'Platform Owner', status: 'active', locked: true, lastSeenAt: last(e), source: 'ADMIN_EMAILS on the server' }));
     const team = rows.map(a => ({ email: a.email, uid: a.uid || null, role: a.role, roleName: roleName(a.role, roles), status: a.status, addedAt: a.addedAt, addedBy: a.addedBy,

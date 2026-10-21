@@ -49,8 +49,9 @@ const methods = {
     return 'unknown';
   },
   async x_features_list() {
-    const cfg = await this.featureConfig(); const insts = await this.store.all(C.inst); const fus = await this.store.all(K.fusers); const plans = await this.store.all(K.plans);
-    const hist = (await this.store.all(K.configV)).filter(v => v.key === 'features').sort((a, b) => b.t - a.t);
+    const [cfg, insts, fus, plans, hist0, rules, published] = await Promise.all([this.featureConfig(), this.store.all(C.inst), this.store.all(K.fusers), this.store.all(K.plans),
+      this.store.all(K.configV), this.rulesEnforce(), this.platform.readMeta('features')]);
+    const hist = hist0.filter(v => v.key === 'features').sort((a, b) => b.t - a.t);
     const lastFor = k => { for (const h of hist) { const a = h.after || {}, b = h.before || {}; if (JSON.stringify((a.defaults || {})[k]) !== JSON.stringify((b.defaults || {})[k]) || !!(a.kill || {})[k] !== !!(b.kill || {})[k]) return { by: h.by, t: h.t }; } return null; };
     const rows = FEATURES.map(f => {
       const def = f.key in (cfg.defaults || {}) ? !!cfg.defaults[f.key] : f.default;
@@ -60,8 +61,8 @@ const methods = {
         packages: plans.filter(p => p.features && p.features[f.key]).map(p => p.name), lastChange: lastFor(f.key) };
     });
     const syncs = await Promise.all(insts.map(async i => ({ id: i.id, name: i.name, ...(await this.syncState(i.id)) })));
-    return { features: rows, config: { version: cfg.version || 0, updatedAt: cfg.updatedAt || null, updatedBy: cfg.updatedBy || null }, rulesEnforce: await this.rulesEnforce(), rulesMarker: RULES_MARKER,
-      published: await this.platform.readMeta('features'), institutions: syncs, history: hist.slice(0, 30).map(h => ({ id: h.key + '_' + h.version, version: h.version, by: h.by, t: h.t, reason: h.reason })),
+    return { features: rows, config: { version: cfg.version || 0, updatedAt: cfg.updatedAt || null, updatedBy: cfg.updatedBy || null }, rulesEnforce: rules, rulesMarker: RULES_MARKER,
+      published, institutions: syncs, history: hist.slice(0, 30).map(h => ({ id: h.key + '_' + h.version, version: h.version, by: h.by, t: h.t, reason: h.reason })),
       precedence: ['Emergency kill switch', 'Package entitlement (institutions)', 'Institution override', 'User override (cloud accounts)', 'Global default'] };
   },
   async x_features_preview(admin, b) {

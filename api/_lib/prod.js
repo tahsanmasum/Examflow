@@ -47,5 +47,17 @@ async function con() {
   conInst = new AdminConsole({ cp: c, platform: firebasePlatform(admin()), owners: OWNERS(), env: process.env });
   return conInst;
 }
-async function verifyToken(token) { return admin().auth().verifyIdToken(token, true); }
-module.exports = { cp, con, verifyToken };
+/* A verified sign-in is remembered for up to a minute (never past its expiry), so a busy Admin Monitor
+   doesn't ask Firebase about the same token on every click. Revocations still apply within a minute. */
+const verified = new Map();
+async function verifyToken(token) {
+  const hit = verified.get(token);
+  if (hit && hit.until > Date.now()) return hit.decoded;
+  const decoded = await admin().auth().verifyIdToken(token, true);
+  if (verified.size > 500) verified.clear();
+  verified.set(token, { decoded, until: Math.min(Date.now() + 60000, decoded.exp * 1000) });
+  return decoded;
+}
+/** Starts Firebase on this instance ahead of time (called by GET /api/admin?warm=1); returns nothing. */
+async function warm() { await con(); }
+module.exports = { cp, con, verifyToken, warm };

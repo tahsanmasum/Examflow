@@ -179,13 +179,14 @@ class ControlPlane {
     return { institution: this.view(inst) };
   }
   async a_inst_get(admin, b) {
-    const inst = await this.instOr404(b.id);
-    const allow = await this.store.get(C.allow, inst.id) || { teachers: [], version: 0 };
-    const packages = (await this.store.where(C.pkg, 'institutionId', inst.id)).sort((a, b) => b.seq - a.seq)
-      .map(p => { const { manifest, ...rest } = p; return rest; });
-    const licenceHistory = (await this.store.where(C.lic, 'institutionId', inst.id)).sort((a, b) => b.t - a.t);
-    const audit = (await this.store.where(C.audit, 'institutionId', inst.id)).sort((a, b) => b.t - a.t).slice(0, 200);
-    const codes = (await this.store.where(C.reg, 'institutionId', inst.id)).map(c => ({ createdAt: c.createdAt, expiresAt: c.expiresAt, used: c.used || null, createdBy: c.createdBy }));
+    const id = String(b.id || '');
+    const [inst, allow0, pk, lic, au, rc] = await Promise.all([this.instOr404(id), this.store.get(C.allow, id), this.store.where(C.pkg, 'institutionId', id),
+      this.store.where(C.lic, 'institutionId', id), this.store.where(C.audit, 'institutionId', id), this.store.where(C.reg, 'institutionId', id)]);
+    const allow = allow0 || { teachers: [], version: 0 };
+    const packages = pk.sort((a, b) => b.seq - a.seq).map(p => { const { manifest, ...rest } = p; return rest; });
+    const licenceHistory = lic.sort((a, b) => b.t - a.t);
+    const audit = au.sort((a, b) => b.t - a.t).slice(0, 200);
+    const codes = rc.map(c => ({ createdAt: c.createdAt, expiresAt: c.expiresAt, used: c.used || null, createdBy: c.createdBy }));
     return { institution: this.view(inst), allowlist: allow, packages, licenceHistory, audit, registrationCodes: codes, serverTime: this.now() };
   }
   async a_inst_update(admin, b) {
@@ -480,7 +481,7 @@ class ControlPlane {
     return { ok: true };
   }
   async a_audit_list(admin, b) {
-    let rows = b.institutionId ? await this.store.where(C.audit, 'institutionId', String(b.institutionId)) : await this.store.all(C.audit);
+    let rows = b.institutionId ? await this.store.where(C.audit, 'institutionId', String(b.institutionId)) : await (this.store.recent ? this.store.recent(C.audit, 't', 0, 10000) : this.store.all(C.audit));
     rows.sort((x, y) => y.t - x.t);
     const lim = Math.min(Math.max(Number(b.limit) || 200, 1), 1000);
     return { audit: rows.slice(0, lim) };

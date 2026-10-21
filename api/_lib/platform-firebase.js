@@ -62,6 +62,15 @@ function firebasePlatform(app) {
 
     async ping() { const t = Date.now(); await db.collection('meta').doc('stats').get(); return Date.now() - t; },
     async authPing() { const t = Date.now(); await auth.listUsers(1); return Date.now() - t; },
+    /** Where the Firestore database lives (e.g. asia-southeast1), from Google's API; null if the service account may not read it. */
+    async firestoreLocation() {
+      try {
+        const projectId = app.options.projectId || (app.options.credential && app.options.credential.projectId);
+        const tok = await app.options.credential.getAccessToken();
+        const r = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)`, { headers: { authorization: 'Bearer ' + tok.access_token } });
+        if (!r.ok) return null; const j = await r.json(); return j.locationId || null;
+      } catch (e) { return null; }
+    },
     async rulesSource() {
       try { const rs = await app.securityRules().getFirestoreRuleset(); return rs && rs.source && rs.source[0] ? rs.source[0].content : null; }
       catch (e) { return { error: e.message }; }

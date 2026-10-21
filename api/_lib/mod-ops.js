@@ -11,6 +11,13 @@ const K = { users: 'cpUserMeta', invites: 'cpInvites', ann: 'cpAnnouncements', e
   alerts: 'cpAlerts', admins: 'cpAdmins', plans: 'cpPlans', msgs: 'cpMessages', config: 'cpConfig' };
 const bad = (m, s, c) => { throw new CPError(m, s, c); };
 const DAY = 86400000, HOUR = 3600000;
+/* Vercel region code → broad area, compared with the Firestore location. */
+function sameArea(region, loc) {
+  const a = { iad1: 'us', cle1: 'us', pdx1: 'us', sfo1: 'us', gru1: 'sa', lhr1: 'eu', cdg1: 'eu', fra1: 'eu', arn1: 'eu', dub1: 'eu', bom1: 'in', sin1: 'sea', hnd1: 'jp', kix1: 'jp', icn1: 'kr', hkg1: 'hk', syd1: 'au', cpt1: 'af' }[String(region).split(',')[0]];
+  const l = String(loc).toLowerCase();
+  const b = /^(nam|us-|northamerica)/.test(l) ? 'us' : /^(eur|europe)/.test(l) ? 'eu' : /^asia-south/.test(l) ? 'in' : /^asia-southeast/.test(l) ? 'sea' : /^asia-northeast1|asia-northeast2/.test(l) ? 'jp' : /^asia-northeast3/.test(l) ? 'kr' : /^asia-east2/.test(l) ? 'hk' : /^asia-east1/.test(l) ? 'hk' : /^australia/.test(l) ? 'au' : /^southamerica/.test(l) ? 'sa' : /^africa/.test(l) ? 'af' : null;
+  return !a || !b || a === b || (a === 'sea' && b === 'in') || (a === 'in' && b === 'sea');
+}
 
 /** Health of an institution's server, from its own reports only.
     Healthy: reported within 3 check-in intervals, database ok, last config sync ok.
@@ -35,8 +42,8 @@ function serverHealth(inst, now) {
 
 async function securityAlerts(con, now) {
   const since = now - DAY;
-  const sec = (await con.store.all(K.security)).filter(e => e.t >= since);
-  const acks = new Map((await con.store.all(K.alerts)).map(a => [a.id, a]));
+  const [sec, ackList, recentAudit] = await Promise.all([con.store.recent(K.security, 't', since, 3000), con.store.all(K.alerts), con.store.recent(C.audit, 't', now - HOUR, 3000)]);
+  const acks = new Map(ackList.map(a => [a.id, a]));
   const out = [];
   const bucket = t => Math.floor(t / HOUR);
   const group = {};
@@ -45,7 +52,7 @@ async function securityAlerts(con, now) {
     text: `${list.length} refused Admin Monitor attempts from ${list[0].ip || 'an unknown address'} within an hour (${Array.from(new Set(list.map(x => x.email || 'no email'))).slice(0, 3).join(', ')}).`, t: list[list.length - 1].t });
   for (const e of sec.filter(e => e.kind === 'admin.newLocation')) out.push({ id: 'newloc_' + e.email.replace(/[^A-Za-z0-9]/g, '_') + '_' + bucket(e.t), level: 'medium', kind: 'Admin sign-in from a new address',
     text: `${e.email} opened the Admin Monitor from a new address (${e.ip || 'unknown'}).`, t: e.t });
-  const risky = (await con.store.all(C.audit)).filter(a => a.risk === 'high' && a.t >= now - HOUR && a.result === 'ok');
+  const risky = recentAudit.filter(a => a.risk === 'high' && a.result === 'ok');
   const by = {}; for (const a of risky) (by[a.actor] = by[a.actor] || []).push(a);
   for (const [who, list] of Object.entries(by)) if (list.length >= 10) out.push({ id: 'burst_' + String(who).replace(/[^A-Za-z0-9]/g, '_') + '_' + bucket(now), level: 'high', kind: 'Burst of high-risk changes',
     text: `${who} made ${list.length} high-risk changes in the last hour.`, t: list[0].t });
@@ -79,26 +86,35 @@ const methods = {
       activeExam: 'Published (not a draft, not in the trash) and open right now: its start time has passed and its end time has not.',
       activeLicence: 'Status Active, Expiring Soon or Grace Period (new exams allowed).' } };
     let users = null, exams = null;
-    if (can('users.view')) {
-      users = await this.platform.listUsers(); const metas = await this.store.all(K.users);
-      const invites = await this.store.all(K.invites); const s = await this.settings();
+    const none = Promise.resolve(null);
+    const [U, metas, invites, s, allows, E, insts, anns, au, errs, alerts] = await Promise.all([
+      can('users.view') ? this.platform.listUsers() : none, can('users.view') ? this.store.all(K.users) : none, can('users.view') ? this.store.all(K.invites) : none, this.settings(),
+      can('users.view') ? this.store.all(C.allow) : none,
+      can('activity.view') || can('overview.view') ? this.platform.exams().catch(e => ({ __err: e })) : none,
+      can('institutions.view') || can('licences.view') ? this.store.all(C.inst) : none,
+      can('announcements.view') ? this.store.all(K.ann) : none,
+      can('audit.view') ? this.store.recent(C.audit, 't', p.from, 20000) : none,
+      can('health.view') ? this.store.recent(K.errors, 't', p.from, 20000) : none,
+      can('security.view') ? securityAlerts(this, now) : none]);
+    if (U) {
+      users = U;
       const sus = new Set(metas.filter(m => m.status === 'suspended').map(m => m.uid));
-      const allows = await this.store.all(C.allow);
       out.users = { total: users.length, cloud: users.length, institutionRoster: allows.reduce((n, a) => n + (a.teachers || []).length, 0),
         active: users.filter(u => !u.disabled && Math.max(u.lastSignInAt || 0, u.lastActiveAt || 0) >= now - 30 * DAY).length,
         suspended: users.filter(u => sus.has(u.uid)).length, disabled: users.filter(u => u.disabled && !sus.has(u.uid)).length,
         newInPeriod: users.filter(u => u.createdAt >= p.from && u.createdAt < p.to).length,
         pendingInvites: invites.filter(i => { const u = users.find(x => x.uid === i.uid); return u && !u.lastSignInAt && i.status === 'Sent' && (i.sentAt || 0) + s.security.inviteExpiryDays * DAY > now; }).length };
     }
-    if (can('activity.view') || can('overview.view')) {
+    if (E) {
       try {
-        exams = await this.platform.exams();
+        if (E.__err) throw E.__err;
+        exams = E;
         const live = exams.filter(e => !e.trashed && !e.draft && e.startTime && e.startTime <= now && (e.endTime > now || e.reopened));
         out.exams = { total: exams.filter(e => !e.trashed).length, activeNow: live.length, createdInPeriod: exams.filter(e => e.createdAt >= p.from && e.createdAt < p.to).length };
       } catch (e) { out.exams = { unavailable: 'Could not read exams: ' + e.message }; }
     }
-    if (can('institutions.view') || can('licences.view')) {
-      const insts = await this.store.all(C.inst); const st = insts.map(i => ({ i, l: this.cp.view(i, now).licenceState, h: serverHealth(i, now) }));
+    if (insts) {
+      const st = insts.map(i => ({ i, l: this.cp.view(i, now).licenceState, h: serverHealth(i, now) }));
       const c = s => st.filter(x => x.l.status === s).length;
       out.institutions = { total: insts.length, activeLicences: st.filter(x => x.l.canCreateExams).length, expiringSoon: c('Expiring Soon'), grace: c('Grace Period'), expired: c('Expired'),
         suspended: c('Suspended') + c('Revoked'), pending: c('Pending'), notSet: c('Not set'),
@@ -109,41 +125,43 @@ const methods = {
           .sort((a, b2) => a.i.licence.expiresAt - b2.i.licence.expiresAt).map(x => ({ id: x.i.id, name: x.i.name, expiryDate: x.l.expiryDate, remainingDays: x.l.remainingDays, status: x.l.status })),
         serverRows: st.map(x => ({ id: x.i.id, name: x.i.name, state: x.h.state, why: x.h.why, lastSeenAt: x.h.lastSeenAt || null })) };
     }
-    if (can('announcements.view')) { const anns = (await this.store.all(K.ann)).map(a => ({ ...a, state: annState(a, now) }));
+    if (anns) { anns.forEach(a => { a.state = annState(a, now); });
       out.announcements = { live: anns.filter(a => a.state === 'Live').length, scheduled: anns.filter(a => a.state === 'Scheduled').length,
         recent: anns.filter(a => a.publishedAt).sort((a, c) => c.publishedAt - a.publishedAt).slice(0, 5).map(a => ({ id: a.id, heading: a.heading, state: a.state, publishedAt: a.publishedAt, audience: a.audience })) }; }
-    if (can('audit.view')) { const au = (await this.store.all(C.audit)).filter(a => a.t >= p.from && a.t < p.to);
-      out.admin = { actions: au.length, failed: au.filter(a => a.result === 'failed' || a.result === 'denied').length,
-        recent: au.sort((a, c) => c.t - a.t).slice(0, 8).map(a => ({ t: a.t, actor: a.actor, action: a.action, target: a.target, result: a.result })) }; }
-    if (can('health.view')) out.errors = { inPeriod: (await this.store.all(K.errors)).filter(e => e.t >= p.from && e.t < p.to).length };
-    if (can('security.view')) out.security = { openAlerts: (await securityAlerts(this, now)).filter(a => !a.acked).length };
+    if (au) { const inP = au.filter(a => a.t < p.to);
+      out.admin = { actions: inP.length, failed: inP.filter(a => a.result === 'failed' || a.result === 'denied').length,
+        recent: inP.slice().sort((a, c) => c.t - a.t).slice(0, 8).map(a => ({ t: a.t, actor: a.actor, action: a.action, target: a.target, result: a.result })) }; }
+    if (errs) out.errors = { inPeriod: errs.filter(e => e.t < p.to).length };
+    if (alerts) out.security = { openAlerts: alerts.filter(a => !a.acked).length };
     out.charts = {};
     if (users) out.charts.signups = perDay(users.map(u => u.createdAt), p);
     if (exams) out.charts.exams = perDay(exams.map(e => e.createdAt), p);
-    if (out.admin) out.charts.adminActions = perDay((await this.store.all(C.audit)).map(a => a.t), p);
+    if (out.admin) out.charts.adminActions = perDay(au.map(a => a.t), p);
     return out;
   },
 
   /* ── Institutions (wrappers over cp.js that add packages, limits, sync and settings defaults) ── */
   async x_overview(admin, b) {
-    const r = await this.cp.act(this.cpActor(admin), { action: 'overview' });
-    const insts = new Map((await this.store.all(C.inst)).map(i => [i.id, i])); const now = this.now();
+    const [r, all, s] = await Promise.all([this.cp.act(this.cpActor(admin), { action: 'overview' }), this.store.all(C.inst), this.settings()]);
+    const insts = new Map(all.map(i => [i.id, i])); const now = this.now();
     r.institutions = r.institutions.map(x => { const i = insts.get(x.id) || {}; return { ...x, contact: i.contact || null, plan: i.entitlement ? { id: i.entitlement.planId, name: i.entitlement.planName, version: i.entitlement.version } : null,
       health: serverHealth(i, now), sync: i.sync ? { pending: !!i.sync.currentVersion && i.sync.appliedVersion !== i.sync.currentVersion, appliedAt: i.sync.appliedAt || null } : null }; });
-    const s = await this.settings(); r.licenceDefaults = s.licence; r.perms = admin.perms;
+    r.licenceDefaults = s.licence; r.perms = admin.perms;
     return r;
   },
   async x_inst_get(admin, b) {
-    const r = await this.cp.act(this.cpActor(admin), { action: 'inst.get', id: b.id });
-    const i = await this.store.get(C.inst, r.institution.id); const now = this.now();
-    r.entitlement = i.entitlement || null; r.featureOverrides = i.featureOverrides || {}; r.health = serverHealth(i, now); r.sync = await this.syncState(i.id);
-    const cfg = await this.featureConfig(); r.effectiveFeatures = effective(cfg, { kind: 'institution', entitled: i.entitlement ? i.entitlement.features : null, overrides: i.featureOverrides || {} });
-    r.features = FEATURES; r.plans = (await this.plans()).map(p => ({ id: p.id, name: p.name, version: p.version, status: p.status }));
-    r.messages = (await this.store.all(K.msgs)).filter(m => m.institutionId === i.id).sort((a, c) => c.sentAt - a.sentAt).slice(0, 20).map(m => ({ id: m.id, subject: m.subject, sentAt: m.sentAt, label: m.recipients.label, status: m.status }));
-    r.announcements = (await this.store.all(K.ann)).filter(a => a.audience === 'everyone' || (a.audience === 'institutions' && (a.institutionIds || []).includes(i.id))).map(a => ({ id: a.id, heading: a.heading, state: annState(a, now), audience: a.audience }));
-    r.cloudMembers = (await this.store.all(K.users)).filter(m => m.institutionId === i.id).length;
-    r.events = (await this.store.all(K.events)).filter(e => e.institutionId === i.id).sort((a, c) => c.t - a.t).slice(0, 50);
-    r.licenceDefaults = (await this.settings()).licence; r.perms = admin.perms;
+    const id = String(b.id || '');
+    const [r, i, sync, cfg, plans, msgs, anns, metas, events, settings] = await Promise.all([this.cp.act(this.cpActor(admin), { action: 'inst.get', id }), this.store.get(C.inst, id), this.syncState(id),
+      this.featureConfig(), this.plans(), this.store.where(K.msgs, 'institutionId', id), this.store.all(K.ann), this.store.where(K.users, 'institutionId', id), this.store.where(K.events, 'institutionId', id), this.settings()]);
+    const now = this.now();
+    r.entitlement = i.entitlement || null; r.featureOverrides = i.featureOverrides || {}; r.health = serverHealth(i, now); r.sync = sync;
+    r.effectiveFeatures = effective(cfg, { kind: 'institution', entitled: i.entitlement ? i.entitlement.features : null, overrides: i.featureOverrides || {} });
+    r.features = FEATURES; r.plans = plans.map(p => ({ id: p.id, name: p.name, version: p.version, status: p.status }));
+    r.messages = msgs.sort((a, c) => c.sentAt - a.sentAt).slice(0, 20).map(m => ({ id: m.id, subject: m.subject, sentAt: m.sentAt, label: m.recipients.label, status: m.status }));
+    r.announcements = anns.filter(a => a.audience === 'everyone' || (a.audience === 'institutions' && (a.institutionIds || []).includes(i.id))).map(a => ({ id: a.id, heading: a.heading, state: annState(a, now), audience: a.audience }));
+    r.cloudMembers = metas.length;
+    r.events = events.sort((a, c) => c.t - a.t).slice(0, 50);
+    r.licenceDefaults = settings.licence; r.perms = admin.perms;
     return r;
   },
   async x_inst_create(admin, b) {
@@ -156,12 +174,39 @@ const methods = {
     await this.markSyncPending(id);
     return { institution: (await this.x_inst_get(admin, { id })).institution, checklist: (await this.x_inst_readiness(admin, { id })).checklist };
   },
+  /** Deletes an institution's record from GHUM: its roster, licence, install packages, registration codes and server
+      registration. The audit log keeps what happened. The institution's own server and its exam data are not touched
+      (GHUM can't reach them); a registered server stops being able to check in and pauses new exams after its grace period. */
+  async x_inst_delete(admin, b) {
+    if (b.confirm !== true) bad('Confirm first.', 400, 'confirm');
+    const inst = await this.cp.instOr404(b.id);
+    if (String(b.confirmName || '').trim() !== inst.name) bad('Type the institution\'s name exactly to delete it.', 400, 'confirm_name');
+    const reason = String(b.reason || '').trim(); if (!reason) bad('Give a reason.');
+    const id = inst.id;
+    const [pkgs, lics, codes, srvs, anns, metas, msgs, al] = await Promise.all([this.store.where(C.pkg, 'institutionId', id), this.store.where(C.lic, 'institutionId', id),
+      this.store.where(C.reg, 'institutionId', id), this.store.where(C.srv, 'institutionId', id), this.store.all(K.ann), this.store.where(K.users, 'institutionId', id),
+      this.store.where(K.msgs, 'institutionId', id), this.store.get(C.allow, id)]);
+    const registered = !!(inst.server && inst.server.serverId && !inst.server.reset);
+    await this.audit(admin, 'inst.delete', { type: 'institution', id, inst: id }, 'ok', { reason, name: inst.name, teachers: al ? (al.teachers || []).length : 0, packages: pkgs.length,
+      licence: this.cp.view(inst).licenceState.status, serverRegistered: registered });
+    const del = (c, rows, key = 'id') => Promise.all(rows.map(r => r[key] ? this.store.del(c, r[key]) : null));
+    await Promise.all([del(C.pkg, pkgs), del(C.reg, codes), del(C.srv, srvs), this.store.del(C.allow, id)]);
+    // licence events (lics) and messages are kept as history, detached from the deleted record
+    for (const m of msgs) if (m.status !== 'archived') await this.store.set(K.msgs, m.id, { ...m, status: 'archived', archivedAt: this.now(), archivedBy: admin.email, archivedReason: 'institution deleted' });
+    for (const a of anns) if ((a.institutionIds || []).includes(id)) {
+      const ids = a.institutionIds.filter(x => x !== id);
+      await this.store.set(K.ann, a.id, { ...a, institutionIds: ids, ...(a.audience === 'institutions' && !ids.length ? { status: a.status === 'published' ? 'withdrawn' : a.status } : {}), updatedAt: this.now(), updatedBy: admin.email });
+    }
+    for (const m of metas) await this.store.set(K.users, m.uid, { ...m, institutionId: null });
+    await this.store.del(C.inst, id);
+    return { ok: true, note: registered ? `${inst.name} was deleted from GHUM. Its server can no longer check in: after its offline grace period it pauses new exams. Its exams and results stay on its own server.` : `${inst.name} was deleted.` };
+  },
   /** Setup checklist: each item is checked against real records, never assumed. */
   async x_inst_readiness(admin, b) {
     const i = await this.cp.instOr404(b.id); const now = this.now();
-    const al = await this.store.get(C.allow, i.id) || { teachers: [] };
-    const pk = (await this.store.where(C.pkg, 'institutionId', i.id)).sort((a, c) => c.seq - a.seq)[0];
-    const L = this.cp.view(i, now).licenceState; const h = serverHealth(i, now); const sy = await this.syncState(i.id);
+    const [al0, pks, sy] = await Promise.all([this.store.get(C.allow, i.id), this.store.where(C.pkg, 'institutionId', i.id), this.syncState(i.id)]);
+    const al = al0 || { teachers: [] }; const pk = pks.sort((a, c) => c.seq - a.seq)[0];
+    const L = this.cp.view(i, now).licenceState; const h = serverHealth(i, now);
     const items = [
       { key: 'contact', label: 'Contact and technical contact recorded', ok: !!(i.contact && i.contact.email && i.technicalContact && i.technicalContact.email) },
       { key: 'plan', label: 'Package (entitlements) assigned', ok: !!i.entitlement, detail: i.entitlement ? i.entitlement.planName + ' v' + i.entitlement.version : null },
@@ -188,10 +233,9 @@ const methods = {
   async x_licence_reactivate(admin, b) { return this.cp.act(this.cpActor(admin), { ...b, action: 'licence.reactivate', _mayUnrevoke: this.can(admin, 'licences.revoke') }); },
   async x_licence_unblock(admin, b) { return this.x_licence_reactivate(admin, b); },
   async x_licence_list(admin, b) {
-    const now = this.now(); const insts = await this.store.all(C.inst); const ev = await this.store.all(C.lic);
+    const now = this.now(); const [insts, ev, s] = await Promise.all([this.store.all(C.inst), this.store.all(C.lic), this.settings()]);
     const rows = insts.map(i => { const v = this.cp.view(i, now).licenceState; return { id: i.id, name: i.name, ...v, plan: i.entitlement ? i.entitlement.planName : null, events: ev.filter(e => e.institutionId === i.id).length,
       lastEvent: ev.filter(e => e.institutionId === i.id).sort((a, c) => c.t - a.t)[0] || null, activation: i.licence && i.licence.activation || null }; });
-    const s = await this.settings();
     return { licences: rows, defaults: s.licence, durations: require('./licence-core').DURATIONS, statuses: require('./licence-core').STATUSES,
       transitions: { set: 'Not set or Pending → Pending / Active', renew: 'Active, Expiring Soon, Grace Period, Expired, Pending → new term (Suspended stays suspended)', suspend: 'any except Revoked → Suspended',
         reactivate: 'Suspended → status from the dates', revoke: 'any → Revoked', unrevoke: 'Revoked → status from the dates (needs licences.revoke)' },
@@ -202,29 +246,34 @@ const methods = {
   async x_health_get(admin) {
     const now = this.now(); const checks = [];
     const t0 = Date.now(); checks.push({ name: 'Control plane API', state: 'Healthy', detail: 'This request reached the server.' });
-    try { const ms = await this.platform.ping(); checks.push({ name: 'Firestore (your Firebase database)', state: ms < 2000 ? 'Healthy' : 'Degraded', detail: 'Read in ' + ms + ' ms.' }); }
-    catch (e) { checks.push({ name: 'Firestore (your Firebase database)', state: 'Degraded', detail: e.message }); }
-    try { const ms = await this.platform.authPing(); checks.push({ name: 'Firebase Authentication', state: ms < 2000 ? 'Healthy' : 'Degraded', detail: 'Answered in ' + ms + ' ms.' }); }
-    catch (e) { checks.push({ name: 'Firebase Authentication', state: 'Degraded', detail: e.message }); }
-    checks.push({ name: 'Package and licence signing key', state: this.cp.keys && this.cp.keys.privatePem ? 'Healthy' : 'Not connected', detail: this.cp.keys && this.cp.keys.privatePem ? 'Loaded. Fingerprint ' + this.cp.fingerprint : 'GHUM_SIGNING_PRIVATE_KEY is not set on Vercel.' });
     const base = this.cp.env && this.cp.env.publicBaseUrl;
+    const settle = p => Promise.resolve().then(() => p).then(v => ({ v }), e => ({ e }));
+    const [fsPing, authPing, rulesP, frontP, insts, errorsP, auditP, eventsP, locP] = await Promise.all([settle(this.platform.ping()), settle(this.platform.authPing()), settle(this.rulesEnforce()),
+      base && this.fetchImpl ? settle(this.fetchImpl(base + '/', { headers: { range: 'bytes=0-30000' } }).then(r => r.text())) : null, this.store.all(C.inst),
+      this.store.recent(K.errors, 't', now - 30 * DAY, 50), this.store.recent(C.audit, 't', now - 30 * DAY, 3000), this.store.recent(K.events, 't', now - 30 * DAY, 100),
+      this.platform.firestoreLocation ? settle(this.platform.firestoreLocation()) : null]);
+    if (fsPing.e) checks.push({ name: 'Firestore (your Firebase database)', state: 'Degraded', detail: fsPing.e.message });
+    else checks.push({ name: 'Firestore (your Firebase database)', state: fsPing.v < 2000 ? 'Healthy' : 'Degraded', detail: 'Read in ' + fsPing.v + ' ms.' + (locP && locP.v ? ' Location: ' + locP.v + '.' : '') });
+    if (authPing.e) checks.push({ name: 'Firebase Authentication', state: 'Degraded', detail: authPing.e.message });
+    else checks.push({ name: 'Firebase Authentication', state: authPing.v < 2000 ? 'Healthy' : 'Degraded', detail: 'Answered in ' + authPing.v + ' ms.' });
+    checks.push({ name: 'Package and licence signing key', state: this.cp.keys && this.cp.keys.privatePem ? 'Healthy' : 'Not connected', detail: this.cp.keys && this.cp.keys.privatePem ? 'Loaded. Fingerprint ' + this.cp.fingerprint : 'GHUM_SIGNING_PRIVATE_KEY is not set on Vercel.' });
     checks.push({ name: 'Public address for institution servers', state: base ? 'Healthy' : 'Not connected', detail: base || 'PUBLIC_BASE_URL is not set.' });
-    const rules = await this.rulesEnforce();
-    checks.push({ name: 'Firestore rules (v47 feature checks)', state: rules === 'yes' ? 'Healthy' : rules === 'no' ? 'Degraded' : 'Unknown', detail: rules === 'yes' ? 'Published rules include the v47 feature checks.' : rules === 'no' ? 'Published rules are older than v47: feature switches are only hidden in the app until you publish firestore.rules.' : 'Could not read the published rules (the service account may lack the Firebase Rules viewer role).' });
+    const rules = rulesP.v || 'unknown';
+    checks.push({ name: 'Firestore rules (v47 feature checks)', state: rules === 'yes' ? 'Healthy' : rules === 'no' ? 'Degraded' : 'Unknown', detail: rules === 'yes' ? 'Published rules include the v47 feature checks.' : rules === 'no' ? 'Published rules are older than v47: feature switches are only hidden in the app until you publish firestore.rules.' : 'Could not read the published rules: the service account needs the "Firebase Rules Viewer" role (Google Cloud console → IAM). The rules themselves may well be published; this only affects this check.' });
+    const region = (this.env || {}).VERCEL_REGION || null; const loc = locP && locP.v || null;
+    if (region || loc) checks.push({ name: 'Server location', state: region && loc && !sameArea(region, loc) ? 'Degraded' : 'Healthy',
+      detail: `Functions run in ${region || 'an unknown region'}; Firestore is in ${loc || 'an unknown location'}.` + (region && loc && !sameArea(region, loc) ? ' They are far apart, which makes every page slower. Set "regions" in vercel.json to the region nearest your Firestore.' : '') });
     const env = this.env || {};
     const deploy = { environment: env.VERCEL_ENV || null, commit: env.VERCEL_GIT_COMMIT_SHA ? env.VERCEL_GIT_COMMIT_SHA.slice(0, 7) : null, branch: env.VERCEL_GIT_COMMIT_REF || null,
       message: env.VERCEL_GIT_COMMIT_MESSAGE ? env.VERCEL_GIT_COMMIT_MESSAGE.slice(0, 120) : null, url: env.VERCEL_URL || null, deploymentId: env.VERCEL_DEPLOYMENT_ID || null,
       note: env.VERCEL_ENV ? null : 'Vercel deployment details are not available (they are filled in automatically on Vercel).' };
     let frontend = null;
-    if (base && this.fetchImpl) { try { const r = await this.fetchImpl(base + '/', { headers: { range: 'bytes=0-30000' } }); const t = await r.text(); const m = /name="examflow-version" content="([^"]+)"/.exec(t); frontend = m ? m[1] : 'not found'; } catch (e) { frontend = 'could not fetch: ' + e.message; } }
+    if (frontP) { if (frontP.e) frontend = 'could not fetch: ' + frontP.e.message; else { const m = /name="examflow-version" content="([^"]+)"/.exec(frontP.v); frontend = m ? m[1] : 'not found'; } }
     let sw = null; try { sw = require('./builder').softwareInfo(this.cp.sw()); } catch (e) { sw = { error: e.message }; }
-    const insts = await this.store.all(C.inst);
     const servers = insts.map(i => { const h = serverHealth(i, now); return { id: i.id, name: i.name, ...h, serverVersion: i.server && i.server.serverVersion || null, packageVersion: i.server && i.server.packageVersion || null,
       compatible: !i.server || !i.server.serverVersion ? null : sw && sw.serverVersion ? (String(i.server.serverVersion).split('.')[0] === String(sw.serverVersion).split('.')[0]) : null,
       needsMaintenance: !!(i.server && i.server.serverVersion && sw && sw.serverVersion && i.server.serverVersion !== sw.serverVersion), sync: i.sync || null }; });
-    const errors = (await this.store.all(K.errors)).sort((a, b) => b.t - a.t).slice(0, 50);
-    const failed = (await this.store.all(C.audit)).filter(a => a.result === 'failed').sort((a, b) => b.t - a.t).slice(0, 30);
-    const events = (await this.store.all(K.events)).sort((a, b) => b.t - a.t).slice(0, 100);
+    const errors = errorsP; const failed = auditP.filter(a => a.result === 'failed').slice(0, 30); const events = eventsP;
     return { checks, deploy, frontendVersion: frontend, software: sw, servers, errors, failedOps: failed, events, serverTime: now, tookMs: Date.now() - t0,
       definitions: { Healthy: 'Reported within 3 check-in intervals; database and last configuration sync OK.', Degraded: 'Reporting, but something it reports is wrong.', Unknown: 'No report for more than 3 intervals but less than 24 hours. Not a confirmed outage.', Offline: 'No report for over 24 hours.', 'Not connected': 'No server registered.' },
       policy: { frontend: 'The app itself updates through GitHub → Vercel, for cloud users and every institution app that loads it.', configuration: 'Feature switches, settings, announcements and messages reach institution servers in their signed check-in; this page shows whether each has applied them.', backend: 'Institution server software changes only when their IT installs a new install package. Nothing here downloads or installs code on their server.' } };
@@ -232,24 +281,25 @@ const methods = {
 
   /* ── Security center ── */
   async x_security_get(admin) {
-    const now = this.now(); const roles = await this.customRoles();
-    const team = (await this.x_admins_list(admin)); const all = [...team.owners, ...team.team.filter(a => a.status === 'active')];
-    const mfa = []; for (const a of all) { const u = await this.platform.getUserByEmail(a.email);
-      mfa.push({ email: a.email, role: a.roleName, account: !!u, verified: u ? u.emailVerified : null, providers: u ? u.providers : [], factors: u ? u.mfaFactors : [],
-        note: !u ? 'No account yet.' : u.mfaFactors.length ? 'Second factor enrolled in Firebase.' : u.providers.includes('google.com') ? 'Signs in with Google: 2-step verification is managed in the Google account and isn\'t visible to ExamFlow.' : 'Password only, no second factor. Use Google sign-in with 2-step verification for admins.' }); }
-    const sessions = (await this.store.all(K.sessions)).filter(s => now - (s.lastAt || 0) < 30 * DAY).sort((a, b) => b.lastAt - a.lastAt);
-    const sec = (await this.store.all(K.security)).filter(e => now - e.t < 7 * DAY).sort((a, b) => b.t - a.t);
+    const now = this.now();
+    const [team, sessions0, sec0, audit, s, rules, src] = await Promise.all([this.x_admins_list(admin), this.store.recent(K.sessions, 'lastAt', now - 30 * DAY, 500),
+      this.store.recent(K.security, 't', now - 7 * DAY, 3000), this.store.recent(C.audit, 't', now - 90 * DAY, 5000), this.settings(), this.rulesEnforce(), this.platform.rulesSource()]);
+    const all = [...team.owners, ...team.team.filter(a => a.status === 'active')];
+    const mfa = await Promise.all(all.map(async a => { const u = await this.platform.getUserByEmail(a.email);
+      return { email: a.email, role: a.roleName, account: !!u, verified: u ? u.emailVerified : null, providers: u ? u.providers : [], factors: u ? u.mfaFactors : [],
+        note: !u ? 'No account yet.' : u.mfaFactors.length ? 'Second factor enrolled in Firebase.' : u.providers.includes('google.com') ? 'Signs in with Google: 2-step verification is managed in the Google account and isn\'t visible to ExamFlow.' : 'Password only, no second factor. Use Google sign-in with 2-step verification for admins.' }; }));
+    const sessions = sessions0; const sec = sec0;
     const denied = {}; for (const e of sec.filter(e => e.kind === 'admin.denied')) { const k = (e.email || 'no email') + ' · ' + (e.ip || '?'); denied[k] = denied[k] || { who: e.email || null, ip: e.ip || null, n: 0, last: 0, codes: {} }; denied[k].n++; denied[k].last = Math.max(denied[k].last, e.t); denied[k].codes[e.code] = (denied[k].codes[e.code] || 0) + 1; }
-    const audit = await this.store.all(C.audit);
-    const s = await this.settings(); const rules = await this.rulesEnforce(); const src = await this.platform.rulesSource();
+
     let rulesAdmins = null; if (typeof src === 'string') { const m = /function adminEmails\(\)\s*\{\s*return\s*\[([^\]]*)\]/.exec(src); if (m) rulesAdmins = (m[1].match(/'([^']+)'|"([^"]+)"/g) || []).map(x => x.replace(/['"]/g, '').toLowerCase()); }
     const review = [
-      { item: 'Package signing key on the server only', ok: !!(this.cp.keys && this.cp.keys.privatePem), detail: 'Stored in Vercel environment variables, never sent to browsers.' },
+      this.cp.keys && this.cp.keys.privatePem ? { item: 'Package signing key on the server only', ok: true, detail: 'Stored in Vercel environment variables, never sent to browsers.' }
+        : { item: 'Package signing key on the server only', ok: null, state: 'Not set', detail: 'Only needed to make install packages for institutions. Add GHUM_SIGNING_PRIVATE_KEY on Vercel when you need it.' },
       { item: 'Admin emails must be verified', ok: true, detail: 'Enforced on every Admin Monitor request.' },
       { item: 'Sensitive changes need a recent sign-in', ok: s.security.reauthMinutes <= 30, detail: 'Within ' + s.security.reauthMinutes + ' minutes.' },
       { item: 'Platform owners match the Firestore rules', ok: rulesAdmins ? this.owners.every(o => rulesAdmins.includes(o)) && rulesAdmins.every(o => this.owners.includes(o)) : null,
-        detail: rulesAdmins ? 'Rules: ' + rulesAdmins.join(', ') + ' · Server: ' + this.owners.join(', ') : 'Could not read the published rules.' },
-      { item: 'Firestore rules include the v47 feature checks', ok: rules === 'yes' ? true : rules === 'no' ? false : null, detail: rules === 'unknown' ? 'Could not read the published rules.' : '' },
+        detail: rulesAdmins ? 'Rules: ' + rulesAdmins.join(', ') + ' · Server: ' + this.owners.join(', ') : 'Could not read the published rules (give the service account the "Firebase Rules Viewer" role to check this).' },
+      { item: 'Firestore rules include the v47 feature checks', ok: rules === 'yes' ? true : rules === 'no' ? false : null, detail: rules === 'unknown' ? 'Could not read the published rules (give the service account the "Firebase Rules Viewer" role to check this).' : '' },
       { item: 'Every owner signs in with a verified account', ok: mfa.filter(m => m.role === 'Platform Owner').every(m => m.verified), detail: '' }
     ];
     return { team: all.map(a => ({ email: a.email, role: a.roleName, perms: a.perms || null, lastSeenAt: a.lastSeenAt })), roles: team.roles, mfa, sessions, failedAuth: Object.values(denied).sort((a, b) => b.n - a.n).slice(0, 30),
@@ -275,8 +325,8 @@ const methods = {
 
   /* ── Audit logs ── */
   async auditRows(b) {
-    let rows = await this.store.all(C.audit);
     const from = b.from ? Date.parse(b.from) : null, to = b.to ? Date.parse(b.to) + DAY : null;
+    let rows = b.institutionId ? await this.store.where(C.audit, 'institutionId', String(b.institutionId)) : await this.store.recent(C.audit, 't', Number.isFinite(from) ? from : 0, 10000);
     if (from) rows = rows.filter(a => a.t >= from); if (to) rows = rows.filter(a => a.t < to);
     if (b.actor) rows = rows.filter(a => String(a.actor || '').toLowerCase().includes(String(b.actor).toLowerCase()));
     if (b.actionPrefix) rows = rows.filter(a => String(a.action || '').startsWith(b.actionPrefix));
@@ -288,7 +338,8 @@ const methods = {
   },
   async x_audit_list(admin, b) {
     const rows = await this.auditRows(b); const size = Math.min(Math.max(Number(b.pageSize) || 50, 10), 200), page = Math.max(Number(b.page) || 1, 1);
-    return { rows: rows.slice((page - 1) * size, page * size), total: rows.length, page, pageSize: size, actions: Array.from(new Set((await this.store.all(C.audit)).map(a => String(a.action).split('.')[0]))).sort(),
+    const areas = ['activity', 'admin', 'admins', 'allowlist', 'ann', 'audit', 'console', 'features', 'inst', 'licence', 'msg', 'package', 'plans', 'regcode', 'roles', 'security', 'server', 'settings', 'users'];
+    return { rows: rows.slice((page - 1) * size, page * size), total: rows.length, page, pageSize: size, actions: areas,
       audit: rows.slice(0, Math.min(Number(b.limit) || size, 1000)) };
   },
   async x_audit_export(admin, b) {

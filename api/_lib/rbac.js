@@ -88,6 +88,7 @@ const ACTION_PERMS = {
   'inst.get': { perm: 'institutions.view' },
   'inst.update': { perm: 'institutions.manage' },
   'inst.readiness': { perm: 'institutions.view' },
+  'inst.delete': { perm: 'institutions.manage', reauth: true },
   'allowlist.validate': { perm: 'institutions.view' },
   'allowlist.save': { perm: 'institutions.manage' },
   'package.preview': { perm: 'institutions.view' },
