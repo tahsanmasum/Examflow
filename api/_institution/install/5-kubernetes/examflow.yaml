@@ -1,0 +1,84 @@
+# ExamFlow institution server on Kubernetes / OpenShift. install.sh fills in the @…@ values.
+# One replica on purpose: the server's identity with GHUM and (with SQLite) the database live on
+# the data volume, which only one pod may use at a time.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: @NAMESPACE@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: examflow-data
+  namespace: @NAMESPACE@
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: @STORAGE@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: examflow
+  namespace: @NAMESPACE@
+  labels: { app: examflow }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app: examflow }
+  template:
+    metadata:
+      labels: { app: examflow }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+@PODSECURITY@
+      containers:
+        - name: examflow
+          image: @IMAGE@
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef: { name: examflow-env }
+          env:
+            - { name: DATA_DIR, value: /data }
+            - { name: PACKAGE_DIR, value: /app }
+            - { name: HOST, value: "0.0.0.0" }
+            - { name: PORT, value: "8080" }
+            - { name: TRUST_PROXY, value: "1" }
+          ports:
+            - { name: http, containerPort: 8080 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { memory: 2Gi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - { name: data, mountPath: /data }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: examflow-data }
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: examflow
+  namespace: @NAMESPACE@
+spec:
+  selector: { app: examflow }
+  ports:
+    - { name: http, port: 80, targetPort: http }

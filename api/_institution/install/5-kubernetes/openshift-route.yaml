@@ -1,0 +1,13 @@
+# HTTPS on OpenShift: a Route with edge TLS (the router's certificate, or set tls.certificate/key).
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: examflow
+  namespace: @NAMESPACE@
+spec:
+  host: "@DOMAIN@"
+  to: { kind: Service, name: examflow }
+  port: { targetPort: http }
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

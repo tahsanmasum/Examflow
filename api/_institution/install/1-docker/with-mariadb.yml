@@ -1,0 +1,38 @@
+# Add-on for TYPE 1: runs MariaDB 11 in Docker next to ExamFlow (data in the volume "examflow-mariadb").
+# Used by:  bash install/1-docker/install.sh --with mariadb
+# or by hand from the package folder:
+#   docker compose -f docker-compose.yml -f install/1-docker/with-mariadb.yml up -d
+# The password comes from EXAMFLOW_DB_PASSWORD in .env (install.sh generates one).
+services:
+  db:
+    image: mariadb:11
+    container_name: examflow-mariadb
+    restart: unless-stopped
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_bin"]
+    environment:
+      MARIADB_DATABASE: examflow
+      MARIADB_USER: examflow
+      MARIADB_PASSWORD: ${EXAMFLOW_DB_PASSWORD:?Set EXAMFLOW_DB_PASSWORD in .env}
+      MARIADB_RANDOM_ROOT_PASSWORD: "1"
+    volumes:
+      - examflow-mariadb:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  examflow:
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_TYPE: mysql
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: examflow
+      DB_USER: examflow
+      DB_PASSWORD: ${EXAMFLOW_DB_PASSWORD:?Set EXAMFLOW_DB_PASSWORD in .env}
+      DB_SSL: "0"
+volumes:
+  examflow-mariadb:
+    name: examflow-mariadb

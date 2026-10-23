@@ -1,0 +1,23 @@
+# HTTPS on Kubernetes through your ingress controller (ingress-nginx shown; others work the same way).
+# The TLS secret: your certificate (kubectl create secret tls examflow-tls --cert … --key …),
+# or let cert-manager make one by adding its annotation.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: examflow
+  namespace: @NAMESPACE@
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "3m"
+spec:
+  ingressClassName: @INGRESS_CLASS@
+  tls:
+    - hosts: ["@DOMAIN@"]
+      secretName: examflow-tls
+  rules:
+    - host: "@DOMAIN@"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: examflow, port: { name: http } }

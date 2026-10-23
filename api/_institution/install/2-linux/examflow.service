@@ -1,0 +1,44 @@
+# ExamFlow institution server — systemd unit (install.sh fills in the @…@ values)
+[Unit]
+Description=ExamFlow institution server
+Documentation=file://@APP@/START-HERE.md
+After=network-online.target
+Wants=network-online.target
+# If the database runs on this same machine, start after it (uncomment the one you use):
+#After=postgresql.service
+#After=mysql.service mariadb.service
+#After=mongod.service
+
+[Service]
+Type=simple
+User=@USER@
+Group=@USER@
+WorkingDirectory=@APP@
+Environment=EXAMFLOW_ENV_FILE=@ENV@
+Environment=NODE_ENV=production
+Environment=NODE_OPTIONS=--disable-warning=ExperimentalWarning
+ExecStart=@NODE@ server/src/server.js
+Restart=always
+RestartSec=3
+# Exit codes 2–5 mean "settings / package / database / teacher list problem": do not loop on them.
+RestartPreventExitStatus=2 3 4 5
+TimeoutStopSec=20
+
+# Hardening: the server may only write to its data folder.
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=@DATA@
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

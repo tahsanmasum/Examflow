@@ -1,0 +1,36 @@
+# Add-on for TYPE 1: runs PostgreSQL 16 in Docker next to ExamFlow (data in the volume "examflow-pgdata").
+# Used by:  bash install/1-docker/install.sh --with postgres
+# or by hand from the package folder:
+#   docker compose -f docker-compose.yml -f install/1-docker/with-postgres.yml up -d
+# The password comes from EXAMFLOW_DB_PASSWORD in .env (install.sh generates one).
+services:
+  db:
+    image: postgres:16
+    container_name: examflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: examflow
+      POSTGRES_USER: examflow
+      POSTGRES_PASSWORD: ${EXAMFLOW_DB_PASSWORD:?Set EXAMFLOW_DB_PASSWORD in .env}
+    volumes:
+      - examflow-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U examflow -d examflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  examflow:
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_TYPE: postgres
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: examflow
+      DB_USER: examflow
+      DB_PASSWORD: ${EXAMFLOW_DB_PASSWORD:?Set EXAMFLOW_DB_PASSWORD in .env}
+      DB_SSL: "0"
+volumes:
+  examflow-pgdata:
+    name: examflow-pgdata

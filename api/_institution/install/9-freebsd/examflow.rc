@@ -1,0 +1,23 @@
+#!/bin/sh
+# ExamFlow institution server — FreeBSD rc.d service (installed as /usr/local/etc/rc.d/examflow by install.sh)
+# PROVIDE: examflow
+# REQUIRE: LOGIN NETWORKING
+# KEYWORD: shutdown
+#
+# examflow_enable="YES" in /etc/rc.conf (install.sh sets it). Optional: examflow_user, examflow_dir, examflow_env.
+
+# shellcheck disable=SC1091,SC2034  # rc.subr (FreeBSD) reads these variables
+. /etc/rc.subr
+name=examflow
+rcvar=examflow_enable
+load_rc_config $name
+: "${examflow_enable:=NO}"
+: "${examflow_user:=examflow}"
+: "${examflow_dir:=/usr/local/examflow/current}"
+: "${examflow_env:=/usr/local/etc/examflow/examflow.env}"
+pidfile=/var/run/examflow/daemon.pid
+command=/usr/sbin/daemon
+command_args="-f -r -R 5 -S -T examflow -P ${pidfile} -u ${examflow_user} /usr/bin/env EXAMFLOW_ENV_FILE=${examflow_env} NODE_ENV=production NODE_OPTIONS=--disable-warning=ExperimentalWarning /usr/local/bin/node ${examflow_dir}/server/src/server.js"
+start_precmd=examflow_prestart
+examflow_prestart() { install -d -o root -g wheel -m 755 /var/run/examflow; cd "${examflow_dir}" || return 1; }
+run_rc_command "$1"
