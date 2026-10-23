@@ -79,9 +79,9 @@ function applyPackage(db, pkg, opts = {}) {
     db.setMeta('package_id', manifest.packageId); db.setMeta('package_version', manifest.packageVersion);
     db.setMeta('institution_name', manifest.institution.name);
     if (newVer === curVer) return { applied: false, institutionId: instId, note: sameSoftware ? 'Package already applied.' : 'Same teacher list; package details updated.' };
-    const before = new Map(db.db.prepare('SELECT teacher_id, email FROM allowlist').all().map(r => [r.teacher_id, r.email]));
-    db.db.prepare('DELETE FROM allowlist').run();
-    const ins = db.db.prepare('INSERT INTO allowlist (teacher_id, email, name, version) VALUES (?, ?, ?, ?)');
+    const before = new Map(db.all('allowlist.pairs').map(r => [r.teacher_id, r.email]));
+    db.run('allowlist.clear');
+    const ins = { run: (...a) => db.run('allowlist.insert', ...a) };
     let added = 0;
     const now = new Set();
     for (const t of allowlist.teachers) {
@@ -90,8 +90,7 @@ function applyPackage(db, pkg, opts = {}) {
     }
     let removed = 0; for (const k of before.keys()) if (!now.has(k)) removed++;
     db.setMeta('allowlist_version', newVer);
-    db.db.prepare('INSERT INTO allowlist_history (t, package_id, package_version, list_version, added, removed, total) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(Date.now(), manifest.packageId, manifest.packageVersion, newVer, added, removed, now.size);
+    db.run('allowHistory.insert', Date.now(), manifest.packageId, manifest.packageVersion, newVer, added, removed, now.size);
     db.audit('installer', 'allowlist.apply', manifest.packageId, 'ok', { listVersion: newVer, added, removed, total: now.size });
     return { applied: true, institutionId: instId, added, removed, total: now.size };
   });

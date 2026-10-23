@@ -56,28 +56,27 @@ class Auth {
   createLogin(uid) {
     const token = crypto.randomBytes(32).toString('base64url');
     const now = Date.now();
-    this.db.db.prepare('INSERT INTO logins (token_hash, uid, created, expires) VALUES (?, ?, ?, ?)').run(sha256(token), uid, now, now + this.config.sessionDays * 86400000);
-    this.db.db.prepare('DELETE FROM logins WHERE expires < ?').run(now);
+    this.db.run('logins.insert', sha256(token), uid, now, now + this.config.sessionDays * 86400000);
+    this.db.run('logins.purge', now);
     return token;
   }
   userFromToken(token) {
     if (!token) return null;
-    const r = this.db.db.prepare(`SELECT u.uid, u.email, u.name, u.disabled FROM logins l JOIN users u ON u.uid = l.uid
-      WHERE l.token_hash = ? AND l.expires > ?`).get(sha256(token), Date.now());
+    const r = this.db.one('logins.user', sha256(token), Date.now());
     if (!r || r.disabled) return null;
     return { uid: r.uid, email: r.email, name: r.name };
   }
-  endLogin(token) { if (token) this.db.db.prepare('DELETE FROM logins WHERE token_hash = ?').run(sha256(token)); }
-  endAllLogins(uid) { this.db.db.prepare('DELETE FROM logins WHERE uid = ?').run(uid); }
+  endLogin(token) { if (token) this.db.run('logins.delete', sha256(token)); }
+  endAllLogins(uid) { this.db.run('logins.deleteUser', uid); }
 
   // ── allowlist lookups ──
-  allowEntry(email) { return this.db.db.prepare('SELECT teacher_id, email, name FROM allowlist WHERE email = ?').get(normEmail(email)) || null; }
+  allowEntry(email) { return this.db.one('allowlist.byEmail', normEmail(email)) || null; }
 
   // ── local accounts ──
   issueCode(email, purpose = 'activate', days = 14) {
     const code = humanCode(3), now = Date.now();
-    this.db.db.prepare('UPDATE codes SET used = ? WHERE email = ? AND purpose = ? AND used IS NULL').run(now, normEmail(email), purpose);
-    this.db.db.prepare('INSERT INTO codes (code_hash, email, purpose, created, expires, used) VALUES (?, ?, ?, ?, ?, NULL)').run(hashCode(code), normEmail(email), purpose, now, now + days * 86400000);
+    this.db.run('codes.retire', now, normEmail(email), purpose);
+    this.db.run('codes.insert', hashCode(code), normEmail(email), purpose, now, now + days * 86400000);
     return code;
   }
   activate({ email, code, password, name }, ip) {
@@ -85,20 +84,20 @@ class Auth {
     if (!this.ipLimit.hit('a:' + ip) || !this.loginLimit.hit('a:' + email)) return { error: 'Too many attempts. Wait 15 minutes and try again.', code: 429 };
     if (!EMAIL_RE.test(email)) return { error: 'Enter a valid email address.' };
     const pp = passwordProblem(password); if (pp) return { error: pp };
-    const row = this.db.db.prepare('SELECT * FROM codes WHERE code_hash = ?').get(hashCode(code));
+    const row = this.db.one('codes.get', hashCode(code));
     if (!row || row.email !== email || row.used || row.expires < Date.now() || normCode(code).length < 8) {
       this.db.audit(email, 'account.activate', email, 'denied', { reason: 'bad code' });
       return { error: 'That activation code is not valid for this email, has been used, or has expired. Ask your IT team for a new one.', code: 403 };
     }
-    const existing = this.db.db.prepare('SELECT uid FROM users WHERE email = ?').get(email);
+    const existing = this.db.one('users.uidByEmail', email);
     const now = Date.now();
     let uid;
     this.db.tx(() => {
-      this.db.db.prepare('UPDATE codes SET used = ? WHERE code_hash = ?').run(now, row.code_hash);
-      if (existing) { uid = existing.uid; this.db.db.prepare('UPDATE users SET pass_hash = ?, disabled = 0 WHERE uid = ?').run(hashPassword(password), uid); this.endAllLogins(uid); }
+      this.db.run('codes.use', now, row.code_hash);
+      if (existing) { uid = existing.uid; this.db.run('users.setPassword', hashPassword(password), uid); this.endAllLogins(uid); }
       else {
         uid = randomId('u', 20);
-        this.db.db.prepare('INSERT INTO users (uid, email, name, pass_hash, source, created) VALUES (?, ?, ?, ?, ?, ?)').run(uid, email, String(name || '').slice(0, 120) || null, hashPassword(password), 'local', now);
+        this.db.run('users.insertLocal', uid, email, String(name || '').slice(0, 120) || null, hashPassword(password), 'local', now);
       }
     });
     this.db.audit(email, existing ? 'account.password_reset' : 'account.activate', uid, 'ok');
@@ -107,7 +106,7 @@ class Auth {
   login({ email, password }, ip) {
     email = normEmail(email);
     if (!this.ipLimit.hit('l:' + ip) || !this.loginLimit.hit('l:' + email)) return { error: 'Too many sign-in attempts. Wait 15 minutes and try again.', code: 429 };
-    const u = this.db.db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    const u = this.db.one('users.byEmail', email);
     const ok = u && u.pass_hash && !u.disabled && checkPassword(String(password || ''), u.pass_hash);
     if (!ok) { this.db.audit(email, 'login', email, 'denied'); return { error: 'Wrong email or password.', code: 401 }; }
     this.db.audit(email, 'login', u.uid, 'ok');
@@ -128,8 +127,8 @@ class Auth {
     const state = crypto.randomBytes(16).toString('base64url'), nonce = crypto.randomBytes(16).toString('base64url');
     const verifier = crypto.randomBytes(32).toString('base64url');
     const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
-    this.db.db.prepare('DELETE FROM oidc_state WHERE created < ?').run(Date.now() - 10 * 60000);
-    this.db.db.prepare('INSERT INTO oidc_state (state, nonce, verifier, created) VALUES (?, ?, ?, ?)').run(state, nonce, verifier, Date.now());
+    this.db.run('oidc.purge', Date.now() - 10 * 60000);
+    this.db.run('oidc.insert', state, nonce, verifier, Date.now());
     const u = new URL(m.authorization_endpoint);
     u.searchParams.set('response_type', 'code'); u.searchParams.set('client_id', this.config.oidc.clientId);
     u.searchParams.set('redirect_uri', this.config.publicUrl + '/auth/oidc/callback');
@@ -175,9 +174,9 @@ class Auth {
     return { sub: String(claims.sub), email, name: claims.name || null };
   }
   async oidcCallback(query) {
-    const st = this.db.db.prepare('SELECT * FROM oidc_state WHERE state = ?').get(String(query.state || ''));
+    const st = this.db.one('oidc.get', String(query.state || ''));
     if (!st || Date.now() - st.created > 10 * 60000) throw new Error('The sign-in took too long or was started elsewhere. Try again.');
-    this.db.db.prepare('DELETE FROM oidc_state WHERE state = ?').run(st.state);
+    this.db.run('oidc.delete', st.state);
     if (query.error) throw new Error('The identity provider refused the sign-in: ' + query.error);
     const m = await this.oidcDiscover();
     const body = new URLSearchParams({ grant_type: 'authorization_code', code: String(query.code || ''), redirect_uri: this.config.publicUrl + '/auth/oidc/callback',
@@ -186,14 +185,14 @@ class Auth {
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.id_token) throw new Error('The identity provider did not return an ID token.');
     const id = await this.verifyIdToken(j.id_token, st.nonce);
-    let u = this.db.db.prepare('SELECT * FROM users WHERE oidc_sub = ? AND source = ?').get(id.sub, 'oidc')
-         || this.db.db.prepare('SELECT * FROM users WHERE email = ?').get(id.email);
+    let u = this.db.one('users.byOidc', id.sub, 'oidc')
+         || this.db.one('users.byEmail', id.email);
     if (u && u.disabled) throw new Error('This account is disabled at this institution.');
     if (!u) {
       const uid = randomId('u', 20);
-      this.db.db.prepare('INSERT INTO users (uid, email, name, pass_hash, source, oidc_sub, created) VALUES (?, ?, ?, NULL, ?, ?, ?)').run(uid, id.email, id.name, 'oidc', id.sub, Date.now());
+      this.db.run('users.insertOidc', uid, id.email, id.name, 'oidc', id.sub, Date.now());
       u = { uid, email: id.email, name: id.name };
-    } else if (!u.oidc_sub) this.db.db.prepare('UPDATE users SET oidc_sub = ? WHERE uid = ?').run(id.sub, u.uid);
+    } else if (!u.oidc_sub) this.db.run('users.setOidcSub', id.sub, u.uid);
     this.db.audit(id.email, 'login.oidc', u.uid, 'ok');
     return { uid: u.uid, user: { uid: u.uid, email: u.email, name: u.name } };
   }

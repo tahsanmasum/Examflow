@@ -14,6 +14,9 @@ services:
     ports:
       # Only reachable from this machine. Put your HTTPS reverse proxy (see Caddyfile.example) in front.
       - "127.0.0.1:8080:8080"
+    extra_hosts:
+      # lets DB_HOST=host.docker.internal reach a database running on this same machine
+      - "host.docker.internal:host-gateway"
     volumes:
       - examflow-data:/data
 volumes:

@@ -1,5 +1,7 @@
 # Where ExamFlow keeps your institution's data
 
+> `examflow.db` below means the built-in SQLite file. With `DB_TYPE` set to PostgreSQL, MySQL/MariaDB, SQL Server or Oracle, the same tables are in your database server. With MongoDB they are collections of the same names. Either way, everything stays on your side. See `DATABASES.md`.
+
 Everything below is on **your** server, in `DATA_DIR`: the Docker volume `examflow-data`, mounted at `/data`.
 
 | What | Where |

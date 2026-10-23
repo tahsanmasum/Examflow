@@ -2,7 +2,7 @@
 
 GHUM sends a **new package version** (for example 1.0.0 → 1.1.0) when:
 
-- the approved teacher list changes;
+- the approved teacher list changes, for a server that is not registered yet (registered servers receive list changes at their next check-in);
 - the institution details change;
 - the ExamFlow software is updated.
 
@@ -11,6 +11,25 @@ GHUM sends a **new package version** (for example 1.0.0 → 1.1.0) when:
 Nothing updates itself. Your server changes only when you install the new package.
 
 ## Installing a new version (same server, same data)
+
+**With the installers in `install/`:**
+1. Unzip the new package next to the old one.
+2. Run the same installer from the new folder.
+
+Settings and data carry over, and the new version is checked before it takes over.
+- Linux: `sudo bash install/2-linux/install.sh`
+- Windows: `install\3-windows\install.ps1`
+- Docker: `bash install/1-docker/install.sh`
+- Ubuntu one-command: `sudo bash install/4-ubuntu-one-command/setup.sh`
+- Kubernetes / OpenShift: `bash install/5-kubernetes/install.sh …` (same options as before)
+- Podman: `sudo bash install/6-podman/install.sh`
+- macOS: `sudo bash install/7-macos/install.sh`
+- FreeBSD: `sh install/9-freebsd/install.sh`
+- Cloud (type 8): build and push the new image, then point the service at the new tag
+
+With an external database, back it up with its own tools first (`DATABASES.md`).
+
+**By hand with Docker:**
 
 1. Back up: `docker compose exec examflow node server/src/cli.js backup`
 2. Unzip the new package **next to** the old one, and copy your `.env` into it.

@@ -209,7 +209,8 @@ function boot(env = process.env) {
   const pkg = readPackage(config.packageDir);
   if (!pkg.ok) { const e = new Error('Package check failed:\n  - ' + pkg.errors.join('\n  - ')); e.exitCode = 3; throw e; }
   let db;
-  try { db = new DB(config.dataDir); } catch (e) { const x = new Error('Database problem: ' + e.message); x.exitCode = 4; throw x; }
+  try { db = new DB(config.dataDir, config.db); } catch (e) { const x = new Error('Database problem: ' + e.message); x.exitCode = 4; throw x; }
+  for (const w of db.warnings) log('warning:', w);
   try {
     const r = applyPackage(db, pkg, { allowDowngrade: config.allowDowngrade });
     if (r.applied) log(`Teacher list version ${pkg.manifest.allowlist.version} applied: ${r.added} added, ${r.removed} removed, ${r.total} in total.`);
@@ -218,13 +219,13 @@ function boot(env = process.env) {
 }
 
 if (require.main === module) {
-  loadDotEnv(path.resolve(process.cwd(), '.env'));
+  loadDotEnv(process.env.EXAMFLOW_ENV_FILE || path.resolve(process.cwd(), '.env'));
   let parts;
   try { parts = boot(); } catch (e) { console.error('ExamFlow server did not start.\n' + e.message); process.exit(e.exitCode || 1); }
   const app = createApp(parts);
   app.licence.start();
   const srv = http.createServer((q, s) => { app.handle(q, s); });
-  srv.listen(parts.config.port, parts.config.host, () => log(`ExamFlow institution server ${SERVER_VERSION} for ${parts.pkg.manifest.institution.name} (${parts.pkg.manifest.institution.id}) on port ${parts.config.port}. Data: ${parts.config.dataDir}`));
+  srv.listen(parts.config.port, parts.config.host, () => log(`ExamFlow institution server ${SERVER_VERSION} for ${parts.pkg.manifest.institution.name} (${parts.pkg.manifest.institution.id}) on port ${parts.config.port}. Data: ${parts.config.dataDir}. Database: ${parts.db.describe()}`));
   const stop = () => { log('stopping'); srv.close(); app.licence.stop(); parts.db.close(); process.exit(0); };
   process.on('SIGTERM', stop); process.on('SIGINT', stop);
 }

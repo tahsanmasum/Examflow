@@ -58,15 +58,14 @@ class Sync {
     if (errs.length) throw new Error('The teacher list from GHUM was refused: ' + errs.slice(0, 3).join('; '));
     const v = Number(al.version);
     this.db.tx(() => {
-      const before = new Map(this.db.db.prepare('SELECT teacher_id, email FROM allowlist').all().map(r => [r.teacher_id, r.email]));
-      this.db.db.prepare('DELETE FROM allowlist').run();
-      const ins = this.db.db.prepare('INSERT INTO allowlist (teacher_id, email, name, version) VALUES (?, ?, ?, ?)');
+      const before = new Map(this.db.all('allowlist.pairs').map(r => [r.teacher_id, r.email]));
+      this.db.run('allowlist.clear');
+      const ins = { run: (...a) => this.db.run('allowlist.insert', ...a) };
       const now = new Set(); let added = 0;
       for (const t of al.teachers) { ins.run(t.teacherId, normEmail(t.email), t.name || null, v); now.add(t.teacherId); if (!before.has(t.teacherId)) added++; }
       let removed = 0; for (const k of before.keys()) if (!now.has(k)) removed++;
       this.db.setMeta('allowlist_version', v);
-      this.db.db.prepare('INSERT INTO allowlist_history (t, package_id, package_version, list_version, added, removed, total) VALUES (?, ?, ?, ?, ?, ?, ?)')
-        .run(Date.now(), 'sync', null, v, added, removed, now.size);
+      this.db.run('allowHistory.insert', Date.now(), 'sync', null, v, added, removed, now.size);
       this.db.audit('ghum', 'allowlist.sync', String(v), 'ok', { added, removed, total: now.size });
     });
     this.log(`Teacher list version ${v} received from GHUM.`);
@@ -75,10 +74,10 @@ class Sync {
   report() {
     const c = this.config(); const receipts = {};
     if (c && c.messages) {
-      const teachers = this.db.db.prepare('SELECT email FROM allowlist').all().map(r => r.email);
+      const teachers = this.db.all('allowlist.emails').map(r => r.email);
       for (const m of c.messages) {
         const to = m.to === 'all' ? teachers : (m.to || []).filter(e => teachers.includes(e));
-        const rows = this.db.db.prepare('SELECT delivered_at, read_at FROM inbox WHERE msg_id = ?').all(m.id);
+        const rows = this.db.all('inbox.byMsg', m.id);
         receipts[m.id] = { recipients: to.length, delivered: rows.filter(r => r.delivered_at).length, read: rows.filter(r => r.read_at).length };
       }
     }
@@ -92,8 +91,8 @@ class Sync {
       announcements: (c.announcements || []).filter(a => !a.endAt || a.endAt > now) };
     if (email) {
       const msgs = (c.messages || []).filter(m => (m.to === 'all' || (m.to || []).includes(email)) && (!m.visibleFrom || m.visibleFrom <= now) && (!m.expiresAt || m.expiresAt > now));
-      const sel = this.db.db.prepare('SELECT delivered_at, read_at, archived_at FROM inbox WHERE msg_id = ? AND email = ?');
-      const up = this.db.db.prepare('INSERT INTO inbox (msg_id, email, delivered_at) VALUES (?, ?, ?) ON CONFLICT(msg_id, email) DO NOTHING');
+      const sel = { get: (...a) => this.db.one('inbox.get', ...a) };
+      const up = { run: (...a) => this.db.run('inbox.ensure', ...a) };
       out.inbox = msgs.map(m => { let r = sel.get(m.id, email); if (!r) { up.run(m.id, email, now); r = { delivered_at: now }; }
         return { id: m.id, subject: m.subject, body: m.body, link: m.link || null, priority: m.priority, sentAt: m.sentAt, from: 'ExamFlow', readAt: r.read_at || null, archivedAt: r.archived_at || null }; })
         .sort((a, b) => b.sentAt - a.sentAt);
@@ -104,10 +103,10 @@ class Sync {
   mark(email, id, action, now = Date.now()) {
     const c = this.config() || {}; const m = (c.messages || []).find(x => x.id === id);
     if (!m || !(m.to === 'all' || (m.to || []).includes(email))) return false;
-    this.db.db.prepare('INSERT INTO inbox (msg_id, email, delivered_at) VALUES (?, ?, ?) ON CONFLICT(msg_id, email) DO NOTHING').run(id, email, now);
-    if (action === 'read') this.db.db.prepare('UPDATE inbox SET read_at = COALESCE(read_at, ?) WHERE msg_id = ? AND email = ?').run(now, id, email);
-    else if (action === 'archive') this.db.db.prepare('UPDATE inbox SET archived_at = ?, read_at = COALESCE(read_at, ?) WHERE msg_id = ? AND email = ?').run(now, now, id, email);
-    else if (action === 'unarchive') this.db.db.prepare('UPDATE inbox SET archived_at = NULL WHERE msg_id = ? AND email = ?').run(id, email);
+    this.db.run('inbox.ensure', id, email, now);
+    if (action === 'read') this.db.run('inbox.read', now, id, email);
+    else if (action === 'archive') this.db.run('inbox.archive', now, now, id, email);
+    else if (action === 'unarchive') this.db.run('inbox.unarchive', id, email);
     return true;
   }
 }
